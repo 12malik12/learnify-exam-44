@@ -1,10 +1,13 @@
+
 import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, BarChart3, Clock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/context/LanguageContext";
 
 const Hero = () => {
   const statsRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
   
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -50,28 +53,27 @@ const Hero = () => {
       <div className="container px-4 md:px-6">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="inline-flex animate-fade-down items-center rounded-full bg-ethiopia-green/5 px-3 py-1 text-sm font-medium text-ethiopia-green">
-            <span className="sm:hidden">New platform for students</span>
-            <span className="hidden sm:inline">The first Ethiopian national exam preparation platform</span>
+            <span className="sm:hidden">{t("home.hero.new.short")}</span>
+            <span className="hidden sm:inline">{t("home.hero.new")}</span>
           </div>
           
           <h1 className="animate-fade-up text-balance font-bold tracking-tighter text-4xl md:text-5xl lg:text-6xl">
-            Prepare for Your Future<br />
+            {t("home.hero.title")}<br />
             <span className="bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent">
-              One Exam at a Time
+              {t("app.slogan")}
             </span>
           </h1>
           
           <p className="max-w-[600px] animate-fade-up text-muted-foreground md:text-lg/relaxed lg:text-xl/relaxed">
-            The ultimate exam preparation app for Ethiopian 12th-grade students. 
-            Practice with past papers, track your progress, and excel in your national exams.
+            {t("home.hero.subtitle")}
           </p>
           
           <div className="mt-2 flex animate-fade-up flex-wrap gap-4">
             <Button asChild size="lg" className="animate-shimmer">
-              <Link to="/subjects">Start Studying <ArrowRight className="ml-2 size-4" /></Link>
+              <Link to="/subjects">{t("home.hero.start")} <ArrowRight className="ml-2 size-4" /></Link>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link to="/exam">Try Mock Exams</Link>
+              <Link to="/exam">{t("home.hero.tryExams")}</Link>
             </Button>
           </div>
         </div>

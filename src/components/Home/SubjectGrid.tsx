@@ -3,10 +3,12 @@ import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { subjects } from "@/utils/subjects";
 import { ChevronRight } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 const SubjectGrid = () => {
   const navigate = useNavigate();
   const gridRef = useRef<HTMLDivElement>(null);
+  const { t, language } = useLanguage();
   
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -41,11 +43,10 @@ const SubjectGrid = () => {
       <div className="container px-4 md:px-6">
         <div className="flex flex-col items-center text-center mb-10 md:mb-16">
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Explore Subjects
+            {t("home.subjects.title")}
           </h2>
           <p className="mt-4 max-w-[700px] text-muted-foreground md:text-lg">
-            Choose from a variety of subjects covered in the Ethiopian national exam curriculum. 
-            Each subject includes comprehensive study materials and practice questions.
+            {t("home.subjects.subtitle")}
           </p>
         </div>
 
@@ -61,19 +62,18 @@ const SubjectGrid = () => {
             >
               <div className={`${subject.color} p-4`}>
                 <span className="text-4xl">{subject.icon}</span>
-                <h3 className="mt-2 text-lg font-semibold">{subject.name}</h3>
-                {subject.nameAm && (
-                  <p className="text-sm opacity-75">{subject.nameAm}</p>
-                )}
+                <h3 className="mt-2 text-lg font-semibold">
+                  {language === "en" ? subject.name : subject.nameAm || subject.name}
+                </h3>
               </div>
               <div className="flex flex-1 flex-col justify-between p-4">
                 <p className="text-sm text-muted-foreground line-clamp-2">
                   {subject.description}
                 </p>
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{subject.numQuestions} questions</span>
+                  <span>{subject.numQuestions} {t("home.subjects.questions")}</span>
                   <div className="flex items-center text-primary hover:underline">
-                    <span>Study</span>
+                    <span>{t("home.subjects.study")}</span>
                     <ChevronRight className="size-4 ml-1" />
                   </div>
                 </div>
