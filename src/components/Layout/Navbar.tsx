@@ -26,6 +26,11 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    closeMenu();
+  }, [location.pathname]);
+
   const navItems = [
     { name: "Home", path: "/", icon: <Home className="size-4" /> },
     { name: "Subjects", path: "/subjects", icon: <Book className="size-4" /> },
