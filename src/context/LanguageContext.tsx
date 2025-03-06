@@ -1,170 +1,220 @@
-
-import React, { createContext, useContext, useState, useEffect } from "react";
-
-type Language = "en" | "am";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 
 interface LanguageContextType {
-  language: Language;
+  language: "en" | "am";
   toggleLanguage: () => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: { [key: string]: string | number }) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   language: "en",
   toggleLanguage: () => {},
-  t: (key) => key,
+  t: (key: string) => key,
 });
 
 export const useLanguage = () => useContext(LanguageContext);
 
-// Translations
-const translations: Record<Language, Record<string, string>> = {
-  en: {
-    // Common
-    "app.name": "Learnify Ethiopia",
-    "app.name.short": "Learnify",
-    "app.slogan": "One Exam at a Time",
+export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [language, setLanguage] = useState<"en" | "am">("en");
 
-    // Navigation
-    "nav.home": "Home",
-    "nav.subjects": "Subjects",
-    "nav.exams": "Exams",
-    "nav.profile": "Profile",
-
-    // Home page
-    "home.hero.title": "Prepare for Your Future",
-    "home.hero.subtitle": "The ultimate exam preparation app for Ethiopian 12th-grade students. Practice with past papers, track your progress, and excel in your national exams.",
-    "home.hero.start": "Start Studying",
-    "home.hero.tryExams": "Try Mock Exams",
-    "home.hero.new": "The first Ethiopian national exam preparation platform",
-    "home.hero.new.short": "New platform for students",
-    "home.subjects.title": "Explore Subjects",
-    "home.subjects.subtitle": "Choose from a variety of subjects covered in the Ethiopian national exam curriculum. Each subject includes comprehensive study materials and practice questions.",
-    "home.subjects.study": "Study",
-    "home.subjects.questions": "questions",
-    "home.features.title": "Why Choose Learnify Ethiopia?",
-    "home.features.subtitle": "Our app provides everything you need to excel in your national exams. Study smarter, not harder with our comprehensive features.",
-    "home.cta.title": "Ready to start your exam preparation journey?",
-    "home.cta.subtitle": "Begin studying today and take the first step towards achieving excellence in your national exams. Our comprehensive platform is designed to help you succeed.",
-    "home.cta.browse": "Browse Subjects",
-    "home.cta.take": "Take a Mock Exam",
-
-    // Features section
-    "feature.ai.title": "AI-Powered Learning",
-    "feature.ai.description": "Get personalized study recommendations and adaptive quizzes based on your performance.",
-    "feature.analytics.title": "Comprehensive Analytics",
-    "feature.analytics.description": "Track your progress and identify areas for improvement with detailed performance insights.",
-    "feature.offline.title": "Offline Access",
-    "feature.offline.description": "Study anywhere, anytime, even without an internet connection with our offline mode.",
-    "feature.questions.title": "Past Exam Questions",
-    "feature.questions.description": "Practice with real national exam questions from previous years to build confidence.",
-    "feature.time.title": "Time Management",
-    "feature.time.description": "Learn to manage your time effectively with timed mock exams that simulate the real test.",
-    "feature.language.title": "Multi-Language Support",
-    "feature.language.description": "Study in both Amharic and English to improve your understanding of concepts.",
-
-    // Subjects page
-    "subjects.title": "Browse Study Materials",
-    "subjects.subtitle": "Choose a subject to start learning and prepare for your exams with comprehensive study materials.",
-    "subjects.search": "Search subjects...",
-    "subjects.none": "No subjects found matching",
-    "subjects.lessons": "lessons",
-    "subjects.studyNow": "Study now",
-    "subjects.progress": "Progress",
-    
-    // Footer
-    "footer.resources": "Resources",
-    "footer.about": "About Us",
-    "footer.contact": "Contact",
-    "footer.privacy": "Privacy Policy",
-    "footer.company": "Company",
-    "footer.materials": "Study Materials",
-    "footer.copyright": "All rights reserved.",
-    "footer.description": "Helping Ethiopian students prepare for their national exams with personalized study resources, mock exams, and performance tracking.",
-  },
-  am: {
-    // Common
-    "app.name": "ለርኒፋይ ኢትዮጵያ",
-    "app.name.short": "ለርኒፋይ",
-    "app.slogan": "በእያንዳንዱ ፈተና አንድ በአንድ",
-
-    // Navigation
-    "nav.home": "መነሻ",
-    "nav.subjects": "ትምህርቶች",
-    "nav.exams": "ፈተናዎች",
-    "nav.profile": "መገለጫ",
-
-    // Home page
-    "home.hero.title": "ለወደፊት ራስዎን ያዘጋጁ",
-    "home.hero.subtitle": "ለኢትዮጵያ 12ኛ ክፍል ተማሪዎች የተሟላ የፈተና ዝግጅት መተግበሪያ። በቀድሞ ፈተናዎች ይለማመዱ፣ እድገትዎን ይከታተሉ እና በብሔራዊ ፈተናዎችዎ ይበልጡ።",
-    "home.hero.start": "መማር ይጀምሩ",
-    "home.hero.tryExams": "የሙከራ ፈተናዎችን ይሞክሩ",
-    "home.hero.new": "የመጀመሪያው የኢትዮጵያ ብሔራዊ ፈተና ዝግጁነት መድረክ",
-    "home.hero.new.short": "ለተማሪዎች አዲስ መድረክ",
-    "home.subjects.title": "ትምህርቶችን ያስሱ",
-    "home.subjects.subtitle": "በኢትዮጵያ ብሔራዊ ፈተና ሥርዓተ ትምህርት ውስጥ ከተካተቱት የተለያዩ ትምህርቶች ይምረጡ። እያንዳንዱ ትምህርት ሁሉን አቀፍ የጥናት ቁሳቁሶችን እና የልምምድ ጥያቄዎችን ያካትታል።",
-    "home.subjects.study": "ማጥናት",
-    "home.subjects.questions": "ጥያቄዎች",
-    "home.features.title": "ለምን ለርኒፋይ ኢትዮጵያን ይመርጣሉ?",
-    "home.features.subtitle": "የእኛ መተግበሪያ በብሔራዊ ፈተናዎችዎ ለመልካም ውጤት የሚያስፈልግዎትን ሁሉ ይሰጣል። ሰፊ ባህሪያችን ጋር በተሻለ ሁኔታ ይማሩ።",
-    "home.cta.title": "የፈተና ዝግጅት ጉዞዎን ለመጀመር ዝግጁ ነዎት?",
-    "home.cta.subtitle": "ዛሬ ማጥናት ይጀምሩ እና በብሔራዊ ፈተናዎችዎ ምርጥነትን ለማግኘት የመጀመሪያ እርምጃን ይውሰዱ። የእኛ ሁሉን አቀፍ መድረክ እርስዎ እንዲሳኩ ለማገዝ የተነደፈ ነው።",
-    "home.cta.browse": "ትምህርቶችን ያስሱ",
-    "home.cta.take": "የሙከራ ፈተና ይውሰዱ",
-
-    // Features section
-    "feature.ai.title": "በሰው ሰራሽ አእምሮ የተገነባ ትምህርት",
-    "feature.ai.description": "በአፈጻጸምዎ ላይ የተመሠረተ ግላዊ የጥናት ምክሮችን እና ተስማሚ ጥያቄዎችን ያግኙ።",
-    "feature.analytics.title": "ሁሉን አቀፍ ትንታኔዎች",
-    "feature.analytics.description": "እድገትዎን ይከታተሉ እና ዝርዝር የአፈጻጸም ግንዛቤዎች ጋር ለማሻሻል የሚያስፈልጉ አካባቢዎችን ይለዩ።",
-    "feature.offline.title": "ከመስመር ውጪ መዳረሻ",
-    "feature.offline.description": "በኦፍላይን ሁነታችን ጋር ምንም ኢንተርኔት ባይኖርም ቢሆን በማንኛውም ቦታ፣ በማንኛውም ጊዜ ይማሩ።",
-    "feature.questions.title": "የቀድሞ ፈተና ጥያቄዎች",
-    "feature.questions.description": "ከቀድሞ ዓመታት ትክክለኛ ብሔራዊ ፈተና ጥያቄዎች ጋር ይለማመዱ እና የራስ እምነት ይገንቡ።",
-    "feature.time.title": "የጊዜ አያያዝ",
-    "feature.time.description": "እውነተኛውን ፈተና የሚመስሉ በሰዓት የተወሰኑ የሙከራ ፈተናዎች ጋር ጊዜዎን በውጤታማነት ለማስተዳደር ይማሩ።",
-    "feature.language.title": "ባለብዙ ቋንቋ ድጋፍ",
-    "feature.language.description": "በአማርኛ እና በእንግሊዝኛ ሁለቱንም ይማሩ እና የፅንሰ ሃሳቦችን ግንዛቤዎን ያሻሽሉ።",
-
-    // Subjects page
-    "subjects.title": "የጥናት ቁሳቁሶችን ያስሱ",
-    "subjects.subtitle": "መማር ለመጀመር እና ለፈተናዎችዎ ከሁሉን አቀፍ የጥናት ቁሳቁሶች ጋር ለመዘጋጀት ትምህርት ይምረጡ።",
-    "subjects.search": "ትምህርቶችን ይፈልጉ...",
-    "subjects.none": "ምንም ትምህርቶች አልተገኙም",
-    "subjects.lessons": "ትምህርቶች",
-    "subjects.studyNow": "አሁን ያጥኑ",
-    "subjects.progress": "እድገት",
-    
-    // Footer
-    "footer.resources": "ግብዓቶች",
-    "footer.about": "ስለ እኛ",
-    "footer.contact": "ያግኙን",
-    "footer.privacy": "የግላዊነት ፖሊሲ",
-    "footer.company": "ኩባንያ",
-    "footer.materials": "የጥናት ቁሳቁሶች",
-    "footer.copyright": "መብቱ በህግ የተጠበቀ ነው።",
-    "footer.description": "ኢትዮጵያውያን ተማሪዎች ለብሔራዊ ፈተናቸው በግላዊ የጥናት ግብዓቶች፣ የሙከራ ፈተናዎች እና የአፈጻጸም ክትትል እንዲዘጋጁ እየረዳን ነው።",
-  }
-};
-
-export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    // Try to get the language from localStorage
-    const savedLanguage = localStorage.getItem("language") as Language;
-    return savedLanguage || "en";
-  });
-
-  // Update localStorage when language changes
   useEffect(() => {
-    localStorage.setItem("language", language);
+    const storedLanguage = localStorage.getItem("language");
+    if (storedLanguage) {
+      setLanguage(storedLanguage === "am" ? "am" : "en");
+    }
+  }, []);
+
+  const toggleLanguage = useCallback(() => {
+    setLanguage((prev) => (prev === "en" ? "am" : "en"));
+    localStorage.setItem("language", language === "en" ? "am" : "en");
   }, [language]);
 
-  const toggleLanguage = () => {
-    setLanguage((prev) => (prev === "en" ? "am" : "en"));
+  const translations = {
+    en: {
+      "app.slogan": "The Future of Education",
+      "home.hero.new": "New: AI-Powered Learning Platform",
+      "home.hero.new.short": "New!",
+      "home.hero.title": "Unlock Your Potential",
+      "home.hero.subtitle":
+        "Revolutionary platform that makes learning easy and fun. Start your journey today!",
+      "home.hero.start": "Get Started",
+      "home.hero.tryExams": "Try Mock Exams",
+      "subjects.title": "Explore Subjects",
+      "subjects.search": "Search for subjects...",
+      "subjects.card.lessons": "Lessons",
+      "subjects.card.practice": "Practice",
+      "subjects.card.exams": "Exams",
+      "exam.title": "Mock Exams",
+      "exam.description":
+        "Test your knowledge and track your progress with realistic exams based on past national exam questions.",
+      "profile.title": "Your Profile",
+      "profile.edit": "Edit Profile",
+      "profile.logout": "Logout",
+      "profile.name": "Name",
+      "profile.email": "Email",
+      "profile.update": "Update Profile",
+      "performance.title": "Performance Analysis",
+      "performance.heading": "Track Your Progress",
+      "performance.subtitle":
+        "Analyze your exam results and identify weak areas to improve your score.",
+      "performance.tabs.overview": "Overview",
+      "performance.tabs.subjects": "Subjects",
+      "performance.tabs.recommendations": "Recommendations",
+      "performance.stats.totalExams": "Total Exams",
+      "performance.stats.examsTaken": "exams taken",
+      "performance.stats.averageScore": "Average Score",
+      "performance.stats.acrossAllExams": "across all exams",
+      "performance.stats.highestScore": "Highest Score",
+      "performance.stats.bestPerformance": "best performance",
+      "performance.stats.recentTrend": "Recent Trend",
+      "performance.stats.comparedToLast": "compared to last exam",
+      "performance.charts.examHistory": "Exam History",
+      "performance.charts.score": "Score",
+      "performance.charts.subjectDistribution": "Subject Distribution",
+      "performance.charts.exams": "Exams",
+      "performance.noData": "No data available",
+      "performance.noExams": "No exams taken yet",
+      "performance.recentExams.title": "Recent Exams",
+      "performance.subjectAnalysis.selectSubject": "Select Subject",
+      "performance.subjectAnalysis.selectPlaceholder": "Select a subject",
+      "performance.subjectAnalysis.examsCompleted": "Exams Completed",
+      "performance.subjectAnalysis.averagePerformance": "Average Performance",
+      "performance.subjectAnalysis.highestScore": "Highest Score",
+      "performance.subjectAnalysis.lowestScore": "Lowest Score",
+      "performance.subjectAnalysis.progress": "Subject Progress",
+      "performance.subjectAnalysis.completionRate": "Completion Rate",
+      "performance.subjectAnalysis.performanceTrend": "Performance Trend",
+      "performance.subjectAnalysis.noExams": "No exams taken for this subject",
+      "performance.subjectAnalysis.subjectComparison": "Subject Comparison",
+      "performance.recommendations.title": "Study Recommendations",
+      "performance.recommendations.subtitle":
+        "Personalized recommendations to improve your score.",
+      "performance.recommendations.priority": "Priority",
+      "performance.recommendations.weakSubject.title":
+        "Focus on {subject}",
+      "performance.recommendations.weakSubject.description":
+        "{subject} is your weakest subject with a score of {score}%.",
+      "performance.recommendations.weakSubject.action": "Practice {subject}",
+      "performance.recommendations.improvementNeeded.title":
+        "{subject} Needs Improvement",
+      "performance.recommendations.improvementNeeded.description":
+        "Your score in {subject} is {score}%. More practice needed.",
+      "performance.recommendations.improvementNeeded.action":
+        "Review {subject} Lessons",
+      "performance.recommendations.regularPractice.title": "Regular Practice",
+      "performance.recommendations.regularPractice.description":
+        "Consistent practice is key to success. Take mock exams regularly.",
+      "performance.recommendations.regularPractice.action": "Start an Exam",
+      "performance.recommendations.allSubjects.title": "Study All Subjects",
+      "performance.recommendations.allSubjects.description":
+        "Ensure comprehensive preparation by studying all subjects.",
+      "performance.recommendations.allSubjects.action": "Explore Subjects",
+      "performance.recommendations.mastery.title": "Mastery Achieved",
+      "performance.recommendations.mastery.description":
+        "Congratulations! You have shown mastery in all subjects.",
+      "performance.recommendations.mastery.action": "Revise All Topics",
+    },
+    am: {
+      "app.slogan": "የወደፊቱ ትምህርት",
+      "home.hero.new": "አዲስ: በ AI የተጎላበተ የትምህርት መድረክ",
+      "home.hero.new.short": "አዲስ!",
+      "home.hero.title": "ችሎታህን ክፈት",
+      "home.hero.subtitle":
+        "አስተማሪ መድረክ ትምህርትን ቀላል እና አዝናኝ ያደርገዋል። ጉዞዎን ዛሬ ይጀምሩ!",
+      "home.hero.start": "ይጀምሩ",
+      "home.hero.tryExams": "የሙክ ፈተናዎችን ይሞክሩ",
+      "subjects.title": "ትምህርቶችን ያስሱ",
+      "subjects.search": "ትምህርቶችን ይፈልጉ...",
+      "subjects.card.lessons": "ትምህርቶች",
+      "subjects.card.practice": "ልምምድ",
+      "subjects.card.exams": "ፈተናዎች",
+      "exam.title": "የሙክ ፈተናዎች",
+      "exam.description":
+        "እውቀትዎን ይፈትሹ እና በእውነተኛ ፈተናዎች አማካኝነት እድገትዎን ይከታተሉ።",
+      "profile.title": "የእርስዎ መገለጫ",
+      "profile.edit": "መገለጫን ያርትዑ",
+      "profile.logout": "ውጣ",
+      "profile.name": "ስም",
+      "profile.email": "ኢሜይል",
+      "profile.update": "መገለጫን ያዘምኑ",
+      "performance.title": "የአፈጻጸም ትንተና",
+      "performance.heading": "እድገትዎን ይከታተሉ",
+      "performance.subtitle":
+        "የፈተና ውጤቶችዎን ይተንትኑ እና ውጤትዎን ለማሻሻል ደካማ ቦታዎችን ይለዩ።",
+      "performance.tabs.overview": "አጠቃላይ እይታ",
+      "performance.tabs.subjects": "ትምህርቶች",
+      "performance.tabs.recommendations": "ምክሮች",
+      "performance.stats.totalExams": "ጠቅላላ ፈተናዎች",
+      "performance.stats.examsTaken": "የተወሰዱ ፈተናዎች",
+      "performance.stats.averageScore": "አማካይ ውጤት",
+      "performance.stats.acrossAllExams": "በሁሉም ፈተናዎች ላይ",
+      "performance.stats.highestScore": "ከፍተኛ ውጤት",
+      "performance.stats.bestPerformance": "ምርጥ አፈጻጸም",
+      "performance.stats.recentTrend": "የቅርብ ጊዜ አዝማሚያ",
+      "performance.stats.comparedToLast": "ካለፈው ፈተና ጋር ሲነጻጸር",
+      "performance.charts.examHistory": "የፈተና ታሪክ",
+      "performance.charts.score": "ውጤት",
+      "performance.charts.subjectDistribution": "የትምህርት ስርጭት",
+      "performance.charts.exams": "ፈተናዎች",
+      "performance.noData": "ምንም መረጃ የለም",
+      "performance.noExams": "እስካሁን ምንም ፈተናዎች አልተወሰዱም",
+      "performance.recentExams.title": "የቅርብ ጊዜ ፈተናዎች",
+      "performance.subjectAnalysis.selectSubject": "ትምህርት ይምረጡ",
+      "performance.subjectAnalysis.selectPlaceholder": "ትምህርት ይምረጡ",
+      "performance.subjectAnalysis.examsCompleted": "የተጠናቀቁ ፈተናዎች",
+      "performance.subjectAnalysis.averagePerformance": "አማካይ አፈጻጸም",
+      "performance.subjectAnalysis.highestScore": "ከፍተኛ ውጤት",
+      "performance.subjectAnalysis.lowestScore": "ዝቅተኛ ውጤት",
+      "performance.subjectAnalysis.progress": "የትምህርት እድገት",
+      "performance.subjectAnalysis.completionRate": "የማጠናቀቂያ መጠን",
+      "performance.subjectAnalysis.performanceTrend": "የአፈጻጸም አዝማሚያ",
+      "performance.subjectAnalysis.noExams": "ለዚህ ትምህርት ምንም ፈተናዎች አልተወሰዱም",
+      "performance.subjectAnalysis.subjectComparison": "የትምህርት ንጽጽር",
+      "performance.recommendations.title": "የጥናት ምክሮች",
+      "performance.recommendations.subtitle":
+        "ውጤትዎን ለማሻሻል ለግል የተበጁ ምክሮች።",
+      "performance.recommendations.priority": "ቅድሚያ",
+      "performance.recommendations.weakSubject.title": "በ {subject} ላይ ያተኩሩ",
+      "performance.recommendations.weakSubject.description":
+        "{subject} የ {score}% ውጤት ጋር በጣም ደካማ ርዕሰ ጉዳይዎ ነው።",
+      "performance.recommendations.weakSubject.action": "{subject} ን ይለማመዱ",
+      "performance.recommendations.improvementNeeded.title":
+        "{subject} መሻሻል ያስፈልገዋል",
+      "performance.recommendations.improvementNeeded.description":
+        "በ {subject} ውስጥ ያገኙት ውጤት {score}% ነው። ተጨማሪ ልምምድ ያስፈልጋል።",
+      "performance.recommendations.improvementNeeded.action":
+        "{subject} ትምህርቶችን ይገምግሙ",
+      "performance.recommendations.regularPractice.title": "መደበኛ ልምምድ",
+      "performance.recommendations.regularPractice.description":
+        "ያለማቋረጥ መለማመድ ለስኬት ቁልፍ ነው። የሙክ ፈተናዎችን አዘውትረው ይውሰዱ።",
+      "performance.recommendations.regularPractice.action": "ፈተና ይጀምሩ",
+      "performance.recommendations.allSubjects.title": "ሁሉንም ትምህርቶች ያጠኑ",
+      "performance.recommendations.allSubjects.description":
+        "ሁሉንም ትምህርቶች በማጥናት አጠቃላይ ዝግጅትዎን ያረጋግጡ።",
+      "performance.recommendations.allSubjects.action": "ትምህርቶችን ያስሱ",
+      "performance.recommendations.mastery.title": "ብቃት ተገኝቷል",
+      "performance.recommendations.mastery.description":
+        "እንኳን ደስ አለዎት! በሁሉም ትምህርቶች ውስጥ ብቃት አሳይተዋል።",
+      "performance.recommendations.mastery.action": "ሁሉንም ርዕሶች ይከልሱ",
+    },
   };
 
-  const t = (key: string): string => {
-    return translations[language][key] || key;
+  const t = (key: string, vars: { [key: string]: string | number } = {}) => {
+    let translation = translations[language][key] || key;
+
+    for (const varKey in vars) {
+      translation = translation.replace(`{${varKey}}`, String(vars[varKey]));
+    }
+
+    return translation;
   };
 
   return (
