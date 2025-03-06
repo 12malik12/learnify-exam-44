@@ -4,11 +4,14 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X, Book, User, Home, Notebook, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const { t } = useLanguage();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -32,10 +35,10 @@ const Navbar = () => {
   }, [location.pathname]);
 
   const navItems = [
-    { name: "Home", path: "/", icon: <Home className="size-4" /> },
-    { name: "Subjects", path: "/subjects", icon: <Book className="size-4" /> },
-    { name: "Exams", path: "/exam", icon: <Notebook className="size-4" /> },
-    { name: "Profile", path: "/profile", icon: <User className="size-4" /> },
+    { name: t("nav.home"), path: "/", icon: <Home className="size-4" /> },
+    { name: t("nav.subjects"), path: "/subjects", icon: <Book className="size-4" /> },
+    { name: t("nav.exams"), path: "/exam", icon: <Notebook className="size-4" /> },
+    { name: t("nav.profile"), path: "/profile", icon: <User className="size-4" /> },
   ];
 
   return (
@@ -52,8 +55,8 @@ const Navbar = () => {
           onClick={closeMenu}
         >
           <Award className="size-6 text-ethiopia-green" />
-          <span className="hidden sm:inline">Learnify Ethiopia</span>
-          <span className="inline sm:hidden">Learnify</span>
+          <span className="hidden sm:inline">{t("app.name")}</span>
+          <span className="inline sm:hidden">{t("app.name.short")}</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -73,18 +76,22 @@ const Navbar = () => {
               {item.name}
             </Link>
           ))}
+          <LanguageSwitcher />
         </nav>
 
         {/* Mobile menu button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleMenu}
-          className="md:hidden"
-          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-        >
-          {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </Button>
+        <div className="flex items-center gap-2 md:hidden">
+          <LanguageSwitcher />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMenu}
+            className="md:hidden"
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+          >
+            {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </Button>
+        </div>
 
         {/* Mobile Navigation Overlay */}
         {isMenuOpen && (
@@ -93,7 +100,7 @@ const Navbar = () => {
               <div className="flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2 font-bold text-xl" onClick={closeMenu}>
                   <Award className="size-6 text-ethiopia-green" />
-                  <span>Learnify Ethiopia</span>
+                  <span>{t("app.name")}</span>
                 </Link>
                 <Button
                   variant="ghost"

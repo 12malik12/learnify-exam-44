@@ -2,60 +2,63 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Award, Github, Instagram, Twitter } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 const Footer = () => {
+  const { t } = useLanguage();
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="w-full bg-secondary py-8 md:py-12">
       <div className="container grid gap-8 px-4 md:px-6 lg:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Link to="/" className="flex items-center gap-2">
             <Award className="size-5 text-ethiopia-green" />
-            <span className="font-semibold">Learnify Ethiopia</span>
+            <span className="font-semibold">{t("app.name")}</span>
           </Link>
           <p className="text-sm text-muted-foreground max-w-md">
-            Helping Ethiopian students prepare for their national exams with personalized
-            study resources, mock exams, and performance tracking.
+            {t("footer.description")}
           </p>
         </div>
         
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-2 md:gap-6 lg:col-span-2">
           <div>
-            <h3 className="mb-3 text-sm font-medium">Resources</h3>
+            <h3 className="mb-3 text-sm font-medium">{t("footer.resources")}</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link to="/subjects" className="hover:text-foreground">
-                  Subjects
+                  {t("nav.subjects")}
                 </Link>
               </li>
               <li>
                 <Link to="/exam" className="hover:text-foreground">
-                  Mock Exams
+                  {t("nav.exams")}
                 </Link>
               </li>
               <li>
                 <Link to="#" className="hover:text-foreground">
-                  Study Materials
+                  {t("footer.materials")}
                 </Link>
               </li>
             </ul>
           </div>
           
           <div>
-            <h3 className="mb-3 text-sm font-medium">Company</h3>
+            <h3 className="mb-3 text-sm font-medium">{t("footer.company")}</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link to="#" className="hover:text-foreground">
-                  About Us
+                  {t("footer.about")}
                 </Link>
               </li>
               <li>
                 <Link to="#" className="hover:text-foreground">
-                  Contact
+                  {t("footer.contact")}
                 </Link>
               </li>
               <li>
                 <Link to="#" className="hover:text-foreground">
-                  Privacy Policy
+                  {t("footer.privacy")}
                 </Link>
               </li>
             </ul>
@@ -66,7 +69,7 @@ const Footer = () => {
       <div className="container mt-8 border-t border-border pt-8 px-4 md:px-6">
         <div className="flex flex-col items-center justify-between gap-4 md:h-14 md:flex-row">
           <p className="text-center text-sm text-muted-foreground md:text-left">
-            © {new Date().getFullYear()} Learnify Ethiopia. All rights reserved.
+            © {currentYear} {t("app.name")}. {t("footer.copyright")}
           </p>
           <div className="flex items-center space-x-4">
             <Link

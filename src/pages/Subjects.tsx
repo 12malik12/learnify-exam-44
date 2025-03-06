@@ -7,10 +7,12 @@ import { subjects } from "@/utils/subjects";
 import { Card } from "@/components/ui/card";
 import { Search, BookOpen, ChevronRight } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 const Subjects = () => {
   const navigate = useNavigate();
   const { subjectProgress } = useAppContext();
+  const { t, language } = useLanguage();
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredSubjects, setFilteredSubjects] = useState(subjects);
 
@@ -39,16 +41,15 @@ const Subjects = () => {
             <div className="flex flex-col items-center text-center">
               <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-4">
                 <BookOpen className="mr-1 size-3.5" />
-                <span>All Subjects</span>
+                <span>{t("nav.subjects")}</span>
               </div>
               
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
-                Browse Study Materials
+                {t("subjects.title")}
               </h1>
               
               <p className="max-w-[700px] text-muted-foreground md:text-lg">
-                Choose a subject to start learning and prepare for your exams
-                with comprehensive study materials.
+                {t("subjects.subtitle")}
               </p>
               
               {/* Search bar */}
@@ -56,7 +57,7 @@ const Subjects = () => {
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Search subjects..."
+                  placeholder={t("subjects.search")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="h-10 w-full rounded-full border bg-background pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
@@ -80,7 +81,7 @@ const Subjects = () => {
                     <div className="flex justify-between items-start">
                       <span className="text-4xl">{subject.icon}</span>
                       <div className="flex flex-col items-end">
-                        <span className="text-xs">Progress</span>
+                        <span className="text-xs">{t("subjects.progress")}</span>
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-16 rounded-full bg-black/10">
                             <div
@@ -96,10 +97,7 @@ const Subjects = () => {
                         </div>
                       </div>
                     </div>
-                    <h3 className="mt-2 text-lg font-semibold">{subject.name}</h3>
-                    {subject.nameAm && (
-                      <p className="text-sm opacity-75">{subject.nameAm}</p>
-                    )}
+                    <h3 className="mt-2 text-lg font-semibold">{language === "en" ? subject.name : subject.nameAm || subject.name}</h3>
                   </div>
                   
                   <div>
@@ -109,10 +107,10 @@ const Subjects = () => {
                     
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {subject.numLessons} lessons
+                        {subject.numLessons} {t("subjects.lessons")}
                       </span>
                       <div className="flex items-center text-primary">
-                        <span>Study now</span>
+                        <span>{t("subjects.studyNow")}</span>
                         <ChevronRight className="size-4 ml-1" />
                       </div>
                     </div>
@@ -124,7 +122,7 @@ const Subjects = () => {
             {filteredSubjects.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12">
                 <p className="text-muted-foreground">
-                  No subjects found matching "{searchTerm}"
+                  {t("subjects.none")} "{searchTerm}"
                 </p>
               </div>
             )}
