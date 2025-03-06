@@ -6,7 +6,7 @@ import Hero from "@/components/Home/Hero";
 import SubjectGrid from "@/components/Home/SubjectGrid";
 import FeatureCard from "@/components/Home/FeatureCard";
 import { BrainCircuit, Sparkles, LayoutDashboard, BookOpen, Network, Clock } from "lucide-react";
-import { Button } from "@/components/UI/Button";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const Index = () => {

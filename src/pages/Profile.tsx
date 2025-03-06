@@ -2,8 +2,8 @@
 import React from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/UI/Card";
-import { Button } from "@/components/UI/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   BarChart3,
   Award,

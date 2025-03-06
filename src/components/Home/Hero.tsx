@@ -1,8 +1,7 @@
-
 import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, BarChart3, Clock, Award } from "lucide-react";
-import { Button } from "../UI/Button";
+import { Button } from "@/components/ui/button";
 
 const Hero = () => {
   const statsRef = useRef<HTMLDivElement>(null);

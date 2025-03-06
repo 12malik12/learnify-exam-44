@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { subjects } from "@/utils/subjects";
-import { Card } from "@/components/UI/Card";
+import { Card } from "@/components/ui/card";
 import { Search, BookOpen, ChevronRight } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 
