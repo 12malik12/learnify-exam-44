@@ -9,10 +9,24 @@ import { ArrowRight, BookOpen, Brain, Clock, AlertTriangle, BarChart } from "luc
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
+// Define proper types for recommendations
+interface Recommendation {
+  id: string;
+  type: "critical" | "improvement" | "general" | "mastery";
+  subject?: string;
+  subjectName?: string;
+  title: string;
+  description: string;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
+  action: string;
+  priority: number;
+  color: string;
+}
+
 const StudyRecommendations = () => {
   const { recentExams } = useAppContext();
   const { t } = useLanguage();
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +41,7 @@ const StudyRecommendations = () => {
 
   const generateRecommendations = () => {
     // Group exams by subject
-    const examsBySubject = {};
+    const examsBySubject: Record<string, typeof recentExams> = {};
     recentExams.forEach((exam) => {
       if (!examsBySubject[exam.subject]) {
         examsBySubject[exam.subject] = [];
@@ -36,7 +50,7 @@ const StudyRecommendations = () => {
     });
 
     // Calculate average scores by subject
-    const subjectScores = {};
+    const subjectScores: Record<string, number> = {};
     Object.entries(examsBySubject).forEach(([subjectId, exams]) => {
       const totalScore = exams.reduce(
         (acc, exam) => acc + (exam.score / exam.totalQuestions) * 100,
@@ -55,7 +69,7 @@ const StudyRecommendations = () => {
       }));
 
     // Generate recommendations based on performance
-    const newRecommendations = [];
+    const newRecommendations: Recommendation[] = [];
 
     // 1. Weak subjects that need immediate attention
     const weakSubjects = sortedSubjects.filter((s) => s.score < 60);
