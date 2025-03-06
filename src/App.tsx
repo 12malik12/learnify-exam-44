@@ -13,6 +13,7 @@ import Exam from "./pages/Exam";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import SplashScreen from "./components/Mobile/SplashScreen";
+import Performance from "./pages/Performance";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => {
                 <Route path="/subjects" element={<Subjects />} />
                 <Route path="/exam" element={<Exam />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/performance" element={<Performance />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
