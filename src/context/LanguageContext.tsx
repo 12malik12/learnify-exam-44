@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -134,7 +135,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       nav: {
         home: "Home",
         subjects: "Subjects",
-        exams: "Exams",
+        exam: "Exams",
         profile: "Profile",
         ai: "AI Assistant",
       },
@@ -285,7 +286,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       nav: {
         home: "መነሻ ገጽ",
         subjects: "ትምህርቶች",
-        exams: "ፈተናዎች",
+        exam: "ፈተናዎች",
         profile: "መገለጫ",
         ai: "የሰው ሰራሽ ማስተርጓሚ",
       },
@@ -306,14 +307,32 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
     },
   };
 
-  const t = (key: string, vars: { [key: string]: string | number } = {}) => {
-    let translation = translations[language][key] || key;
-
-    for (const varKey in vars) {
-      translation = translation.replace(`{${varKey}}`, String(vars[varKey]));
+  const t = (key: string, vars: { [key: string]: string | number } = {}): string => {
+    // First split the key by dot to handle nested objects
+    const parts = key.split('.');
+    let translation: any = translations[language];
+    
+    // Navigate through the nested objects
+    for (const part of parts) {
+      if (!translation) return key;
+      translation = translation[part];
     }
-
-    return translation;
+    
+    // If we didn't find a translation or it's not a string, return the key
+    if (translation === undefined || translation === null) return key;
+    
+    // Handle nested object translations (for complex structures)
+    if (typeof translation === 'object') {
+      return JSON.stringify(translation);
+    }
+    
+    // Apply variable replacements
+    let result = String(translation);
+    for (const varKey in vars) {
+      result = result.replace(`{${varKey}}`, String(vars[varKey]));
+    }
+    
+    return result;
   };
 
   return (
