@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Book, User, Home, Notebook, Award, BrainCircuit } from "lucide-react";
+import { Menu, X, Book, User, Home, Notebook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
@@ -34,12 +34,12 @@ const Navbar = () => {
     closeMenu();
   }, [location.pathname]);
 
+  // Simplified navigation items
   const navItems = [
     { name: t("nav.home"), path: "/", icon: <Home className="size-4" /> },
     { name: t("nav.subjects"), path: "/subjects", icon: <Book className="size-4" /> },
     { name: t("nav.exams"), path: "/exam", icon: <Notebook className="size-4" /> },
     { name: t("nav.profile"), path: "/profile", icon: <User className="size-4" /> },
-    { name: t("nav.ai"), path: "/ai-assistant", icon: <BrainCircuit className="size-4" /> },
   ];
 
   return (
@@ -55,9 +55,11 @@ const Navbar = () => {
           className="flex items-center gap-2 font-bold text-xl" 
           onClick={closeMenu}
         >
-          <Award className="size-6 text-ethiopia-green" />
-          <span className="hidden sm:inline">{t("app.name")}</span>
-          <span className="inline sm:hidden">{t("app.name.short")}</span>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red flex items-center justify-center text-white font-bold">
+            E
+          </div>
+          <span className="hidden sm:inline bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name")}</span>
+          <span className="inline sm:hidden bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name.short")}</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -67,10 +69,10 @@ const Navbar = () => {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-colors",
                 location.pathname === item.path
-                  ? "text-primary bg-primary/10"
-                  : "text-foreground/80 hover:text-primary hover:bg-primary/5"
+                  ? "bg-ethiopia-green text-white"
+                  : "text-foreground/80 hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
               )}
             >
               {item.icon}
@@ -100,8 +102,10 @@ const Navbar = () => {
             <div className="fixed inset-x-0 top-0 z-50 min-h-screen w-full bg-white p-8 shadow-lg animate-fade-in">
               <div className="flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2 font-bold text-xl" onClick={closeMenu}>
-                  <Award className="size-6 text-ethiopia-green" />
-                  <span>{t("app.name")}</span>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red flex items-center justify-center text-white font-bold">
+                    E
+                  </div>
+                  <span className="bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent">{t("app.name")}</span>
                 </Link>
                 <Button
                   variant="ghost"
@@ -122,8 +126,8 @@ const Navbar = () => {
                     className={cn(
                       `flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors animate-fade-up-${index + 1}`,
                       location.pathname === item.path
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-primary/5 hover:text-primary"
+                        ? "bg-ethiopia-green text-white"
+                        : "hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
                     )}
                   >
                     {item.icon}
