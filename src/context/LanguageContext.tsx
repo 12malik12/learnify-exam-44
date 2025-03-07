@@ -38,8 +38,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("language", language === "en" ? "am" : "en");
   }, [language]);
 
+  // Update the type definition to allow for nested structures
+  type TranslationValue = 
+    | string 
+    | Record<string, string | Record<string, string>>;
+
   interface TranslationValues {
-    [key: string]: string | Record<string, string> | undefined;
+    [key: string]: TranslationValue;
   }
 
   const translations: Record<string, TranslationValues> = {
@@ -318,11 +323,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       translation = translation[part];
     }
     
-    // If we didn't find a translation or it's not a string, return the key
+    // If we didn't find a translation or it's not a string/object, return the key
     if (translation === undefined || translation === null) return key;
     
     // Handle nested object translations (for complex structures)
     if (typeof translation === 'object') {
+      // For specifically requested nested properties (using dot notation)
+      // we'll return the value as a string, but for generally referenced
+      // object nodes, we stringify the entire object
       return JSON.stringify(translation);
     }
     
