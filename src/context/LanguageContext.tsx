@@ -37,7 +37,11 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("language", language === "en" ? "am" : "en");
   }, [language]);
 
-  const translations = {
+  interface TranslationValues {
+    [key: string]: string | Record<string, string> | undefined;
+  }
+
+  const translations: Record<string, TranslationValues> = {
     en: {
       "app.slogan": "The Future of Education",
       "home.hero.new": "New: AI-Powered Learning Platform",
@@ -127,6 +131,27 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "ai.prompt": "How can I help with your studies today?",
       "ai.open": "Open AI Assistant",
       "nav.ai": "AI Assistant",
+      nav: {
+        home: "Home",
+        subjects: "Subjects",
+        exams: "Exams",
+        profile: "Profile",
+        ai: "AI Assistant",
+      },
+      ai: {
+        title: "AI Study Assistant",
+        description: "Your personal AI study companion. Ask questions, get explanations, and improve your understanding of any subject.",
+        prompt: "Hello! I'm your AI study assistant. How can I help you today?",
+        placeholder: "Ask me anything about your studies...",
+        open: "Open AI Assistant",
+        tabs: {
+          chat: "Chat",
+          suggestions: "Suggestions",
+        },
+        suggestion: {
+          click: "Click to ask this question",
+        },
+      },
     },
     am: {
       "app.slogan": "የወደፊቱ ትምህርት",
@@ -257,6 +282,27 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "ai.prompt": "ዛሬ ከጥናትዎ ጋር እንዴት ልረዳዎት እችላለሁ?",
       "ai.open": "የ AI ረዳትን ይክፈቱ",
       "nav.ai": "የ AI ረዳት",
+      nav: {
+        home: "መነሻ ገጽ",
+        subjects: "ትምህርቶች",
+        exams: "ፈተናዎች",
+        profile: "መገለጫ",
+        ai: "የሰው ሰራሽ ማስተርጓሚ",
+      },
+      ai: {
+        title: "የሰው ሰራሽ ትምህርት ረዳት",
+        description: "የእርስዎ የግል ሰው ሰራሽ የጥናት ጓደኛ። ጥያቄዎችን ይጠይቁ፣ ማብራሪያዎችን ያግኙ እና ማንኛውንም ርዕስ መረዳትዎን ያሻሽሉ።",
+        prompt: "ሰላም! እኔ የእርስዎ AI ጥናት ረዳት ነኝ። ዛሬ እንዴት ልረዳዎት እችላለሁ?",
+        placeholder: "ስለ ጥናትዎ ማንኛውንም ነገር ይጠይቁኝ...",
+        open: "የሰው ሰራሽ ማስተርጓሚ ይክፈቱ",
+        tabs: {
+          chat: "መልእክት",
+          suggestions: "አስተያየቶች",
+        },
+        suggestion: {
+          click: "ይህን ጥያቄ ለመጠየቅ ጠቅ ያድርጉ",
+        },
+      },
     },
   };
 

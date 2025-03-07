@@ -1,143 +1,133 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Book, User, Home, Notebook } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, Moon, Sun } from "lucide-react";
+import LanguageSwitcher from "@/components/Layout/LanguageSwitcher";
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const location = useLocation();
+  const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
-
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const closeMenu = () => setIsMenuOpen(false);
+  const location = useLocation();
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 10);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile menu when route changes
-  useEffect(() => {
-    closeMenu();
-  }, [location.pathname]);
-
-  // Simplified navigation items
-  const navItems = [
-    { name: t("nav.home"), path: "/", icon: <Home className="size-4" /> },
-    { name: t("nav.subjects"), path: "/subjects", icon: <Book className="size-4" /> },
-    { name: t("nav.exams"), path: "/exam", icon: <Notebook className="size-4" /> },
-    { name: t("nav.profile"), path: "/profile", icon: <User className="size-4" /> },
-  ];
-
   return (
-    <header
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300",
-        scrolled ? "bg-white/80 backdrop-blur-lg shadow-sm" : "bg-transparent"
-      )}
-    >
-      <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        <Link 
-          to="/" 
-          className="flex items-center gap-2 font-bold text-xl" 
-          onClick={closeMenu}
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red flex items-center justify-center text-white font-bold">
-            E
-          </div>
-          <span className="hidden sm:inline bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name")}</span>
-          <span className="inline sm:hidden bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name.short")}</span>
-        </Link>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-colors",
-                location.pathname === item.path
-                  ? "bg-ethiopia-green text-white"
-                  : "text-foreground/80 hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
-              )}
+    <header className="sticky top-0 z-50 glass shadow-sm border-b">
+      <div className="container flex items-center justify-between h-16 px-4">
+        <div className="flex items-center">
+          <Link to="/" className="flex items-center space-x-2">
+            <img src="/placeholder.svg" alt="Logo" className="w-8 h-8" />
+            <span className="font-bold hidden md:inline-block">EduPrep</span>
+          </Link>
+          
+          <nav className="hidden md:flex items-center ml-6 space-x-4">
+            <Link 
+              to="/" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname === '/' ? 'text-primary' : 'text-foreground/60'}`}
             >
-              {item.icon}
-              {item.name}
+              {t("nav.home")}
             </Link>
-          ))}
-          <LanguageSwitcher />
-        </nav>
+            <Link 
+              to="/subjects" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.includes('/subjects') ? 'text-primary' : 'text-foreground/60'}`}
+            >
+              {t("nav.subjects")}
+            </Link>
+            <Link 
+              to="/exam" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.includes('/exam') ? 'text-primary' : 'text-foreground/60'}`}
+            >
+              {t("nav.exam")}
+            </Link>
+            <Link 
+              to="/ai-assistant" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.includes('/ai-assistant') ? 'text-primary' : 'text-foreground/60'}`}
+            >
+              {t("nav.ai")}
+            </Link>
+            <Link 
+              to="/profile" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.includes('/profile') ? 'text-primary' : 'text-foreground/60'}`}
+            >
+              {t("nav.profile")}
+            </Link>
+          </nav>
+        </div>
 
-        {/* Mobile menu button */}
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center space-x-2">
           <LanguageSwitcher />
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleMenu}
-            className="md:hidden"
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-label="Toggle Theme"
+            className="rounded-full"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
-            {isMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
           </Button>
-        </div>
-
-        {/* Mobile Navigation Overlay */}
-        {isMenuOpen && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden">
-            <div className="fixed inset-x-0 top-0 z-50 min-h-screen w-full bg-white p-8 shadow-lg animate-fade-in">
-              <div className="flex items-center justify-between">
-                <Link to="/" className="flex items-center gap-2 font-bold text-xl" onClick={closeMenu}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red flex items-center justify-center text-white font-bold">
-                    E
-                  </div>
-                  <span className="bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent">{t("app.name")}</span>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={closeMenu}
-                  aria-label="Close menu"
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Menu"
+                className="rounded-full md:hidden"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[240px] sm:w-[300px]">
+              <div className="flex flex-col gap-4 py-4">
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent"
                 >
-                  <X className="size-5" />
-                </Button>
+                  {t("nav.home")}
+                </Link>
+                <Link
+                  to="/subjects"
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent"
+                >
+                  {t("nav.subjects")}
+                </Link>
+                <Link
+                  to="/exam"
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent"
+                >
+                  {t("nav.exam")}
+                </Link>
+                <Link
+                  to="/ai-assistant"
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent"
+                >
+                  {t("nav.ai")}
+                </Link>
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-accent"
+                >
+                  {t("nav.profile")}
+                </Link>
               </div>
-
-              <nav className="mt-8 flex flex-col gap-3">
-                {navItems.map((item, index) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={closeMenu}
-                    className={cn(
-                      `flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors animate-fade-up-${index + 1}`,
-                      location.pathname === item.path
-                        ? "bg-ethiopia-green text-white"
-                        : "hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
-                    )}
-                  >
-                    {item.icon}
-                    {item.name}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </div>
-        )}
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );
