@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Subjects from "./pages/Subjects";
@@ -46,22 +48,24 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <LanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <BackButtonHandler />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/subjects" element={<Subjects />} />
-                <Route path="/exam" element={<Exam />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/performance" element={<Performance />} />
-                <Route path="/ai-assistant" element={<AIAssistant />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <BackButtonHandler />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/subjects" element={<Subjects />} />
+                  <Route path="/exam" element={<Exam />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/performance" element={<Performance />} />
+                  <Route path="/ai-assistant" element={<AIAssistant />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ThemeProvider>
         </LanguageProvider>
       </AppProvider>
     </QueryClientProvider>
