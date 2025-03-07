@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,10 +13,10 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import SplashScreen from "./components/Mobile/SplashScreen";
 import Performance from "./pages/Performance";
+import AIAssistant from "./pages/AIAssistant";
 
 const queryClient = new QueryClient();
 
-// Handle hardware back button for mobile
 const BackButtonHandler = () => {
   const navigate = useNavigate();
   
@@ -58,7 +57,7 @@ const App = () => {
                 <Route path="/exam" element={<Exam />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/performance" element={<Performance />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
