@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -122,6 +121,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "performance.recommendations.mastery.description":
         "Congratulations! You have shown mastery in all subjects.",
       "performance.recommendations.mastery.action": "Revise All Topics",
+      "ai.title": "AI Learning Assistant",
+      "ai.description": "Ask questions about any subject or exam to get personalized help",
+      "ai.placeholder": "Ask anything about your studies...",
+      "ai.prompt": "How can I help with your studies today?",
+      "ai.open": "Open AI Assistant",
+      "nav.ai": "AI Assistant",
     },
     am: {
       "app.slogan": "የወደፊቱ ትምህርት",
@@ -246,6 +251,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "feature.time.description": "እውነተኛ ፈተናዎችን ማጓጓዣ ጊዜዎችን ይለማመዱ",
       "feature.language.title": "ባለ ሁለት ቋንቋ",
       "feature.language.description": "በእንግሊዝኛ ወይም በአማርኛ ይማሩ",
+      "ai.title": "የ AI የመማሪያ ረዳት",
+      "ai.description": "ስለማንኛውም ትምህርት ወይም ፈተና ጥያቄዎችን ይጠይቁ እና የግል እርዳታ ያግኙ",
+      "ai.placeholder": "ስለ ጥናትዎ ማንኛውንም ነገር ይጠይቁ...",
+      "ai.prompt": "ዛሬ ከጥናትዎ ጋር እንዴት ልረዳዎት እችላለሁ?",
+      "ai.open": "የ AI ረዳትን ይክፈቱ",
+      "nav.ai": "የ AI ረዳት",
     },
   };
 

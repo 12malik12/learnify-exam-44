@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Book, User, Home, Notebook, Award } from "lucide-react";
+import { Menu, X, Book, User, Home, Notebook, Award, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
@@ -39,6 +39,7 @@ const Navbar = () => {
     { name: t("nav.subjects"), path: "/subjects", icon: <Book className="size-4" /> },
     { name: t("nav.exams"), path: "/exam", icon: <Notebook className="size-4" /> },
     { name: t("nav.profile"), path: "/profile", icon: <User className="size-4" /> },
+    { name: t("nav.ai"), path: "/ai-assistant", icon: <BrainCircuit className="size-4" /> },
   ];
 
   return (

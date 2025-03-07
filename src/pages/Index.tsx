@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import Hero from "@/components/Home/Hero";
@@ -9,9 +9,12 @@ import { BrainCircuit, Sparkles, LayoutDashboard, BookOpen, Network, Clock } fro
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/context/LanguageContext";
+import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
+import AIAssistantDialog from "@/components/AIAssistant/AIAssistantDialog";
 
 const Index = () => {
   const { t } = useLanguage();
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -22,14 +25,14 @@ const Index = () => {
         
         <SubjectGrid />
         
-        {/* Features Section */}
-        <section className="py-12 md:py-16 bg-secondary/50">
+        {/* Features Section - refined with better spacing */}
+        <section className="py-12 md:py-16 bg-secondary/30">
           <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center text-center mb-10 md:mb-16">
-              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+            <div className="flex flex-col items-center text-center mb-10 md:mb-14">
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
                 {t("home.features.title")}
               </h2>
-              <p className="mt-4 max-w-[700px] text-muted-foreground md:text-lg">
+              <p className="max-w-[700px] text-muted-foreground md:text-lg">
                 {t("home.features.subtitle")}
               </p>
             </div>
@@ -69,8 +72,8 @@ const Index = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-12 md:py-16 lg:py-20">
+        {/* CTA Section - simplified and improved spacing */}
+        <section className="py-16 md:py-20">
           <div className="container px-4 md:px-6">
             <div className="relative overflow-hidden rounded-2xl bg-primary p-8 md:p-12">
               {/* Gradient background */}
@@ -81,13 +84,13 @@ const Index = () => {
               
               {/* Content */}
               <div className="relative z-10 flex flex-col items-center text-center">
-                <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-white md:text-4xl">
+                <h2 className="max-w-2xl text-3xl font-bold tracking-tight text-white md:text-4xl mb-4">
                   {t("home.cta.title")}
                 </h2>
-                <p className="mx-auto mt-4 max-w-[800px] text-primary-foreground/80 md:text-lg">
+                <p className="mx-auto max-w-[800px] text-primary-foreground/90 md:text-lg mb-8">
                   {t("home.cta.subtitle")}
                 </p>
-                <div className="mt-8 flex flex-wrap gap-4 justify-center">
+                <div className="flex flex-wrap gap-4 justify-center">
                   <Button
                     asChild
                     size="lg"
@@ -110,6 +113,9 @@ const Index = () => {
           </div>
         </section>
       </main>
+      
+      <AIAssistantButton onClick={() => setAiDialogOpen(true)} />
+      <AIAssistantDialog open={aiDialogOpen} onOpenChange={setAiDialogOpen} />
       
       <Footer />
     </div>
