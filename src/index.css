@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -77,18 +78,18 @@
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/50 backdrop-blur-lg border border-white/20 shadow-sm;
+    @apply bg-background/50 backdrop-blur-lg border border-border/20 shadow-sm;
   }
   
   .glass-dark {
-    @apply bg-black/10 backdrop-blur-lg border border-white/10 shadow-md;
+    @apply bg-background/10 backdrop-blur-lg border border-border/10 shadow-md;
   }
   
   .text-balance {
