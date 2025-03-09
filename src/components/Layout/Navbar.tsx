@@ -24,12 +24,12 @@ const Navbar = () => {
   }, []);
 
   return (
-    <header className={`sticky top-0 z-50 ${isScrolled ? 'bg-background/80 backdrop-blur-md shadow-sm border-b' : 'bg-background'} transition-colors duration-200`}>
+    <header className="sticky top-0 z-50 glass shadow-sm border-b">
       <div className="container flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
           <Link to="/" className="flex items-center space-x-2">
             <img src="/placeholder.svg" alt="Logo" className="w-8 h-8" />
-            <span className="font-bold hidden md:inline-block">{t("app.name")}</span>
+            <span className="font-bold hidden md:inline-block">EduPrep</span>
           </Link>
           
           <nav className="hidden md:flex items-center ml-6 space-x-4">
