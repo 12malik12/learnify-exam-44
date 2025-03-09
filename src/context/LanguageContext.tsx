@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -38,16 +37,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("language", language === "en" ? "am" : "en");
   }, [language]);
 
-  // Update the type definition to allow for nested structures
-  type TranslationValue = 
-    | string 
-    | Record<string, string | Record<string, string>>;
-
-  interface TranslationValues {
-    [key: string]: TranslationValue;
-  }
-
-  const translations: Record<string, TranslationValues> = {
+  const translations = {
     en: {
       "app.slogan": "The Future of Education",
       "home.hero.new": "New: AI-Powered Learning Platform",
@@ -137,27 +127,6 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "ai.prompt": "How can I help with your studies today?",
       "ai.open": "Open AI Assistant",
       "nav.ai": "AI Assistant",
-      nav: {
-        home: "Home",
-        subjects: "Subjects",
-        exam: "Exams",
-        profile: "Profile",
-        ai: "AI Assistant",
-      },
-      ai: {
-        title: "AI Study Assistant",
-        description: "Your personal AI study companion. Ask questions, get explanations, and improve your understanding of any subject.",
-        prompt: "Hello! I'm your AI study assistant. How can I help you today?",
-        placeholder: "Ask me anything about your studies...",
-        open: "Open AI Assistant",
-        tabs: {
-          chat: "Chat",
-          suggestions: "Suggestions",
-        },
-        suggestion: {
-          click: "Click to ask this question",
-        },
-      },
     },
     am: {
       "app.slogan": "የወደፊቱ ትምህርት",
@@ -288,59 +257,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({
       "ai.prompt": "ዛሬ ከጥናትዎ ጋር እንዴት ልረዳዎት እችላለሁ?",
       "ai.open": "የ AI ረዳትን ይክፈቱ",
       "nav.ai": "የ AI ረዳት",
-      nav: {
-        home: "መነሻ ገጽ",
-        subjects: "ትምህርቶች",
-        exam: "ፈተናዎች",
-        profile: "መገለጫ",
-        ai: "የሰው ሰራሽ ማስተርጓሚ",
-      },
-      ai: {
-        title: "የሰው ሰራሽ ትምህርት ረዳት",
-        description: "የእርስዎ የግል ሰው ሰራሽ የጥናት ጓደኛ። ጥያቄዎችን ይጠይቁ፣ ማብራሪያዎችን ያግኙ እና ማንኛውንም ርዕስ መረዳትዎን ያሻሽሉ።",
-        prompt: "ሰላም! እኔ የእርስዎ AI ጥናት ረዳት ነኝ። ዛሬ እንዴት ልረዳዎት እችላለሁ?",
-        placeholder: "ስለ ጥናትዎ ማንኛውንም ነገር ይጠይቁኝ...",
-        open: "የሰው ሰራሽ ማስተርጓሚ ይክፈቱ",
-        tabs: {
-          chat: "መልእክት",
-          suggestions: "አስተያየቶች",
-        },
-        suggestion: {
-          click: "ይህን ጥያቄ ለመጠየቅ ጠቅ ያድርጉ",
-        },
-      },
     },
   };
 
-  const t = (key: string, vars: { [key: string]: string | number } = {}): string => {
-    // First split the key by dot to handle nested objects
-    const parts = key.split('.');
-    let translation: any = translations[language];
-    
-    // Navigate through the nested objects
-    for (const part of parts) {
-      if (!translation) return key;
-      translation = translation[part];
-    }
-    
-    // If we didn't find a translation or it's not a string/object, return the key
-    if (translation === undefined || translation === null) return key;
-    
-    // Handle nested object translations (for complex structures)
-    if (typeof translation === 'object') {
-      // For specifically requested nested properties (using dot notation)
-      // we'll return the value as a string, but for generally referenced
-      // object nodes, we stringify the entire object
-      return JSON.stringify(translation);
-    }
-    
-    // Apply variable replacements
-    let result = String(translation);
+  const t = (key: string, vars: { [key: string]: string | number } = {}) => {
+    let translation = translations[language][key] || key;
+
     for (const varKey in vars) {
-      result = result.replace(`{${varKey}}`, String(vars[varKey]));
+      translation = translation.replace(`{${varKey}}`, String(vars[varKey]));
     }
-    
-    return result;
+
+    return translation;
   };
 
   return (

@@ -41,6 +41,15 @@ const SubjectGrid = () => {
   return (
     <section className="py-12 md:py-16 lg:py-20">
       <div className="container px-4 md:px-6">
+        <div className="flex flex-col items-center text-center mb-10 md:mb-16">
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+            {t("home.subjects.title")}
+          </h2>
+          <p className="mt-4 max-w-[700px] text-muted-foreground md:text-lg">
+            {t("home.subjects.subtitle")}
+          </p>
+        </div>
+
         <div 
           ref={gridRef} 
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
