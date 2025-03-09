@@ -3,11 +3,9 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Award, Github, Instagram, Twitter } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
-import { useTheme } from "@/context/ThemeContext";
 
 const Footer = () => {
   const { t } = useLanguage();
-  const { theme } = useTheme();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -15,7 +13,7 @@ const Footer = () => {
       <div className="container grid gap-8 px-4 md:px-6 lg:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Link to="/" className="flex items-center gap-2">
-            <Award className={`size-5 ${theme === "dark" ? "text-primary" : "text-ethiopia-green"}`} />
+            <Award className="size-5 text-ethiopia-green" />
             <span className="font-semibold">{t("app.name")}</span>
           </Link>
           <p className="text-sm text-muted-foreground max-w-md">

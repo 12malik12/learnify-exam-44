@@ -41,13 +41,7 @@ const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
   if (showSplash) {
-    return (
-      <LanguageProvider>
-        <ThemeProvider>
-          <SplashScreen onFinish={() => setShowSplash(false)} />
-        </ThemeProvider>
-      </LanguageProvider>
-    );
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   return (
