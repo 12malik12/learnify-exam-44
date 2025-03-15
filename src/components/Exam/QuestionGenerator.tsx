@@ -18,6 +18,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { subjects } from "@/utils/subjects";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,50 @@ interface QuestionGeneratorProps {
   onQuestionsGenerated: (questions: any[]) => void;
 }
 
+// Subject-specific difficulty descriptions
+const DIFFICULTY_DESCRIPTIONS: Record<string, Record<string, string>> = {
+  mathematics: {
+    easy: "Direct recall of mathematical formulas and simple calculations",
+    medium: "Application of concepts to solve mathematical problems",
+    hard: "Complex, multi-step problems requiring advanced mathematical reasoning"
+  },
+  physics: {
+    easy: "Basic physics laws and simple problem-solving",
+    medium: "Application of physics formulas in different contexts",
+    hard: "Complex physics scenarios requiring multiple concepts and formulas"
+  },
+  chemistry: {
+    easy: "Basic chemical concepts, formulas, and properties",
+    medium: "Chemical reactions, balancing equations, and mid-level applications",
+    hard: "Complex reaction mechanisms, multistep synthesis, and advanced concepts"
+  },
+  biology: {
+    easy: "Recall of biological terms, structures, and basic processes",
+    medium: "Understanding biological mechanisms and ecosystem relationships",
+    hard: "Complex biological processes and integrating different systems"
+  },
+  english: {
+    easy: "Basic grammar, vocabulary, and simple text comprehension",
+    medium: "Literary analysis, interpretation, and contextual meaning",
+    hard: "Complex literary criticism, advanced rhetorical analysis, and composition"
+  },
+  history: {
+    easy: "Historical facts, dates, events, and key figures",
+    medium: "Connecting historical events and understanding cause-effect relationships",
+    hard: "Historical analysis, evaluating multiple perspectives, and historiography"
+  },
+  geography: {
+    easy: "Basic geographical features, locations, and terminology",
+    medium: "Understanding geographical patterns, relationships, and processes",
+    hard: "Complex geographical analysis, interdependent systems, and global impacts"
+  },
+  default: {
+    easy: "Direct recall or basic conceptual questions",
+    medium: "Application-based or slightly tricky problems",
+    hard: "Complex, multi-step problem-solving questions"
+  }
+};
+
 const QuestionGenerator = ({ 
   open, 
   onOpenChange,
@@ -46,6 +91,13 @@ const QuestionGenerator = ({
   const [questionCount, setQuestionCount] = useState([5]);
   const [unitObjectives, setUnitObjectives] = useState<UnitObjective[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Get the selected subject object
+  const selectedSubject = subjects.find(s => s.id === subject);
+  const subjectKey = selectedSubject?.type?.toLowerCase() || "default";
+  
+  // Get the difficulty descriptions for the selected subject
+  const difficultyDescriptions = DIFFICULTY_DESCRIPTIONS[subjectKey] || DIFFICULTY_DESCRIPTIONS.default;
   
   // Mock unit objectives - in a real app, these would come from the database
   React.useEffect(() => {
@@ -120,7 +172,7 @@ const QuestionGenerator = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Generate Exam Questions</DialogTitle>
           <DialogDescription>
@@ -170,19 +222,45 @@ const QuestionGenerator = ({
           
           <div className="grid gap-2">
             <Label htmlFor="difficulty">Difficulty Level</Label>
-            <Select
+            <RadioGroup
               value={difficulty}
               onValueChange={setDifficulty}
+              className="grid grid-cols-1 gap-2"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
+              <div className="flex items-start space-x-2 rounded-md border p-3">
+                <RadioGroupItem value="easy" id="easy" />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="easy" className="font-medium cursor-pointer">
+                    Easy
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {difficultyDescriptions.easy}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2 rounded-md border p-3">
+                <RadioGroupItem value="medium" id="medium" />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="medium" className="font-medium cursor-pointer">
+                    Medium
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {difficultyDescriptions.medium}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2 rounded-md border p-3">
+                <RadioGroupItem value="hard" id="hard" />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="hard" className="font-medium cursor-pointer">
+                    Hard
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {difficultyDescriptions.hard}
+                  </p>
+                </div>
+              </div>
+            </RadioGroup>
           </div>
           
           <div className="grid gap-2">
