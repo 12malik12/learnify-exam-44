@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
@@ -89,12 +90,12 @@ serve(async (req) => {
 
     // Get subject-specific difficulty guidelines, fallback to generic if not found
     const subjectLower = subject.toLowerCase();
-    const difficultyGuide = SUBJECT_DIFFICULTY_GUIDELINES[subjectLower]?.[difficulty] || 
+    const specificDifficultyGuide = SUBJECT_DIFFICULTY_GUIDELINES[subjectLower]?.[difficulty] || 
                           DIFFICULTY_GUIDELINES[difficulty];
     const formatGuide = SUBJECT_FORMATTING[subjectLower] || "";
 
     // Generate questions using the guidelines
-    const questions = generateMockQuestions(subject, unitObjective, difficulty, count, difficultyGuide, formatGuide);
+    const questions = generateMockQuestions(subject, unitObjective, difficulty, count, specificDifficultyGuide, formatGuide);
 
     return new Response(
       JSON.stringify({ questions }),
@@ -111,8 +112,6 @@ serve(async (req) => {
 
 function generateMockQuestions(subject, unitObjective, difficulty, count, difficultyGuide, formatGuide) {
   const subjectLower = subject.toLowerCase();
-  const difficultyGuide = difficultyGuide || DIFFICULTY_GUIDELINES[difficulty];
-  const formatGuide = formatGuide || SUBJECT_FORMATTING[subjectLower] || "";
 
   const questions = [];
 
@@ -182,10 +181,11 @@ function generateMockQuestions(subject, unitObjective, difficulty, count, diffic
       option_d: options.D,
       correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
       explanation: `Explanation for the question about ${unitObjective}`,
-      difficulty_level: difficultyGuide === "easy" ? 1 : difficultyGuide === "medium" ? 3 : 5,
+      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
       subject: subject
     });
   }
 
   return questions;
 }
+
