@@ -59,506 +59,493 @@ const SUBJECT_FORMATTING = {
   geography: "For map-based questions, provide clear descriptions. Include relevant terminology for physical or human geography concepts."
 };
 
-// Sample question templates for each subject to avoid repetition
-const SUBJECT_QUESTION_TEMPLATES = {
+// Subject-specific question templates
+const QUESTION_TEMPLATES = {
   mathematics: [
     {
-      easy: [
-        { 
-          question: "Calculate the value of $\\frac{3x + 5}{2}$ when $x = 4$",
-          options: {
-            A: "$\\frac{23}{2}$",
-            B: "$\\frac{17}{2}$",
-            C: "$8.5$",
-            D: "$\\frac{19}{2}$"
-          },
-          correct: "A"
-        },
-        {
-          question: "Solve for $x$ in the equation $2x + 7 = 15$",
-          options: {
-            A: "$x = 4$",
-            B: "$x = 5$",
-            C: "$x = 3$",
-            D: "$x = 6$"
-          },
-          correct: "C"
-        },
-        {
-          question: "What is the area of a rectangle with length 8 cm and width 6 cm?",
-          options: {
-            A: "14 cm²",
-            B: "28 cm²",
-            C: "48 cm²",
-            D: "56 cm²"
-          },
-          correct: "C"
-        }
-      ],
-      medium: [
-        {
-          question: "If $f(x) = 2x^2 - 3x + 1$, what is the value of $f(2)$?",
-          options: {
-            A: "3",
-            B: "5",
-            C: "7",
-            D: "9"
-          },
-          correct: "B"
-        },
-        {
-          question: "The sum of three consecutive integers is 72. What is the middle integer?",
-          options: {
-            A: "23",
-            B: "24",
-            C: "25",
-            D: "26"
-          },
-          correct: "B"
-        }
-      ],
-      hard: [
-        {
-          question: "Solve the system of equations: $3x + 2y = 13$ and $5x - 3y = 7$",
-          options: {
-            A: "$x = 3, y = 2$",
-            B: "$x = 2, y = 3.5$",
-            C: "$x = 2, y = 2$",
-            D: "$x = 4, y = 0.5$"
-          },
-          correct: "A"
-        },
-        {
-          question: "Find the derivative of $f(x) = x^3 - 4x^2 + 5x - 2$",
-          options: {
-            A: "$f'(x) = 3x^2 - 8x + 5$",
-            B: "$f'(x) = 3x^2 - 4x + 5$",
-            C: "$f'(x) = 2x^2 - 8x + 5$",
-            D: "$f'(x) = 3x^2 - 8x - 5$"
-          },
-          correct: "A"
-        }
-      ]
+      question: "What is the value of $\\frac{3x + 5}{2}$ when $x = 4$?",
+      options: {
+        A: "$\\frac{17}{2}$",
+        B: "$6.5$",
+        C: "$8.5$",
+        D: "$\\frac{23}{2}$"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Solve the equation $2x + 7 = 15$.",
+      options: {
+        A: "$x = 2$",
+        B: "$x = 3$",
+        C: "$x = 4$",
+        D: "$x = 5$"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Calculate the area of a rectangle with length 8 cm and width 6 cm.",
+      options: {
+        A: "14 cm²",
+        B: "28 cm²",
+        C: "48 cm²",
+        D: "56 cm²"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "If $f(x) = 2x^2 - 3x + 1$, what is the value of $f(2)$?",
+      options: {
+        A: "3",
+        B: "5",
+        C: "7",
+        D: "9"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "The sum of three consecutive integers is 72. What is the middle integer?",
+      options: {
+        A: "23",
+        B: "24",
+        C: "25",
+        D: "26"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Find the derivative of $f(x) = x^3 - 4x^2 + 5x - 2$.",
+      options: {
+        A: "$f'(x) = 3x^2 - 8x + 5$",
+        B: "$f'(x) = 3x^2 - 4x + 5$",
+        C: "$f'(x) = 2x^2 - 8x + 5$",
+        D: "$f'(x) = 3x^2 - 8x - 5$"
+      },
+      correct: "A",
+      difficulty: "hard"
+    },
+    {
+      question: "Solve the system of equations: $3x + 2y = 13$ and $5x - 3y = 7$.",
+      options: {
+        A: "$x = 3, y = 2$",
+        B: "$x = 2, y = 3.5$",
+        C: "$x = 4, y = 0.5$",
+        D: "$x = 1, y = 5$"
+      },
+      correct: "A",
+      difficulty: "hard"
     }
   ],
   physics: [
     {
-      easy: [
-        {
-          question: "A car accelerates from rest at $2.5 m/s^2$. How far will it travel in 10 seconds?",
-          options: {
-            A: "$125 m$",
-            B: "$250 m$",
-            C: "$25 m$",
-            D: "$100 m$"
-          },
-          correct: "A"
-        },
-        {
-          question: "Which of Newton's laws states that for every action, there is an equal and opposite reaction?",
-          options: {
-            A: "First Law",
-            B: "Second Law",
-            C: "Third Law",
-            D: "Law of Conservation of Energy"
-          },
-          correct: "C"
-        }
-      ],
-      medium: [
-        {
-          question: "What is the equivalent resistance of two resistors $R_1 = 6\\Omega$ and $R_2 = 3\\Omega$ connected in parallel?",
-          options: {
-            A: "$9\\Omega$",
-            B: "$2\\Omega$",
-            C: "$4.5\\Omega$",
-            D: "$1.5\\Omega$"
-          },
-          correct: "B"
-        },
-        {
-          question: "A projectile is launched at an angle of $45°$ with an initial velocity of $20 m/s$. What is its maximum height? (Use $g = 10 m/s^2$)",
-          options: {
-            A: "$5 m$",
-            B: "$10 m$",
-            C: "$15 m$",
-            D: "$20 m$"
-          },
-          correct: "A"
-        }
-      ],
-      hard: [
-        {
-          question: "A mass of $0.5 kg$ oscillates on a spring with a period of $π$ seconds. What is the spring constant?",
-          options: {
-            A: "$0.5 N/m$",
-            B: "$1 N/m$",
-            C: "$2 N/m$",
-            D: "$4 N/m$"
-          },
-          correct: "C"
-        },
-        {
-          question: "In a Young's double-slit experiment, if the distance between the slits is $0.1 mm$, the screen is placed $1 m$ away, and the first bright fringe is observed at $6.5 mm$ from the central maximum, what is the wavelength of the light used?",
-          options: {
-            A: "$650 nm$",
-            B: "$550 nm$",
-            C: "$450 nm$",
-            D: "$350 nm$"
-          },
-          correct: "A"
-        }
-      ]
+      question: "Which of Newton's laws states that for every action, there is an equal and opposite reaction?",
+      options: {
+        A: "First Law",
+        B: "Second Law",
+        C: "Third Law",
+        D: "Law of Conservation of Energy"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "What is the unit of force in the SI system?",
+      options: {
+        A: "Kilogram (kg)",
+        B: "Newton (N)",
+        C: "Joule (J)",
+        D: "Watt (W)"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "A car accelerates from rest at $2.5 m/s^2$. How far will it travel in 10 seconds?",
+      options: {
+        A: "25 m",
+        B: "125 m",
+        C: "250 m",
+        D: "100 m"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "What is the equivalent resistance of two resistors $R_1 = 6\\Omega$ and $R_2 = 3\\Omega$ connected in parallel?",
+      options: {
+        A: "$9\\Omega$",
+        B: "$2\\Omega$",
+        C: "$4.5\\Omega$",
+        D: "$1.5\\Omega$"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "A projectile is launched at an angle of $45°$ with an initial velocity of $20 m/s$. What is its maximum height? (Use $g = 10 m/s^2$)",
+      options: {
+        A: "$5 m$",
+        B: "$10 m$",
+        C: "$15 m$",
+        D: "$20 m$"
+      },
+      correct: "A",
+      difficulty: "hard"
+    },
+    {
+      question: "A mass of $0.5 kg$ oscillates on a spring with a period of $π$ seconds. What is the spring constant?",
+      options: {
+        A: "$0.5 N/m$",
+        B: "$1 N/m$",
+        C: "$2 N/m$",
+        D: "$4 N/m$"
+      },
+      correct: "C",
+      difficulty: "hard"
     }
   ],
   chemistry: [
     {
-      easy: [
-        {
-          question: "What is the product of the reaction: Na₂CO₃ + 2HCl → ?",
-          options: {
-            A: "NaCl + H₂O + CO₂",
-            B: "2NaCl + H₂O + CO₂",
-            C: "2NaCl + H₂CO₃",
-            D: "Na₂Cl₂ + H₂O + CO₂"
-          },
-          correct: "B"
-        },
-        {
-          question: "Which element has the electron configuration 1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d¹⁰ 4p⁶ 5s¹?",
-          options: {
-            A: "Potassium (K)",
-            B: "Rubidium (Rb)",
-            C: "Cesium (Cs)",
-            D: "Sodium (Na)"
-          },
-          correct: "B"
-        }
-      ],
-      medium: [
-        {
-          question: "Calculate the pH of a 0.01 M HCl solution.",
-          options: {
-            A: "1",
-            B: "2",
-            C: "3",
-            D: "4"
-          },
-          correct: "B"
-        },
-        {
-          question: "What type of isomerism is exhibited by butane and 2-methylpropane?",
-          options: {
-            A: "Chain isomerism",
-            B: "Position isomerism",
-            C: "Functional group isomerism",
-            D: "Geometric isomerism"
-          },
-          correct: "A"
-        }
-      ],
-      hard: [
-        {
-          question: "For the reaction 2NO(g) + O₂(g) → 2NO₂(g), if the rate of formation of NO₂ is 0.024 mol/L·s, what is the rate of consumption of O₂?",
-          options: {
-            A: "0.012 mol/L·s",
-            B: "0.024 mol/L·s",
-            C: "0.036 mol/L·s",
-            D: "0.048 mol/L·s"
-          },
-          correct: "A"
-        },
-        {
-          question: "What is the hybridization and molecular geometry of the carbon atom in carbon dioxide (CO₂)?",
-          options: {
-            A: "sp, linear",
-            B: "sp², trigonal planar",
-            C: "sp², linear",
-            D: "sp³, tetrahedral"
-          },
-          correct: "A"
-        }
-      ]
+      question: "What is the product of the reaction: Na₂CO₃ + 2HCl → ?",
+      options: {
+        A: "NaCl + H₂O + CO₂",
+        B: "2NaCl + H₂O + CO₂",
+        C: "2NaCl + H₂CO₃",
+        D: "Na₂Cl₂ + H₂O + CO₂"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "Which element has the electron configuration 1s² 2s² 2p⁶ 3s² 3p⁶ 4s² 3d¹⁰ 4p⁶ 5s¹?",
+      options: {
+        A: "Potassium (K)",
+        B: "Rubidium (Rb)",
+        C: "Cesium (Cs)",
+        D: "Sodium (Na)"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "Calculate the pH of a 0.01 M HCl solution.",
+      options: {
+        A: "1",
+        B: "2",
+        C: "3",
+        D: "4"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "What type of isomerism is exhibited by butane and 2-methylpropane?",
+      options: {
+        A: "Chain isomerism",
+        B: "Position isomerism",
+        C: "Functional group isomerism",
+        D: "Geometric isomerism"
+      },
+      correct: "A",
+      difficulty: "medium"
+    },
+    {
+      question: "For the reaction 2NO(g) + O₂(g) → 2NO₂(g), if the rate of formation of NO₂ is 0.024 mol/L·s, what is the rate of consumption of O₂?",
+      options: {
+        A: "0.012 mol/L·s",
+        B: "0.024 mol/L·s",
+        C: "0.036 mol/L·s",
+        D: "0.048 mol/L·s"
+      },
+      correct: "A",
+      difficulty: "hard"
+    },
+    {
+      question: "What is the hybridization and molecular geometry of the carbon atom in carbon dioxide (CO₂)?",
+      options: {
+        A: "sp, linear",
+        B: "sp², trigonal planar",
+        C: "sp², linear",
+        D: "sp³, tetrahedral"
+      },
+      correct: "A",
+      difficulty: "hard"
     }
   ],
   biology: [
     {
-      easy: [
-        {
-          question: "Which organelle is responsible for protein synthesis in the cell?",
-          options: {
-            A: "Nucleus",
-            B: "Mitochondria",
-            C: "Ribosome",
-            D: "Golgi apparatus"
-          },
-          correct: "C"
-        },
-        {
-          question: "What is the main function of the mitochondria in a cell?",
-          options: {
-            A: "Protein synthesis",
-            B: "ATP production",
-            C: "Lipid synthesis",
-            D: "Cell division"
-          },
-          correct: "B"
-        }
-      ],
-      medium: [
-        {
-          question: "During which phase of mitosis do chromosomes align at the equator of the cell?",
-          options: {
-            A: "Prophase",
-            B: "Metaphase",
-            C: "Anaphase",
-            D: "Telophase"
-          },
-          correct: "B"
-        },
-        {
-          question: "What would happen to a red blood cell placed in a hypotonic solution?",
-          options: {
-            A: "It would shrink",
-            B: "It would swell and possibly lyse",
-            C: "It would remain unchanged",
-            D: "It would change color"
-          },
-          correct: "B"
-        }
-      ],
-      hard: [
-        {
-          question: "Which process in the Calvin cycle requires ATP?",
-          options: {
-            A: "Carbon fixation",
-            B: "Reduction",
-            C: "Regeneration of RuBP",
-            D: "Release of glyceraldehyde-3-phosphate"
-          },
-          correct: "C"
-        },
-        {
-          question: "In a dihybrid cross between two heterozygous individuals (AaBb × AaBb), what fraction of the offspring will be homozygous recessive for both traits?",
-          options: {
-            A: "1/4",
-            B: "1/8",
-            C: "1/16",
-            D: "3/16"
-          },
-          correct: "C"
-        }
-      ]
+      question: "Which organelle is responsible for protein synthesis in the cell?",
+      options: {
+        A: "Nucleus",
+        B: "Mitochondria",
+        C: "Ribosome",
+        D: "Golgi apparatus"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "What is the main function of the mitochondria in a cell?",
+      options: {
+        A: "Protein synthesis",
+        B: "ATP production",
+        C: "Lipid synthesis",
+        D: "Cell division"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "During which phase of mitosis do chromosomes align at the equator of the cell?",
+      options: {
+        A: "Prophase",
+        B: "Metaphase",
+        C: "Anaphase",
+        D: "Telophase"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "What would happen to a red blood cell placed in a hypotonic solution?",
+      options: {
+        A: "It would shrink",
+        B: "It would swell and possibly lyse",
+        C: "It would remain unchanged",
+        D: "It would change color"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Which process in the Calvin cycle requires ATP?",
+      options: {
+        A: "Carbon fixation",
+        B: "Reduction",
+        C: "Regeneration of RuBP",
+        D: "Release of glyceraldehyde-3-phosphate"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "In a dihybrid cross between two heterozygous individuals (AaBb × AaBb), what fraction of the offspring will be homozygous recessive for both traits?",
+      options: {
+        A: "1/4",
+        B: "1/8",
+        C: "1/16",
+        D: "3/16"
+      },
+      correct: "C",
+      difficulty: "hard"
     }
   ],
   english: [
     {
-      easy: [
-        {
-          question: "Which of the following is a proper noun?",
-          options: {
-            A: "mountain",
-            B: "happiness",
-            C: "London",
-            D: "building"
-          },
-          correct: "C"
-        },
-        {
-          question: "Which sentence uses the correct form of the verb?",
-          options: {
-            A: "The team are playing well.",
-            B: "The team is playing well.",
-            C: "The team been playing well.",
-            D: "The team were been playing well."
-          },
-          correct: "B"
-        }
-      ],
-      medium: [
-        {
-          question: "Identify the literary device in the following sentence: 'The wind whispered through the trees.'",
-          options: {
-            A: "Simile",
-            B: "Metaphor",
-            C: "Personification",
-            D: "Hyperbole"
-          },
-          correct: "C"
-        },
-        {
-          question: "What is the main theme of George Orwell's novel '1984'?",
-          options: {
-            A: "Romantic love",
-            B: "Totalitarianism and surveillance",
-            C: "Environmental conservation",
-            D: "Family dynamics"
-          },
-          correct: "B"
-        }
-      ],
-      hard: [
-        {
-          question: "Analyze the rhetorical strategy used in Martin Luther King Jr.'s 'I Have a Dream' speech when he repeatedly uses the phrase 'I have a dream':",
-          options: {
-            A: "Ethos",
-            B: "Pathos",
-            C: "Anaphora",
-            D: "Chiasmus"
-          },
-          correct: "C"
-        },
-        {
-          question: "Which of the following best describes the narrative technique in Virginia Woolf's 'Mrs Dalloway'?",
-          options: {
-            A: "First-person narration",
-            B: "Stream of consciousness",
-            C: "Epistolary form",
-            D: "Frame narrative"
-          },
-          correct: "B"
-        }
-      ]
+      question: "Which of the following is a proper noun?",
+      options: {
+        A: "mountain",
+        B: "happiness",
+        C: "London",
+        D: "building"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Which sentence uses the correct form of the verb?",
+      options: {
+        A: "The team are playing well.",
+        B: "The team is playing well.",
+        C: "The team been playing well.",
+        D: "The team were been playing well."
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "Identify the literary device in the following sentence: 'The wind whispered through the trees.'",
+      options: {
+        A: "Simile",
+        B: "Metaphor",
+        C: "Personification",
+        D: "Hyperbole"
+      },
+      correct: "C",
+      difficulty: "medium"
+    },
+    {
+      question: "What is the main theme of George Orwell's novel '1984'?",
+      options: {
+        A: "Romantic love",
+        B: "Totalitarianism and surveillance",
+        C: "Environmental conservation",
+        D: "Family dynamics"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Analyze the rhetorical strategy used in Martin Luther King Jr.'s 'I Have a Dream' speech when he repeatedly uses the phrase 'I have a dream':",
+      options: {
+        A: "Ethos",
+        B: "Pathos",
+        C: "Anaphora",
+        D: "Chiasmus"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "Which of the following best describes the narrative technique in Virginia Woolf's 'Mrs Dalloway'?",
+      options: {
+        A: "First-person narration",
+        B: "Stream of consciousness",
+        C: "Epistolary form",
+        D: "Frame narrative"
+      },
+      correct: "B",
+      difficulty: "hard"
     }
   ],
   history: [
     {
-      easy: [
-        {
-          question: "In which year did World War II end?",
-          options: {
-            A: "1939",
-            B: "1943",
-            C: "1945",
-            D: "1950"
-          },
-          correct: "C"
-        },
-        {
-          question: "Who was the first President of the United States?",
-          options: {
-            A: "Thomas Jefferson",
-            B: "Abraham Lincoln",
-            C: "George Washington",
-            D: "John Adams"
-          },
-          correct: "C"
-        }
-      ],
-      medium: [
-        {
-          question: "What was the immediate cause of World War I?",
-          options: {
-            A: "The sinking of the Lusitania",
-            B: "The assassination of Archduke Franz Ferdinand",
-            C: "The invasion of Poland",
-            D: "The Treaty of Versailles"
-          },
-          correct: "B"
-        },
-        {
-          question: "Which economic policy was implemented during the Great Depression to stimulate economic recovery in the United States?",
-          options: {
-            A: "Laissez-faire economics",
-            B: "The New Deal",
-            C: "Reaganomics",
-            D: "The Marshall Plan"
-          },
-          correct: "B"
-        }
-      ],
-      hard: [
-        {
-          question: "Analyze the impact of the Columbian Exchange on global demographics in the 16th and 17th centuries:",
-          options: {
-            A: "It led to significant population growth in the Americas",
-            B: "It caused a population decline in Europe due to imported diseases",
-            C: "It resulted in a significant decline of indigenous populations in the Americas",
-            D: "It had no significant impact on global populations"
-          },
-          correct: "C"
-        },
-        {
-          question: "Which historian is associated with the 'Great Man Theory' of history?",
-          options: {
-            A: "Karl Marx",
-            B: "Thomas Carlyle",
-            C: "Fernand Braudel",
-            D: "Michel Foucault"
-          },
-          correct: "B"
-        }
-      ]
+      question: "In which year did World War II end?",
+      options: {
+        A: "1939",
+        B: "1943",
+        C: "1945",
+        D: "1950"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Who was the first President of the United States?",
+      options: {
+        A: "Thomas Jefferson",
+        B: "Abraham Lincoln",
+        C: "George Washington",
+        D: "John Adams"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "What was the immediate cause of World War I?",
+      options: {
+        A: "The sinking of the Lusitania",
+        B: "The assassination of Archduke Franz Ferdinand",
+        C: "The invasion of Poland",
+        D: "The Treaty of Versailles"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Which economic policy was implemented during the Great Depression to stimulate economic recovery in the United States?",
+      options: {
+        A: "Laissez-faire economics",
+        B: "The New Deal",
+        C: "Reaganomics",
+        D: "The Marshall Plan"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Analyze the impact of the Columbian Exchange on global demographics in the 16th and 17th centuries:",
+      options: {
+        A: "It led to significant population growth in the Americas",
+        B: "It caused a population decline in Europe due to imported diseases",
+        C: "It resulted in a significant decline of indigenous populations in the Americas",
+        D: "It had no significant impact on global populations"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "Which historian is associated with the 'Great Man Theory' of history?",
+      options: {
+        A: "Karl Marx",
+        B: "Thomas Carlyle",
+        C: "Fernand Braudel",
+        D: "Michel Foucault"
+      },
+      correct: "B",
+      difficulty: "hard"
     }
   ],
   geography: [
     {
-      easy: [
-        {
-          question: "Which is the largest ocean on Earth?",
-          options: {
-            A: "Atlantic Ocean",
-            B: "Indian Ocean",
-            C: "Arctic Ocean",
-            D: "Pacific Ocean"
-          },
-          correct: "D"
-        },
-        {
-          question: "Which continent is the least populated?",
-          options: {
-            A: "Antarctica",
-            B: "Australia",
-            C: "South America",
-            D: "Africa"
-          },
-          correct: "A"
-        }
-      ],
-      medium: [
-        {
-          question: "What type of landform is created when a meander in a river is cut off from the main channel?",
-          options: {
-            A: "Delta",
-            B: "Oxbow lake",
-            C: "Mesa",
-            D: "Fjord"
-          },
-          correct: "B"
-        },
-        {
-          question: "Which of the following is NOT a factor affecting climate?",
-          options: {
-            A: "Latitude",
-            B: "Altitude",
-            C: "Proximity to bodies of water",
-            D: "Political boundaries"
-          },
-          correct: "D"
-        }
-      ],
-      hard: [
-        {
-          question: "Which of the following best explains the demographic transition model's stage 4?",
-          options: {
-            A: "High birth rates and high death rates",
-            B: "High birth rates and falling death rates",
-            C: "Low birth rates and low death rates",
-            D: "Rising birth rates and low death rates"
-          },
-          correct: "C"
-        },
-        {
-          question: "What is the primary cause of the monsoon climate in South and Southeast Asia?",
-          options: {
-            A: "Ocean currents",
-            B: "Differential heating of land and water",
-            C: "Mountain ranges",
-            D: "The Coriolis effect"
-          },
-          correct: "B"
-        }
-      ]
+      question: "Which is the largest ocean on Earth?",
+      options: {
+        A: "Atlantic Ocean",
+        B: "Indian Ocean",
+        C: "Arctic Ocean",
+        D: "Pacific Ocean"
+      },
+      correct: "D",
+      difficulty: "easy"
+    },
+    {
+      question: "Which continent is the least populated?",
+      options: {
+        A: "Antarctica",
+        B: "Australia",
+        C: "South America",
+        D: "Africa"
+      },
+      correct: "A",
+      difficulty: "easy"
+    },
+    {
+      question: "What type of landform is created when a meander in a river is cut off from the main channel?",
+      options: {
+        A: "Delta",
+        B: "Oxbow lake",
+        C: "Mesa",
+        D: "Fjord"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Which of the following is NOT a factor affecting climate?",
+      options: {
+        A: "Latitude",
+        B: "Altitude",
+        C: "Proximity to bodies of water",
+        D: "Political boundaries"
+      },
+      correct: "D",
+      difficulty: "medium"
+    },
+    {
+      question: "Which of the following best explains the demographic transition model's stage 4?",
+      options: {
+        A: "High birth rates and high death rates",
+        B: "High birth rates and falling death rates",
+        C: "Low birth rates and low death rates",
+        D: "Rising birth rates and low death rates"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "What is the primary cause of the monsoon climate in South and Southeast Asia?",
+      options: {
+        A: "Ocean currents",
+        B: "Differential heating of land and water",
+        C: "Mountain ranges",
+        D: "The Coriolis effect"
+      },
+      correct: "B",
+      difficulty: "hard"
     }
   ]
 };
@@ -592,14 +579,8 @@ serve(async (req) => {
       );
     }
 
-    // Get subject-specific difficulty guidelines, fallback to generic if not found
-    const subjectLower = subject.toLowerCase();
-    const specificDifficultyGuide = SUBJECT_DIFFICULTY_GUIDELINES[subjectLower]?.[difficulty] || 
-                          DIFFICULTY_GUIDELINES[difficulty];
-    const formatGuide = SUBJECT_FORMATTING[subjectLower] || "";
-
-    // Generate questions using the guidelines
-    const questions = generateSubjectQuestions(subject, unitObjective, difficulty, count);
+    // Generate questions using the templates
+    const questions = generateQuestionsForSubject(subject, unitObjective, difficulty, count);
 
     return new Response(
       JSON.stringify({ questions }),
@@ -614,71 +595,93 @@ serve(async (req) => {
   }
 });
 
-function generateSubjectQuestions(subject, unitObjective, difficulty, count) {
+function generateQuestionsForSubject(subject, unitObjective, difficulty, count) {
   const subjectLower = subject.toLowerCase();
+  
+  // Use existing templates if available for this subject
+  const subjectTemplates = QUESTION_TEMPLATES[subjectLower] || [];
   const questions = [];
   
-  // Get question templates for the specific subject and difficulty
-  const templates = SUBJECT_QUESTION_TEMPLATES[subjectLower]?.[0]?.[difficulty] || [];
+  // Filter templates by difficulty
+  const matchingTemplates = subjectTemplates.filter(template => template.difficulty === difficulty);
   
-  // If we have templates for this subject/difficulty
-  if (templates.length > 0) {
-    // Calculate how many questions we can generate from templates
-    const templateCount = Math.min(templates.length, count);
+  // Shuffle the matching templates to ensure random selection
+  const shuffledTemplates = shuffleArray([...matchingTemplates]);
+  
+  // Determine how many questions we can generate from templates
+  const templateCount = Math.min(shuffledTemplates.length, count);
+  
+  // Generate questions from templates
+  for (let i = 0; i < templateCount; i++) {
+    const template = shuffledTemplates[i];
     
-    // Create a copy of templates and shuffle to avoid repetition
-    const shuffledTemplates = shuffleArray([...templates]);
+    questions.push({
+      id: `question-${i+1}`,
+      question_text: template.question,
+      option_a: template.options.A,
+      option_b: template.options.B,
+      option_c: template.options.C,
+      option_d: template.options.D,
+      correct_answer: template.correct,
+      explanation: `Explanation for: ${template.question}`,
+      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+      subject: subject
+    });
+  }
+  
+  // If we need more questions than we have specific templates for
+  if (templateCount < count) {
+    // Generate remaining questions with fallback templates from similar subjects
+    // This is just to ensure we return the requested number of questions
     
-    for (let i = 0; i < templateCount; i++) {
-      const template = shuffledTemplates[i];
-      
-      questions.push({
-        id: `question-${i+1}`,
-        question_text: template.question,
-        option_a: template.options.A,
-        option_b: template.options.B,
-        option_c: template.options.C,
-        option_d: template.options.D,
-        correct_answer: template.correct,
-        explanation: `Explanation for: ${template.question}`,
-        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-        subject: subject
-      });
+    // Get all templates of the specified difficulty to use as fallbacks
+    let allTemplatesForDifficulty = [];
+    for (const [subj, templates] of Object.entries(QUESTION_TEMPLATES)) {
+      if (subj !== subjectLower) {
+        const difficultyTemplates = templates.filter(t => t.difficulty === difficulty);
+        allTemplatesForDifficulty.push(...difficultyTemplates);
+      }
     }
     
-    // If we need more questions than we have templates
-    if (templateCount < count) {
-      // Generate generic questions for the remaining count
-      for (let i = templateCount; i < count; i++) {
+    // Shuffle all available templates
+    const shuffledAllTemplates = shuffleArray(allTemplatesForDifficulty);
+    
+    // Fill remaining questions with adapted templates
+    for (let i = templateCount; i < count; i++) {
+      // If we have a fallback template, adapt it to the current subject
+      if (shuffledAllTemplates.length > 0) {
+        const fallbackTemplate = shuffledAllTemplates.pop();
+        
+        // Adapt the template to the current subject
+        const adaptedQuestion = `[${subject}] ${fallbackTemplate.question}`;
+        
         questions.push({
           id: `question-${i+1}`,
-          question_text: `${subject} ${difficulty} question about ${unitObjective} (#${i+1})`,
-          option_a: "Option A for this question",
-          option_b: "Option B for this question",
-          option_c: "Option C for this question",
-          option_d: "Option D for this question",
+          question_text: adaptedQuestion,
+          option_a: fallbackTemplate.options.A,
+          option_b: fallbackTemplate.options.B,
+          option_c: fallbackTemplate.options.C,
+          option_d: fallbackTemplate.options.D,
+          correct_answer: fallbackTemplate.correct,
+          explanation: `Explanation for: ${adaptedQuestion}`,
+          difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+          subject: subject
+        });
+      } else {
+        // If we have no templates left, create a basic question
+        questions.push({
+          id: `question-${i+1}`,
+          question_text: `${subject} question about ${unitObjective} (Question ${i+1})`,
+          option_a: "Option A",
+          option_b: "Option B",
+          option_c: "Option C",
+          option_d: "Option D",
           correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
-          explanation: `Explanation for this ${subject} question about ${unitObjective}`,
+          explanation: `Explanation for this ${subject} question`,
           difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
           subject: subject
         });
       }
-    }
-  } else {
-    // If no templates exist for this subject/difficulty, generate generic questions
-    for (let i = 0; i < count; i++) {
-      questions.push({
-        id: `question-${i+1}`,
-        question_text: `${subject} ${difficulty} question about ${unitObjective} (#${i+1})`,
-        option_a: "Option A for this question",
-        option_b: "Option B for this question",
-        option_c: "Option C for this question",
-        option_d: "Option D for this question",
-        correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
-        explanation: `Explanation for this ${subject} question about ${unitObjective}`,
-        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-        subject: subject
-      });
     }
   }
   

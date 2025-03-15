@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { 
   Dialog, 
@@ -16,7 +17,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { subjects } from "@/utils/subjects";
@@ -32,6 +32,7 @@ interface QuestionGeneratorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onQuestionsGenerated: (questions: any[]) => void;
+  questionCount?: number;
 }
 
 // Subject-specific difficulty descriptions
@@ -81,13 +82,13 @@ const DIFFICULTY_DESCRIPTIONS: Record<string, Record<string, string>> = {
 const QuestionGenerator = ({ 
   open, 
   onOpenChange,
-  onQuestionsGenerated 
+  onQuestionsGenerated,
+  questionCount = 10
 }: QuestionGeneratorProps) => {
   const { toast } = useToast();
   const [subject, setSubject] = useState("");
   const [unitObjective, setUnitObjective] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
-  const [questionCount, setQuestionCount] = useState([5]);
   const [unitObjectives, setUnitObjectives] = useState<UnitObjective[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -141,7 +142,7 @@ const QuestionGenerator = ({
           subject: selectedSubject.name,
           unitObjective: selectedObjective.description,
           difficulty: difficulty,
-          count: questionCount[0]
+          count: questionCount
         }
       });
       
@@ -262,20 +263,6 @@ const QuestionGenerator = ({
                 </div>
               </div>
             </RadioGroup>
-          </div>
-          
-          <div className="grid gap-2">
-            <div className="flex justify-between">
-              <Label htmlFor="count">Number of Questions: {questionCount[0]}</Label>
-            </div>
-            <Slider
-              id="count"
-              min={1}
-              max={20}
-              step={1}
-              value={questionCount}
-              onValueChange={setQuestionCount}
-            />
           </div>
         </div>
         

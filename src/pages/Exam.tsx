@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -20,6 +19,7 @@ const Exam = () => {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [examType, setExamType] = useState("practice");
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [questionCount, setQuestionCount] = useState(10);
   
   // Exam state
   const [examStarted, setExamStarted] = useState(false);
@@ -123,124 +123,88 @@ const Exam = () => {
               </div>
               
               <div className="mx-auto max-w-3xl">
-                <Tabs defaultValue="practice" onValueChange={setExamType}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="practice">Practice Mode</TabsTrigger>
-                    <TabsTrigger value="timed">Timed Exam</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="practice">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      {examType === "practice" ? (
+                        <>
                           <Check className="mr-2 size-5 text-primary" />
                           Practice Mode
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Take your time to answer questions and see explanations for each answer.
-                          Great for learning and practicing at your own pace.
-                        </p>
-                        
-                        <div className="grid gap-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">
-                              Select Subject
-                            </label>
-                            <select
-                              className="w-full rounded-md border border-input bg-background p-2"
-                              value={selectedSubject}
-                              onChange={(e) => setSelectedSubject(e.target.value)}
-                            >
-                              <option value="">Select a subject</option>
-                              {subjects.map((subject) => (
-                                <option key={subject.id} value={subject.id}>
-                                  {subject.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium mb-2">
-                              Number of Questions
-                            </label>
-                            <select
-                              className="w-full rounded-md border border-input bg-background p-2"
-                              defaultValue="10"
-                            >
-                              <option value="5">5 questions</option>
-                              <option value="10">10 questions</option>
-                              <option value="20">20 questions</option>
-                              <option value="30">30 questions</option>
-                            </select>
-                          </div>
-                          
-                          <Button onClick={handleStartExam} className="mt-2">
-                            Generate Questions <Brain className="ml-2 size-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                  
-                  <TabsContent value="timed">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center">
+                        </>
+                      ) : (
+                        <>
                           <Clock className="mr-2 size-5 text-primary" />
                           Timed Exam
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                          Simulate the real exam experience with timed conditions. 
-                          You will have {EXAM_DURATION} minutes to complete the exam.
-                        </p>
-                        
-                        <div className="grid gap-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">
-                              Select Subject
-                            </label>
-                            <select
-                              className="w-full rounded-md border border-input bg-background p-2"
-                              value={selectedSubject}
-                              onChange={(e) => setSelectedSubject(e.target.value)}
-                            >
-                              <option value="">Select a subject</option>
-                              {subjects.map((subject) => (
-                                <option key={subject.id} value={subject.id}>
-                                  {subject.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium mb-2">
-                              Exam Type
-                            </label>
-                            <select
-                              className="w-full rounded-md border border-input bg-background p-2"
-                              defaultValue="mini"
-                            >
-                              <option value="mini">Mini Exam (30 min)</option>
-                              <option value="full">Full Exam (60 min)</option>
-                              <option value="past">Past Paper (2022)</option>
-                              <option value="custom">Custom Exam</option>
-                            </select>
-                          </div>
-                          
-                          <Button onClick={handleStartExam} className="mt-2">
-                            Generate Questions <Brain className="ml-2 size-4" />
-                          </Button>
+                        </>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-4">
+                      {examType === "practice" 
+                        ? "Take your time to answer questions and see explanations for each answer. Great for learning and practicing at your own pace."
+                        : `Simulate the real exam experience with timed conditions. You will have ${EXAM_DURATION} minutes to complete the exam.`
+                      }
+                    </p>
+                    
+                    <div className="grid gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Select Subject
+                        </label>
+                        <select
+                          className="w-full rounded-md border border-input bg-background p-2"
+                          value={selectedSubject}
+                          onChange={(e) => setSelectedSubject(e.target.value)}
+                        >
+                          <option value="">Select a subject</option>
+                          {subjects.map((subject) => (
+                            <option key={subject.id} value={subject.id}>
+                              {subject.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Number of Questions
+                        </label>
+                        <select
+                          className="w-full rounded-md border border-input bg-background p-2"
+                          value={questionCount}
+                          onChange={(e) => setQuestionCount(Number(e.target.value))}
+                        >
+                          <option value="5">5 questions</option>
+                          <option value="10">10 questions</option>
+                          <option value="15">15 questions</option>
+                          <option value="20">20 questions</option>
+                        </select>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <div className="space-x-2">
+                          <button
+                            className={`px-3 py-1 rounded-full ${examType === "practice" ? "bg-primary text-white" : "bg-secondary"}`}
+                            onClick={() => setExamType("practice")}
+                          >
+                            Practice
+                          </button>
+                          <button
+                            className={`px-3 py-1 rounded-full ${examType === "timed" ? "bg-primary text-white" : "bg-secondary"}`}
+                            onClick={() => setExamType("timed")}
+                          >
+                            Timed
+                          </button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
+                      </div>
+                      
+                      <Button onClick={handleStartExam} className="mt-2">
+                        Generate Questions <Brain className="ml-2 size-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </section>
@@ -396,6 +360,7 @@ const Exam = () => {
         open={generatorOpen} 
         onOpenChange={setGeneratorOpen}
         onQuestionsGenerated={handleQuestionsGenerated}
+        questionCount={questionCount}
       />
       
       <Footer />
