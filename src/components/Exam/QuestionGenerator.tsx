@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { 
   Dialog, 
@@ -94,7 +93,9 @@ const QuestionGenerator = ({
   
   // Get the selected subject object
   const selectedSubject = subjects.find(s => s.id === subject);
-  const subjectKey = selectedSubject?.type?.toLowerCase() || "default";
+  
+  // Get the subject key for difficulty descriptions - use the subject ID or default
+  const subjectKey = selectedSubject?.id || "default";
   
   // Get the difficulty descriptions for the selected subject
   const difficultyDescriptions = DIFFICULTY_DESCRIPTIONS[subjectKey] || DIFFICULTY_DESCRIPTIONS.default;
