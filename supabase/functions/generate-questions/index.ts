@@ -1,12 +1,50 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 
-// Define difficulty level guidelines
+// Define generic difficulty level guidelines
 const DIFFICULTY_GUIDELINES = {
   easy: "Create a basic recall or fundamental understanding question that tests direct knowledge from the unit objective. The question should be straightforward with clear answer choices.",
   medium: "Create an application-based question that requires understanding concepts and applying them to slightly complex scenarios. The question should require some analysis.",
   hard: "Create a complex, multi-step problem-solving question that requires deep understanding and critical thinking. The question may combine multiple concepts from the unit objective."
+};
+
+// Define subject-specific difficulty guidelines
+const SUBJECT_DIFFICULTY_GUIDELINES = {
+  mathematics: {
+    easy: "Create a direct recall question about mathematical formulas or a simple calculation problem. Focus on basic understanding of mathematical concepts with straightforward calculations.",
+    medium: "Create a question that requires applying mathematical concepts to solve problems. Include calculations that require multiple steps but follow a clear logical path.",
+    hard: "Create a complex multi-step mathematical problem that requires combining multiple concepts, formulas, or methods. The question should test deep understanding and advanced problem-solving skills."
+  },
+  physics: {
+    easy: "Create a question about basic physics laws, concepts, or simple problem-solving with straightforward formulas. Focus on fundamental knowledge and simple calculations.",
+    medium: "Create a question that requires application of physics formulas in different contexts or scenarios. Include problems requiring multiple-step calculations or understanding of interconnected concepts.",
+    hard: "Create a complex physics problem requiring integration of multiple concepts, laws, or formulas. The question should involve advanced analysis and multi-step problem-solving."
+  },
+  chemistry: {
+    easy: "Create a question about basic chemical concepts, formulas, or properties. Focus on fundamental knowledge and simple chemical relationships.",
+    medium: "Create a question involving chemical reactions, balancing equations, or mid-level applications of chemical principles. Include moderate complexity in problem-solving.",
+    hard: "Create a complex question about reaction mechanisms, multi-step synthesis, or advanced chemical concepts. The question should require deep understanding and analysis."
+  },
+  biology: {
+    easy: "Create a question testing recall of biological terms, structures, or basic processes. Focus on fundamental biological knowledge and simple concepts.",
+    medium: "Create a question about biological mechanisms, relationships between systems, or ecosystem interactions. Include moderate complexity and analysis.",
+    hard: "Create a complex question about integrated biological systems, detailed processes, or advanced concepts. The question should require deep understanding and analysis."
+  },
+  english: {
+    easy: "Create a question about basic grammar, vocabulary, or simple text comprehension. Focus on fundamental language skills and basic understanding.",
+    medium: "Create a question requiring literary analysis, interpretation, or understanding contextual meaning. Include moderate complexity in analysis.",
+    hard: "Create a complex question about literary criticism, advanced rhetorical analysis, or sophisticated composition concepts. The question should require deep analysis and understanding."
+  },
+  history: {
+    easy: "Create a question about historical facts, dates, events, or key figures. Focus on basic historical knowledge and simple recall.",
+    medium: "Create a question connecting historical events or understanding cause-effect relationships. Include analysis of historical contexts.",
+    hard: "Create a complex question requiring historical analysis, evaluation of multiple perspectives, or historiographical understanding. The question should require deep critical thinking."
+  },
+  geography: {
+    easy: "Create a question about basic geographical features, locations, or terminology. Focus on fundamental geographical knowledge.",
+    medium: "Create a question about geographical patterns, relationships, or processes. Include analysis of geographical phenomena.",
+    hard: "Create a complex question about geographical systems, global impacts, or detailed analysis. The question should require integration of multiple geographical concepts."
+  }
 };
 
 // Define subject-specific formatting instructions
@@ -49,8 +87,14 @@ serve(async (req) => {
       );
     }
 
-    // Use simulated question generation for now, eventually can be replaced with OpenAI or similar
-    const questions = generateMockQuestions(subject, unitObjective, difficulty, count);
+    // Get subject-specific difficulty guidelines, fallback to generic if not found
+    const subjectLower = subject.toLowerCase();
+    const difficultyGuide = SUBJECT_DIFFICULTY_GUIDELINES[subjectLower]?.[difficulty] || 
+                          DIFFICULTY_GUIDELINES[difficulty];
+    const formatGuide = SUBJECT_FORMATTING[subjectLower] || "";
+
+    // Generate questions using the guidelines
+    const questions = generateMockQuestions(subject, unitObjective, difficulty, count, difficultyGuide, formatGuide);
 
     return new Response(
       JSON.stringify({ questions }),
@@ -65,18 +109,14 @@ serve(async (req) => {
   }
 });
 
-// This function simulates question generation - in a real implementation,
-// this would call an AI service like OpenAI or Hugging Face
-function generateMockQuestions(subject, unitObjective, difficulty, count) {
+function generateMockQuestions(subject, unitObjective, difficulty, count, difficultyGuide, formatGuide) {
   const subjectLower = subject.toLowerCase();
-  const difficultyGuide = DIFFICULTY_GUIDELINES[difficulty];
-  const formatGuide = SUBJECT_FORMATTING[subjectLower] || "";
-  
-  // Mock questions for demonstration purposes
+  const difficultyGuide = difficultyGuide || DIFFICULTY_GUIDELINES[difficulty];
+  const formatGuide = formatGuide || SUBJECT_FORMATTING[subjectLower] || "";
+
   const questions = [];
-  
+
   for (let i = 0; i < count; i++) {
-    // For math and physics, include LaTeX examples
     let questionText = `Question about ${unitObjective}`;
     let options = {
       A: "First option",
@@ -84,8 +124,7 @@ function generateMockQuestions(subject, unitObjective, difficulty, count) {
       C: "Third option",
       D: "Fourth option"
     };
-    
-    // Add subject-specific formatting
+
     if (subjectLower === "mathematics") {
       if (i === 0) {
         questionText = `Calculate the value of $\\frac{3x + 5}{2}$ when $x = 4$`;
@@ -133,8 +172,7 @@ function generateMockQuestions(subject, unitObjective, difficulty, count) {
         };
       }
     }
-    
-    // Add the question to the array
+
     questions.push({
       id: `mock-question-${i}`,
       question_text: questionText,
@@ -142,12 +180,12 @@ function generateMockQuestions(subject, unitObjective, difficulty, count) {
       option_b: options.B,
       option_c: options.C,
       option_d: options.D,
-      correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)], // Random correct answer
+      correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
       explanation: `Explanation for the question about ${unitObjective}`,
-      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+      difficulty_level: difficultyGuide === "easy" ? 1 : difficultyGuide === "medium" ? 3 : 5,
       subject: subject
     });
   }
-  
+
   return questions;
 }
