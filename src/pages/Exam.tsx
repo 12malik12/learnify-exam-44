@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -76,15 +75,6 @@ const Exam = () => {
         throw new Error("No questions were generated. There might not be enough high-quality templates available for the selected subject and difficulty.");
       }
       
-      // If we got fewer questions than requested, inform the user
-      if (data.questions.length < questionCount) {
-        toast({
-          title: "Limited Questions Available",
-          description: `Only ${data.questions.length} high-quality questions were available for ${selectedSubjectObj?.name} with the selected difficulty.`,
-          variant: "default",
-        });
-      }
-      
       // Start the exam with the generated questions
       setExamQuestions(data.questions);
       setExamStarted(true);
@@ -92,10 +82,25 @@ const Exam = () => {
       setAnswers({});
       setExamCompleted(false);
       
-      toast({
-        title: "Exam Ready",
-        description: `${data.questions.length} questions have been generated. Good luck!`
-      });
+      // Check if we have the requested number of questions
+      if (data.questions.length < questionCount) {
+        toast({
+          title: "Limited Questions Available",
+          description: `Only ${data.questions.length} high-quality templates were available for ${selectedSubjectObj?.name}. Some questions may be variations of others.`,
+          variant: "default",
+        });
+      } else if (data.questions.length > 0 && data.questions.some(q => q.id.includes("reused"))) {
+        toast({
+          title: "Some Questions Reused",
+          description: `Some questions are variations of others to meet the requested count of ${questionCount}.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Exam Ready",
+          description: `${data.questions.length} questions have been generated. Good luck!`
+        });
+      }
       
     } catch (error) {
       console.error("Error generating questions:", error);
