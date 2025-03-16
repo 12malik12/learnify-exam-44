@@ -564,23 +564,38 @@ serve(async (req) => {
   try {
     const { subject, unitObjective, difficulty, count = 5 } = await req.json();
     
-    if (!subject || !unitObjective || !difficulty) {
+    if (!subject) {
       return new Response(
-        JSON.stringify({ error: "Missing required parameters" }),
+        JSON.stringify({ error: "Missing required subject parameter" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate difficulty level
-    if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+    if (difficulty && !['easy', 'medium', 'hard', 'all'].includes(difficulty)) {
       return new Response(
-        JSON.stringify({ error: "Invalid difficulty level. Must be 'easy', 'medium', or 'hard'" }),
+        JSON.stringify({ error: "Invalid difficulty level. Must be 'easy', 'medium', 'hard', or 'all'" }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Generate questions using the templates
-    const questions = generateQuestionsForSubject(subject, unitObjective, difficulty, count);
+    let questions = [];
+    
+    if (difficulty === 'all') {
+      // If "all" is selected, generate questions from all difficulties
+      const easyQuestions = generateQuestionsForSubject(subject, unitObjective, 'easy', Math.floor(count / 3));
+      const mediumQuestions = generateQuestionsForSubject(subject, unitObjective, 'medium', Math.floor(count / 3));
+      const hardQuestions = generateQuestionsForSubject(subject, unitObjective, 'hard', count - Math.floor(count / 3) * 2);
+      
+      questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
+      
+      // Shuffle the questions to mix difficulty levels
+      questions = shuffleArray(questions);
+    } else {
+      // Generate questions for the specific difficulty
+      questions = generateQuestionsForSubject(subject, unitObjective, difficulty, count);
+    }
 
     return new Response(
       JSON.stringify({ questions }),
@@ -589,7 +604,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error generating questions:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to generate questions" }),
+      JSON.stringify({ error: "Failed to generate questions", details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -671,7 +686,7 @@ function generateQuestionsForSubject(subject, unitObjective, difficulty, count) 
         // If we have no templates left, create a basic question
         questions.push({
           id: `question-${i+1}`,
-          question_text: `${subject} question about ${unitObjective} (Question ${i+1})`,
+          question_text: `${subject} question about ${unitObjective || "general knowledge"} (Question ${i+1})`,
           option_a: "Option A",
           option_b: "Option B",
           option_c: "Option C",
