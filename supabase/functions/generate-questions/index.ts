@@ -138,6 +138,39 @@ const QUESTION_TEMPLATES = {
       },
       correct: "A",
       difficulty: "hard"
+    },
+    {
+      question: "What is the limit of $\\frac{x^2 - 4}{x - 2}$ as $x$ approaches 2?",
+      options: {
+        A: "0",
+        B: "2",
+        C: "4",
+        D: "Undefined"
+      },
+      correct: "C",
+      difficulty: "medium"
+    },
+    {
+      question: "What is the value of $\\cos(\\pi/3)$?",
+      options: {
+        A: "$0$",
+        B: "$\\frac{1}{2}$",
+        C: "$\\frac{\\sqrt{3}}{2}$",
+        D: "$1$"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "For what value of $k$ does the quadratic equation $x^2 + kx + 25 = 0$ have exactly one solution?",
+      options: {
+        A: "$k = 0$",
+        B: "$k = \\pm 5$",
+        C: "$k = \\pm 10$",
+        D: "$k = 25$"
+      },
+      correct: "C",
+      difficulty: "hard"
     }
   ],
   physics: [
@@ -206,6 +239,50 @@ const QUESTION_TEMPLATES = {
       },
       correct: "C",
       difficulty: "hard"
+    },
+    {
+      question: "Which of the following is NOT a vector quantity?",
+      options: {
+        A: "Velocity",
+        B: "Acceleration",
+        C: "Temperature",
+        D: "Force"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "According to Einstein's theory of special relativity, what happens to the mass of an object as its velocity approaches the speed of light?",
+      options: {
+        A: "It decreases to zero",
+        B: "It remains constant",
+        C: "It increases towards infinity",
+        D: "It oscillates between maximum and minimum values"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "What is the wavelength of a photon with energy $3.0 \\times 10^{-19}$ joules? (Planck's constant $h = 6.63 \\times 10^{-34}$ J·s, speed of light $c = 3.0 \\times 10^8$ m/s)",
+      options: {
+        A: "$450 nm$",
+        B: "$550 nm$",
+        C: "$650 nm$",
+        D: "$750 nm$"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "A pendulum of length 1 meter on Earth has a period of approximately 2 seconds. What would be its period on the Moon, where gravity is 1/6 that of Earth?",
+      options: {
+        A: "0.82 seconds",
+        B: "2 seconds",
+        C: "4.9 seconds",
+        D: "12 seconds"
+      },
+      correct: "C",
+      difficulty: "medium"
     }
   ],
   chemistry: [
@@ -274,6 +351,50 @@ const QUESTION_TEMPLATES = {
       },
       correct: "A",
       difficulty: "hard"
+    },
+    {
+      question: "Which of the following is a strong acid?",
+      options: {
+        A: "CH₃COOH (acetic acid)",
+        B: "HNO₃ (nitric acid)",
+        C: "H₂CO₃ (carbonic acid)",
+        D: "NH₄⁺ (ammonium ion)"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "What is the IUPAC name for the compound CH₃-CH₂-CO-CH₃?",
+      options: {
+        A: "2-butanone",
+        B: "butanal",
+        C: "butanoic acid",
+        D: "methyl propyl ketone"
+      },
+      correct: "A",
+      difficulty: "medium"
+    },
+    {
+      question: "In an endothermic reaction:",
+      options: {
+        A: "Heat is released to the surroundings",
+        B: "Heat is absorbed from the surroundings",
+        C: "No heat is exchanged",
+        D: "The entropy always decreases"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "What is the oxidation number of chromium in K₂Cr₂O₇?",
+      options: {
+        A: "+3",
+        B: "+4",
+        C: "+6",
+        D: "+7"
+      },
+      correct: "C",
+      difficulty: "medium"
     }
   ],
   biology: [
@@ -342,6 +463,50 @@ const QUESTION_TEMPLATES = {
       },
       correct: "C",
       difficulty: "hard"
+    },
+    {
+      question: "Which of the following is NOT a part of the human digestive system?",
+      options: {
+        A: "Pancreas",
+        B: "Gall bladder",
+        C: "Spleen",
+        D: "Esophagus"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Which hormone is responsible for regulating blood glucose levels by allowing cells to take up glucose from the bloodstream?",
+      options: {
+        A: "Glucagon",
+        B: "Insulin",
+        C: "Cortisol",
+        D: "Thyroxine"
+      },
+      correct: "B",
+      difficulty: "easy"
+    },
+    {
+      question: "Which type of RNA carries amino acids to the ribosome during protein synthesis?",
+      options: {
+        A: "mRNA",
+        B: "tRNA",
+        C: "rRNA",
+        D: "snRNA"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "What is the role of helper T cells in the immune system?",
+      options: {
+        A: "Direct killing of infected cells",
+        B: "Production of antibodies",
+        C: "Activation of B cells and other immune cells",
+        D: "Phagocytosis of bacteria"
+      },
+      correct: "C",
+      difficulty: "medium"
     }
   ],
   english: [
@@ -409,6 +574,50 @@ const QUESTION_TEMPLATES = {
         D: "Frame narrative"
       },
       correct: "B",
+      difficulty: "hard"
+    },
+    {
+      question: "Which of the following is an example of an oxymoron?",
+      options: {
+        A: "As busy as a bee",
+        B: "Deafening silence",
+        C: "Time flies",
+        D: "The rolling hills"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "In Shakespeare's 'Romeo and Juliet', which character speaks the line: 'A plague on both your houses'?",
+      options: {
+        A: "Romeo",
+        B: "Tybalt",
+        C: "Mercutio",
+        D: "Friar Lawrence"
+      },
+      correct: "C",
+      difficulty: "hard"
+    },
+    {
+      question: "What is the function of a subordinating conjunction in a complex sentence?",
+      options: {
+        A: "To join two independent clauses",
+        B: "To join an independent clause with a dependent clause",
+        C: "To introduce a list of items",
+        D: "To compare two similar items"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Which of the following is NOT one of the traditional characteristics of an epic poem?",
+      options: {
+        A: "Begins in medias res (in the middle of the action)",
+        B: "Features a hero of great national or cosmic importance",
+        C: "Short in length and focused on a single incident",
+        D: "Involves supernatural elements or divine intervention"
+      },
+      correct: "C",
       difficulty: "hard"
     }
   ],
@@ -478,6 +687,50 @@ const QUESTION_TEMPLATES = {
       },
       correct: "B",
       difficulty: "hard"
+    },
+    {
+      question: "Which empire controlled the largest land area in history at its peak?",
+      options: {
+        A: "Roman Empire",
+        B: "British Empire",
+        C: "Mongol Empire",
+        D: "Ottoman Empire"
+      },
+      correct: "C",
+      difficulty: "medium"
+    },
+    {
+      question: "What was the significance of the Battle of Hastings in 1066?",
+      options: {
+        A: "It marked the beginning of the Hundred Years' War",
+        B: "It ended Roman rule in Britain",
+        C: "It resulted in Norman conquest of England",
+        D: "It united England and Scotland"
+      },
+      correct: "C",
+      difficulty: "medium"
+    },
+    {
+      question: "Which of the following was NOT one of the major causes of the French Revolution?",
+      options: {
+        A: "Economic crisis and food shortages",
+        B: "Social inequality and privilege of the nobility",
+        C: "Influence of Enlightenment ideas",
+        D: "Foreign invasion by Britain"
+      },
+      correct: "D",
+      difficulty: "hard"
+    },
+    {
+      question: "During which period did the Renaissance primarily occur in Europe?",
+      options: {
+        A: "9th-12th centuries",
+        B: "14th-17th centuries",
+        C: "18th-19th centuries",
+        D: "20th century"
+      },
+      correct: "B",
+      difficulty: "easy"
     }
   ],
   geography: [
@@ -546,6 +799,50 @@ const QUESTION_TEMPLATES = {
       },
       correct: "B",
       difficulty: "hard"
+    },
+    {
+      question: "Which of the following countries is landlocked (has no direct access to the ocean)?",
+      options: {
+        A: "Vietnam",
+        B: "Thailand",
+        C: "Bolivia",
+        D: "Ecuador"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "Which of the following is a renewable resource?",
+      options: {
+        A: "Coal",
+        B: "Natural gas",
+        C: "Solar energy",
+        D: "Petroleum"
+      },
+      correct: "C",
+      difficulty: "easy"
+    },
+    {
+      question: "What is the name for the boundary between two tectonic plates that are moving away from each other?",
+      options: {
+        A: "Convergent boundary",
+        B: "Divergent boundary",
+        C: "Transform boundary",
+        D: "Subduction zone"
+      },
+      correct: "B",
+      difficulty: "medium"
+    },
+    {
+      question: "Which of the following biomes is characterized by low precipitation, extreme temperature variations, and sparse vegetation?",
+      options: {
+        A: "Tropical rainforest",
+        B: "Temperate deciduous forest",
+        C: "Desert",
+        D: "Tundra"
+      },
+      correct: "C",
+      difficulty: "medium"
     }
   ]
 };
@@ -596,45 +893,121 @@ serve(async (req) => {
     
     if (difficulty === 'all') {
       // If "all" is selected, generate questions from all difficulties for the selected subject
-      // First, determine how many templates are available for each difficulty
-      const easyTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'easy');
-      const mediumTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'medium');
-      const hardTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'hard');
+      // Get all templates for this subject
+      let allTemplates = QUESTION_TEMPLATES[subjectLower];
       
-      const totalTemplates = easyTemplates.length + mediumTemplates.length + hardTemplates.length;
+      // Make a deep copy to avoid modifying the original templates
+      allTemplates = JSON.parse(JSON.stringify(allTemplates));
       
-      // Calculate proportions while respecting available templates
-      const targetEasy = Math.floor(count / 3);
-      const targetMedium = Math.floor(count / 3);
-      const targetHard = count - targetEasy - targetMedium;
+      // Shuffle all templates to ensure randomness
+      allTemplates = shuffleArray(allTemplates);
       
-      // Generate questions based on available templates
-      const easyQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'easy', targetEasy);
-      const mediumQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'medium', targetMedium);
-      const hardQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'hard', targetHard);
+      // Limit the number of questions to the requested count or available templates
+      const availableCount = Math.min(count, allTemplates.length);
       
-      questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
+      // Generate the questions from the shuffled templates
+      questions = allTemplates.slice(0, availableCount).map((template, index) => ({
+        id: `question-${index+1}-${template.difficulty}-${subjectLower}`,
+        question_text: template.question,
+        option_a: template.options.A,
+        option_b: template.options.B,
+        option_c: template.options.C,
+        option_d: template.options.D,
+        correct_answer: template.correct,
+        explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+        difficulty_level: template.difficulty === "easy" ? 1 : template.difficulty === "medium" ? 3 : 5,
+        subject: subject
+      }));
       
-      // Shuffle the questions to mix difficulty levels
-      questions = shuffleArray(questions);
-      
-      // If we didn't get enough questions, reuse templates
-      if (questions.length < count) {
-        console.warn(`Reusing templates for ${subject} (all difficulties) to meet requested count of ${count} questions.`);
-        questions = reuseCombinedTemplates(subjectLower, unitObjective, questions, count, totalTemplates);
+      // If we need more questions than templates available, create modified versions
+      if (count > allTemplates.length) {
+        console.warn(`Using template modifications to meet requested count of ${count} questions for ${subject} (all difficulties).`);
+        
+        // Create modified versions of templates
+        const additionalQuestionsNeeded = count - allTemplates.length;
+        
+        for (let i = 0; i < additionalQuestionsNeeded; i++) {
+          // Choose a template to modify
+          const templateIndex = i % allTemplates.length;
+          const template = JSON.parse(JSON.stringify(allTemplates[templateIndex]));
+          
+          // Create a deep modified version to ensure uniqueness
+          const modifiedTemplate = createUniqueModification(template, subjectLower, i, questions);
+          
+          questions.push({
+            id: `question-${allTemplates.length + i + 1}-${template.difficulty}-${subjectLower}-unique-${i}`,
+            question_text: modifiedTemplate.question,
+            option_a: modifiedTemplate.options.A,
+            option_b: modifiedTemplate.options.B,
+            option_c: modifiedTemplate.options.C,
+            option_d: modifiedTemplate.options.D,
+            correct_answer: modifiedTemplate.correct,
+            explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+            difficulty_level: template.difficulty === "easy" ? 1 : template.difficulty === "medium" ? 3 : 5,
+            subject: subject
+          });
+        }
       }
     } else {
       // Generate questions for the specific difficulty from the selected subject
-      questions = generateQuestionsForDifficulty(subjectLower, unitObjective, difficulty, count);
+      const difficultyTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === difficulty);
       
-      // If we didn't get enough questions, reuse templates
-      const availableTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === difficulty).length;
-      if (questions.length < count && availableTemplates > 0) {
-        console.warn(`Reusing templates for ${subject} (${difficulty}) to meet requested count of ${count} questions.`);
-        questions = reuseTemplates(subjectLower, unitObjective, difficulty, questions, count, availableTemplates);
+      // Make a deep copy to avoid modifying the original templates
+      const templatesCopy = JSON.parse(JSON.stringify(difficultyTemplates));
+      
+      // Shuffle to ensure randomness
+      const shuffledTemplates = shuffleArray(templatesCopy);
+      
+      // Limit to available templates
+      const availableCount = Math.min(count, shuffledTemplates.length);
+      
+      // Generate questions from templates
+      questions = shuffledTemplates.slice(0, availableCount).map((template, index) => ({
+        id: `question-${index+1}-${difficulty}-${subjectLower}`,
+        question_text: template.question,
+        option_a: template.options.A,
+        option_b: template.options.B,
+        option_c: template.options.C,
+        option_d: template.options.D,
+        correct_answer: template.correct,
+        explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+        subject: subject
+      }));
+      
+      // If we need more questions than templates available, create modified versions
+      if (count > shuffledTemplates.length) {
+        console.warn(`Using template modifications to meet requested count of ${count} questions for ${subject} (${difficulty}).`);
+        
+        const additionalQuestionsNeeded = count - shuffledTemplates.length;
+        
+        for (let i = 0; i < additionalQuestionsNeeded; i++) {
+          // Choose a template to modify
+          const templateIndex = i % shuffledTemplates.length;
+          const template = JSON.parse(JSON.stringify(shuffledTemplates[templateIndex]));
+          
+          // Create a deep modified version to ensure uniqueness
+          const modifiedTemplate = createUniqueModification(template, subjectLower, i, questions);
+          
+          questions.push({
+            id: `question-${shuffledTemplates.length + i + 1}-${difficulty}-${subjectLower}-unique-${i}`,
+            question_text: modifiedTemplate.question,
+            option_a: modifiedTemplate.options.A,
+            option_b: modifiedTemplate.options.B,
+            option_c: modifiedTemplate.options.C,
+            option_d: modifiedTemplate.options.D,
+            correct_answer: modifiedTemplate.correct,
+            explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+            difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+            subject: subject
+          });
+        }
       }
     }
 
+    // Final shuffle of questions to mix original and modified templates
+    questions = shuffleArray(questions);
+    
     return new Response(
       JSON.stringify({ questions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -648,127 +1021,108 @@ serve(async (req) => {
   }
 });
 
-function generateQuestionsForDifficulty(subject, unitObjective, difficulty, count) {
-  // Use templates only from the specified subject and difficulty
-  const subjectTemplates = QUESTION_TEMPLATES[subject] || [];
+// Create a uniquely modified version of a template, ensuring it doesn't duplicate existing questions
+function createUniqueModification(template, subject, index, existingQuestions) {
+  let modifiedTemplate;
+  let attempts = 0;
+  const maxAttempts = 10;
   
-  // Filter templates by difficulty
-  const matchingTemplates = subjectTemplates.filter(template => template.difficulty === difficulty);
-  
-  // Limit count to available templates
-  const finalCount = Math.min(count, matchingTemplates.length);
-  
-  if (finalCount === 0) {
-    console.warn(`Warning: No templates available for ${subject} (${difficulty}).`);
-    return [];
-  }
-  
-  // Shuffle the matching templates to ensure random selection
-  const shuffledTemplates = shuffleArray([...matchingTemplates]);
-  
-  // Generate questions from templates (limited to available templates)
-  const questions = [];
-  for (let i = 0; i < finalCount; i++) {
-    const template = shuffledTemplates[i];
+  do {
+    // Create a modified version of the template
+    modifiedTemplate = modifyTemplate(template, subject, index + attempts);
     
-    questions.push({
-      id: `question-${i+1}-${difficulty}-${subject}`,
-      question_text: template.question,
-      option_a: template.options.A,
-      option_b: template.options.B,
-      option_c: template.options.C,
-      option_d: template.options.D,
-      correct_answer: template.correct,
-      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-      subject: subject
-    });
+    // Check if the modified question text already exists in the questions list
+    const isDuplicate = existingQuestions.some(q => q.question_text === modifiedTemplate.question);
+    
+    if (!isDuplicate) {
+      // If it's unique, we can use it
+      break;
+    }
+    
+    attempts++;
+  } while (attempts < maxAttempts);
+  
+  // If we couldn't create a unique question after max attempts,
+  // make a more significant modification to ensure uniqueness
+  if (attempts >= maxAttempts) {
+    modifiedTemplate = createForcedUniqueTemplate(template, subject, index, existingQuestions);
   }
   
-  return questions;
+  return modifiedTemplate;
 }
 
-// New function to reuse templates for a specific difficulty
-function reuseTemplates(subject, unitObjective, difficulty, existingQuestions, targetCount, availableTemplates) {
-  const questions = [...existingQuestions];
+// Create a forced unique template by making more significant changes
+function createForcedUniqueTemplate(template, subject, index, existingQuestions) {
+  // Make a deep copy of the template
+  const newTemplate = JSON.parse(JSON.stringify(template));
   
-  // If we already have enough questions, return them
-  if (questions.length >= targetCount) {
-    return questions;
+  // Add a unique identifier to the question to ensure it's different
+  const unique_id = Math.floor(Math.random() * 10000);
+  
+  // Make different modifications based on subject
+  switch (subject) {
+    case 'mathematics':
+      if (newTemplate.question.includes('rectangle')) {
+        const newLength = 10 + (index % 7);
+        const newWidth = 5 + (index % 5);
+        newTemplate.question = `Find the perimeter of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+      } else if (newTemplate.question.includes('equation')) {
+        const a = 2 + (index % 3);
+        const b = 5 + (index % 4);
+        const c = a * 3 + b;
+        newTemplate.question = `Solve for x: ${a}x + ${b} = ${c}.`;
+      } else {
+        // Generic modification for other math questions
+        newTemplate.question = `Variation #${unique_id}: ${newTemplate.question}`;
+      }
+      break;
+      
+    case 'physics':
+      if (newTemplate.question.includes('force')) {
+        const mass = 2 + (index % 8);
+        const accel = 3 + (index % 5);
+        newTemplate.question = `Calculate the force needed to accelerate a ${mass} kg object at ${accel} m/s².`;
+      } else {
+        // Generic modification for other physics questions
+        newTemplate.question = `Alternate scenario #${unique_id}: ${newTemplate.question}`;
+      }
+      break;
+      
+    // Add similar cases for other subjects
+    default:
+      // Generic modification for any subject
+      newTemplate.question = `Version ${unique_id}: ${newTemplate.question}`;
   }
   
-  // Get the templates for this subject and difficulty
-  const templates = QUESTION_TEMPLATES[subject].filter(t => t.difficulty === difficulty);
+  // Also modify the answer options to ensure they're different
+  shuffleOptions(newTemplate);
   
-  // Calculate how many more questions we need
-  const neededQuestions = targetCount - questions.length;
-  
-  // For each additional question needed
-  for (let i = 0; i < neededQuestions; i++) {
-    // Choose a template to reuse
-    const templateIndex = i % availableTemplates;
-    const template = templates[templateIndex];
-    
-    // Modify the template to make it unique
-    const modifiedTemplate = modifyTemplate(template, subject, i);
-    
-    questions.push({
-      id: `question-${questions.length + 1}-${difficulty}-${subject}-reused-${i}`,
-      question_text: modifiedTemplate.question,
-      option_a: modifiedTemplate.options.A,
-      option_b: modifiedTemplate.options.B,
-      option_c: modifiedTemplate.options.C,
-      option_d: modifiedTemplate.options.D,
-      correct_answer: modifiedTemplate.correct,
-      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-      subject: subject
-    });
-  }
-  
-  return questions;
+  return newTemplate;
 }
 
-// Function to reuse templates for combined difficulties
-function reuseCombinedTemplates(subject, unitObjective, existingQuestions, targetCount, totalTemplates) {
-  const questions = [...existingQuestions];
+// Helper function to shuffle answer options
+function shuffleOptions(template) {
+  const options = Object.entries(template.options);
+  shuffleArray(options);
   
-  // If we already have enough questions, return them
-  if (questions.length >= targetCount) {
-    return questions;
-  }
+  // Track where the correct answer moved to
+  const correctValue = template.options[template.correct];
+  let newCorrect = '';
   
-  // Get all templates for this subject
-  const allTemplates = QUESTION_TEMPLATES[subject];
+  // Rebuild the options object
+  const newOptions = {};
+  options.forEach(([key, value], i) => {
+    const newKey = ['A', 'B', 'C', 'D'][i];
+    newOptions[newKey] = value;
+    if (value === correctValue) {
+      newCorrect = newKey;
+    }
+  });
   
-  // Calculate how many more questions we need
-  const neededQuestions = targetCount - questions.length;
+  template.options = newOptions;
+  template.correct = newCorrect;
   
-  // For each additional question needed
-  for (let i = 0; i < neededQuestions; i++) {
-    // Choose a template to reuse
-    const templateIndex = i % totalTemplates;
-    const template = allTemplates[templateIndex];
-    
-    // Modify the template to make it unique
-    const modifiedTemplate = modifyTemplate(template, subject, i);
-    const difficulty = template.difficulty;
-    
-    questions.push({
-      id: `question-${questions.length + 1}-${difficulty}-${subject}-reused-${i}`,
-      question_text: modifiedTemplate.question,
-      option_a: modifiedTemplate.options.A,
-      option_b: modifiedTemplate.options.B,
-      option_c: modifiedTemplate.options.C,
-      option_d: modifiedTemplate.options.D,
-      correct_answer: modifiedTemplate.correct,
-      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-      subject: subject
-    });
-  }
-  
-  return shuffleArray(questions);
+  return template;
 }
 
 // Helper function to modify a template to make it unique
@@ -862,55 +1216,65 @@ function modifyChemistryTemplate(template, index) {
 }
 
 function modifyBiologyTemplate(template, index) {
-  // For biology, we might change cell types, organisms, or processes
-  return template; // Simple implementation for now
-}
-
-function modifyEnglishTemplate(template, index) {
-  // For English, we might change the sentences or literary works
-  return template; // Simple implementation for now
-}
-
-function modifyHistoryTemplate(template, index) {
-  // For History, we might change dates, figures, or events
-  return template; // Simple implementation for now
-}
-
-function modifyGeographyTemplate(template, index) {
-  // For Geography, we might change locations or phenomena
-  return template; // Simple implementation for now
-}
-
-function modifyDefaultTemplate(template, index) {
-  // Generic modification - shuffle the answer options
-  const options = Object.entries(template.options);
-  shuffleArray(options);
-  
-  // Track where the correct answer moved to
-  const correctValue = template.options[template.correct];
-  let newCorrect = '';
-  
-  // Rebuild the options object
-  const newOptions = {};
-  options.forEach(([key, value], i) => {
-    const newKey = ['A', 'B', 'C', 'D'][i];
-    newOptions[newKey] = value;
-    if (value === correctValue) {
-      newCorrect = newKey;
+  // For biology, we might modify terminology or examples
+  if (template.question.includes('organelle')) {
+    const organelles = [
+      { name: "Mitochondria", function: "ATP production" },
+      { name: "Ribosome", function: "Protein synthesis" },
+      { name: "Golgi apparatus", function: "Processing and packaging macromolecules" },
+      { name: "Endoplasmic reticulum", function: "Synthesis of lipids and proteins" }
+    ];
+    
+    const selectedOrganelle = organelles[index % organelles.length];
+    
+    template.question = `What is the main function of the ${selectedOrganelle.name} in a cell?`;
+    
+    // Create new options
+    const allFunctions = organelles.map(o => o.function);
+    const correctAnswer = selectedOrganelle.function;
+    template.options.A = allFunctions[0];
+    template.options.B = allFunctions[1];
+    template.options.C = allFunctions[2];
+    template.options.D = allFunctions[3];
+    
+    // Set correct answer
+    for (const [key, value] of Object.entries(template.options)) {
+      if (value === correctAnswer) {
+        template.correct = key;
+        break;
+      }
     }
-  });
-  
-  template.options = newOptions;
-  template.correct = newCorrect;
+  }
   
   return template;
 }
 
+function modifyEnglishTemplate(template, index) {
+  // For English, we might change literary works, examples, or terminology
+  return shuffleOptions(template); // Simple implementation using option shuffling
+}
+
+function modifyHistoryTemplate(template, index) {
+  // For History, we might change dates, figures, or events
+  return shuffleOptions(template); // Simple implementation using option shuffling
+}
+
+function modifyGeographyTemplate(template, index) {
+  // For Geography, we might change locations or phenomena
+  return shuffleOptions(template); // Simple implementation using option shuffling
+}
+
+function modifyDefaultTemplate(template, index) {
+  // Generic modification - shuffle the answer options
+  return shuffleOptions(template);
+}
+
 // Helper function to shuffle an array (Fisher-Yates algorithm)
 function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
+  const result = [...array]; // Create a copy to avoid modifying the original
+  for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+    [result[i], result[j]] = [result[j], result[i]];
   }
-  return array;
+  return result;
 }
