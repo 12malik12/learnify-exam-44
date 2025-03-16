@@ -7,10 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, Check, ClipboardList, Clock, BarChart, ChevronLeft, ChevronRight, Brain } from "lucide-react";
-import QuestionGenerator from "@/components/Exam/QuestionGenerator";
+import { supabase } from "@/integrations/supabase/client";
 import ExamQuestion from "@/components/Exam/ExamQuestion";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantDialog from "@/components/AIAssistant/AIAssistantDialog";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const EXAM_DURATION = 60; // minutes
 
@@ -18,8 +27,9 @@ const Exam = () => {
   const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [examType, setExamType] = useState("practice");
-  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [difficulty, setDifficulty] = useState("all");
   const [questionCount, setQuestionCount] = useState(10);
+  const [loading, setLoading] = useState(false);
   
   // Exam state
   const [examStarted, setExamStarted] = useState(false);
@@ -30,8 +40,11 @@ const Exam = () => {
   
   // AI Assistant
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+
+  // Get the selected subject object
+  const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
   
-  const handleStartExam = () => {
+  const handleGenerateExam = async () => {
     if (!selectedSubject) {
       toast({
         title: "Subject Required",
@@ -41,17 +54,49 @@ const Exam = () => {
       return;
     }
     
-    // For a real app, this would navigate to the exam page
-    // For now, we'll open the question generator
-    setGeneratorOpen(true);
-  };
-  
-  const handleQuestionsGenerated = (questions: any[]) => {
-    setExamQuestions(questions);
-    setExamStarted(true);
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setExamCompleted(false);
+    setLoading(true);
+    
+    try {
+      // Call the Supabase Edge Function to generate questions
+      const { data, error } = await supabase.functions.invoke("generate-questions", {
+        body: {
+          subject: selectedSubjectObj?.name || "",
+          unitObjective: "General knowledge", // Default value since we removed the unit objective selection
+          difficulty: difficulty === "all" ? "medium" : difficulty, // Pass "medium" if "all" is selected
+          count: questionCount
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!data?.questions || data.questions.length === 0) {
+        throw new Error("No questions were generated");
+      }
+      
+      // Start the exam with the generated questions
+      setExamQuestions(data.questions);
+      setExamStarted(true);
+      setCurrentQuestionIndex(0);
+      setAnswers({});
+      setExamCompleted(false);
+      
+      toast({
+        title: "Exam Ready",
+        description: `${data.questions.length} questions have been generated. Good luck!`
+      });
+      
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate questions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleSelectAnswer = (questionId: string, answer: string) => {
@@ -103,7 +148,7 @@ const Exam = () => {
       
       <main className="flex-grow pt-20">
         {!examStarted ? (
-          // Exam setup screen
+          // Streamlined exam setup screen
           <section className="py-10 md:py-16 bg-secondary/30">
             <div className="container px-4 md:px-6">
               <div className="flex flex-col items-center text-center mb-8">
@@ -126,81 +171,122 @@ const Exam = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      {examType === "practice" ? (
-                        <>
-                          <Check className="mr-2 size-5 text-primary" />
-                          Practice Mode
-                        </>
-                      ) : (
-                        <>
-                          <Clock className="mr-2 size-5 text-primary" />
-                          Timed Exam
-                        </>
-                      )}
+                      Generate Your Exam
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      {examType === "practice" 
-                        ? "Take your time to answer questions and see explanations for each answer. Great for learning and practicing at your own pace."
-                        : `Simulate the real exam experience with timed conditions. You will have ${EXAM_DURATION} minutes to complete the exam.`
-                      }
-                    </p>
-                    
-                    <div className="grid gap-4">
+                    <div className="grid gap-6">
+                      {/* Exam Type Selection */}
                       <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Select Subject
-                        </label>
-                        <select
-                          className="w-full rounded-md border border-input bg-background p-2"
-                          value={selectedSubject}
-                          onChange={(e) => setSelectedSubject(e.target.value)}
-                        >
-                          <option value="">Select a subject</option>
-                          {subjects.map((subject) => (
-                            <option key={subject.id} value={subject.id}>
-                              {subject.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Number of Questions
-                        </label>
-                        <select
-                          className="w-full rounded-md border border-input bg-background p-2"
-                          value={questionCount}
-                          onChange={(e) => setQuestionCount(Number(e.target.value))}
-                        >
-                          <option value="5">5 questions</option>
-                          <option value="10">10 questions</option>
-                          <option value="15">15 questions</option>
-                          <option value="20">20 questions</option>
-                        </select>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <div className="space-x-2">
-                          <button
-                            className={`px-3 py-1 rounded-full ${examType === "practice" ? "bg-primary text-white" : "bg-secondary"}`}
+                        <Label className="block text-sm font-medium mb-2">
+                          Exam Type
+                        </Label>
+                        <div className="flex space-x-4">
+                          <div 
+                            className={`flex items-center justify-center px-4 py-2 rounded-md cursor-pointer border transition-colors ${examType === "practice" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent hover:text-accent-foreground"}`}
                             onClick={() => setExamType("practice")}
                           >
-                            Practice
-                          </button>
-                          <button
-                            className={`px-3 py-1 rounded-full ${examType === "timed" ? "bg-primary text-white" : "bg-secondary"}`}
+                            <Check className="mr-2 size-4" />
+                            <span>Practice Mode</span>
+                          </div>
+                          <div 
+                            className={`flex items-center justify-center px-4 py-2 rounded-md cursor-pointer border transition-colors ${examType === "timed" ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input hover:bg-accent hover:text-accent-foreground"}`}
                             onClick={() => setExamType("timed")}
                           >
-                            Timed
-                          </button>
+                            <Clock className="mr-2 size-4" />
+                            <span>Timed Exam</span>
+                          </div>
                         </div>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {examType === "practice" 
+                            ? "Take your time to answer questions and see explanations for each answer."
+                            : `Simulate the real exam experience with timed conditions (${EXAM_DURATION} minutes).`
+                          }
+                        </p>
                       </div>
                       
-                      <Button onClick={handleStartExam} className="mt-2">
-                        Generate Questions <Brain className="ml-2 size-4" />
+                      {/* Subject Selection */}
+                      <div>
+                        <Label htmlFor="subject" className="block text-sm font-medium mb-2">
+                          Subject
+                        </Label>
+                        <Select
+                          value={selectedSubject}
+                          onValueChange={setSelectedSubject}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a subject" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subjects.map((subject) => (
+                              <SelectItem key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* Difficulty Selection */}
+                      <div>
+                        <Label htmlFor="difficulty" className="block text-sm font-medium mb-2">
+                          Difficulty Level
+                        </Label>
+                        <RadioGroup
+                          value={difficulty}
+                          onValueChange={setDifficulty}
+                          className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+                        >
+                          <div className="flex items-center space-x-2 rounded-md border p-2">
+                            <RadioGroupItem value="all" id="all" />
+                            <Label htmlFor="all" className="cursor-pointer">All</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 rounded-md border p-2">
+                            <RadioGroupItem value="easy" id="easy" />
+                            <Label htmlFor="easy" className="cursor-pointer">Easy</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 rounded-md border p-2">
+                            <RadioGroupItem value="medium" id="medium" />
+                            <Label htmlFor="medium" className="cursor-pointer">Medium</Label>
+                          </div>
+                          <div className="flex items-center space-x-2 rounded-md border p-2">
+                            <RadioGroupItem value="hard" id="hard" />
+                            <Label htmlFor="hard" className="cursor-pointer">Hard</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      {/* Question Count Selection */}
+                      <div>
+                        <Label htmlFor="questionCount" className="block text-sm font-medium mb-2">
+                          Number of Questions
+                        </Label>
+                        <Select
+                          value={questionCount.toString()}
+                          onValueChange={(value) => setQuestionCount(Number(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select question count" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 questions</SelectItem>
+                            <SelectItem value="10">10 questions</SelectItem>
+                            <SelectItem value="15">15 questions</SelectItem>
+                            <SelectItem value="20">20 questions</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleGenerateExam} 
+                        className="mt-2 w-full"
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          "Generating Questions..."
+                        ) : (
+                          <>Start Exam <ArrowRight className="ml-2 size-4" /></>
+                        )}
                       </Button>
                     </div>
                   </CardContent>
@@ -356,12 +442,6 @@ const Exam = () => {
       
       <AIAssistantButton onClick={() => setAiDialogOpen(true)} />
       <AIAssistantDialog open={aiDialogOpen} onOpenChange={setAiDialogOpen} />
-      <QuestionGenerator 
-        open={generatorOpen} 
-        onOpenChange={setGeneratorOpen}
-        onQuestionsGenerated={handleQuestionsGenerated}
-        questionCount={questionCount}
-      />
       
       <Footer />
     </div>
