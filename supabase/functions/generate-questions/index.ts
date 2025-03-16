@@ -603,15 +603,10 @@ serve(async (req) => {
       
       const totalTemplates = easyTemplates.length + mediumTemplates.length + hardTemplates.length;
       
-      // Log a warning if requested count exceeds available templates
-      if (count > totalTemplates) {
-        console.warn(`Warning: Requested ${count} questions but only ${totalTemplates} high-quality templates are available for ${subject} (all difficulties). Reducing question count.`);
-      }
-      
       // Calculate proportions while respecting available templates
-      const targetEasy = Math.min(Math.floor(count / 3), easyTemplates.length);
-      const targetMedium = Math.min(Math.floor(count / 3), mediumTemplates.length);
-      const targetHard = Math.min(count - targetEasy - targetMedium, hardTemplates.length);
+      const targetEasy = Math.floor(count / 3);
+      const targetMedium = Math.floor(count / 3);
+      const targetHard = count - targetEasy - targetMedium;
       
       // Generate questions based on available templates
       const easyQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'easy', targetEasy);
@@ -622,9 +617,22 @@ serve(async (req) => {
       
       // Shuffle the questions to mix difficulty levels
       questions = shuffleArray(questions);
+      
+      // If we didn't get enough questions, reuse templates
+      if (questions.length < count) {
+        console.warn(`Reusing templates for ${subject} (all difficulties) to meet requested count of ${count} questions.`);
+        questions = reuseCombinedTemplates(subjectLower, unitObjective, questions, count, totalTemplates);
+      }
     } else {
       // Generate questions for the specific difficulty from the selected subject
       questions = generateQuestionsForDifficulty(subjectLower, unitObjective, difficulty, count);
+      
+      // If we didn't get enough questions, reuse templates
+      const availableTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === difficulty).length;
+      if (questions.length < count && availableTemplates > 0) {
+        console.warn(`Reusing templates for ${subject} (${difficulty}) to meet requested count of ${count} questions.`);
+        questions = reuseTemplates(subjectLower, unitObjective, difficulty, questions, count, availableTemplates);
+      }
     }
 
     return new Response(
@@ -647,11 +655,6 @@ function generateQuestionsForDifficulty(subject, unitObjective, difficulty, coun
   // Filter templates by difficulty
   const matchingTemplates = subjectTemplates.filter(template => template.difficulty === difficulty);
   
-  // Log warning if not enough templates
-  if (count > matchingTemplates.length) {
-    console.warn(`Warning: Requested ${count} questions but only ${matchingTemplates.length} high-quality templates are available for ${subject} (${difficulty}). Reducing question count.`);
-  }
-  
   // Limit count to available templates
   const finalCount = Math.min(count, matchingTemplates.length);
   
@@ -669,7 +672,7 @@ function generateQuestionsForDifficulty(subject, unitObjective, difficulty, coun
     const template = shuffledTemplates[i];
     
     questions.push({
-      id: `question-${i+1}`,
+      id: `question-${i+1}-${difficulty}-${subject}`,
       question_text: template.question,
       option_a: template.options.A,
       option_b: template.options.B,
@@ -683,6 +686,224 @@ function generateQuestionsForDifficulty(subject, unitObjective, difficulty, coun
   }
   
   return questions;
+}
+
+// New function to reuse templates for a specific difficulty
+function reuseTemplates(subject, unitObjective, difficulty, existingQuestions, targetCount, availableTemplates) {
+  const questions = [...existingQuestions];
+  
+  // If we already have enough questions, return them
+  if (questions.length >= targetCount) {
+    return questions;
+  }
+  
+  // Get the templates for this subject and difficulty
+  const templates = QUESTION_TEMPLATES[subject].filter(t => t.difficulty === difficulty);
+  
+  // Calculate how many more questions we need
+  const neededQuestions = targetCount - questions.length;
+  
+  // For each additional question needed
+  for (let i = 0; i < neededQuestions; i++) {
+    // Choose a template to reuse
+    const templateIndex = i % availableTemplates;
+    const template = templates[templateIndex];
+    
+    // Modify the template to make it unique
+    const modifiedTemplate = modifyTemplate(template, subject, i);
+    
+    questions.push({
+      id: `question-${questions.length + 1}-${difficulty}-${subject}-reused-${i}`,
+      question_text: modifiedTemplate.question,
+      option_a: modifiedTemplate.options.A,
+      option_b: modifiedTemplate.options.B,
+      option_c: modifiedTemplate.options.C,
+      option_d: modifiedTemplate.options.D,
+      correct_answer: modifiedTemplate.correct,
+      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+      subject: subject
+    });
+  }
+  
+  return questions;
+}
+
+// Function to reuse templates for combined difficulties
+function reuseCombinedTemplates(subject, unitObjective, existingQuestions, targetCount, totalTemplates) {
+  const questions = [...existingQuestions];
+  
+  // If we already have enough questions, return them
+  if (questions.length >= targetCount) {
+    return questions;
+  }
+  
+  // Get all templates for this subject
+  const allTemplates = QUESTION_TEMPLATES[subject];
+  
+  // Calculate how many more questions we need
+  const neededQuestions = targetCount - questions.length;
+  
+  // For each additional question needed
+  for (let i = 0; i < neededQuestions; i++) {
+    // Choose a template to reuse
+    const templateIndex = i % totalTemplates;
+    const template = allTemplates[templateIndex];
+    
+    // Modify the template to make it unique
+    const modifiedTemplate = modifyTemplate(template, subject, i);
+    const difficulty = template.difficulty;
+    
+    questions.push({
+      id: `question-${questions.length + 1}-${difficulty}-${subject}-reused-${i}`,
+      question_text: modifiedTemplate.question,
+      option_a: modifiedTemplate.options.A,
+      option_b: modifiedTemplate.options.B,
+      option_c: modifiedTemplate.options.C,
+      option_d: modifiedTemplate.options.D,
+      correct_answer: modifiedTemplate.correct,
+      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
+      difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+      subject: subject
+    });
+  }
+  
+  return shuffleArray(questions);
+}
+
+// Helper function to modify a template to make it unique
+function modifyTemplate(template, subject, index) {
+  // Create a deep copy of the template
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  // Modify the template based on the subject
+  switch (subject) {
+    case 'mathematics':
+      return modifyMathTemplate(newTemplate, index);
+    case 'physics':
+      return modifyPhysicsTemplate(newTemplate, index);
+    case 'chemistry':
+      return modifyChemistryTemplate(newTemplate, index);
+    case 'biology':
+      return modifyBiologyTemplate(newTemplate, index);
+    case 'english':
+      return modifyEnglishTemplate(newTemplate, index);
+    case 'history':
+      return modifyHistoryTemplate(newTemplate, index);
+    case 'geography':
+      return modifyGeographyTemplate(newTemplate, index);
+    default:
+      return modifyDefaultTemplate(newTemplate, index);
+  }
+}
+
+// Helper functions to modify templates for each subject
+function modifyMathTemplate(template, index) {
+  // For math questions, we can change numerical values
+  if (template.question.includes('$x =')) {
+    // For equation solving questions
+    const newValue = 5 + (index % 5);
+    template.question = template.question.replace(/\d+/, newValue.toString());
+    
+    // Also update the answer
+    const correctOption = template.correct;
+    template.options[correctOption] = template.options[correctOption].replace(/\d+/, (newValue + 3).toString());
+  } else if (template.question.includes('rectangle')) {
+    // For area/perimeter questions
+    const newLength = 5 + (index % 7);
+    const newWidth = 3 + (index % 5);
+    const newArea = newLength * newWidth;
+    
+    template.question = `Calculate the area of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+    template.options.A = `${newLength + newWidth} cm²`;
+    template.options.B = `${2 * (newLength + newWidth)} cm²`;
+    template.options.C = `${newArea} cm²`;
+    template.options.D = `${newArea + 10} cm²`;
+    template.correct = "C";
+  }
+  
+  return template;
+}
+
+function modifyPhysicsTemplate(template, index) {
+  if (template.question.includes('accelerates')) {
+    // Modify acceleration problem
+    const newAcceleration = 2 + (index % 3);
+    const newTime = 5 + (index % 7);
+    const newDistance = 0.5 * newAcceleration * newTime * newTime;
+    
+    template.question = `A car accelerates from rest at $${newAcceleration} m/s^2$. How far will it travel in ${newTime} seconds?`;
+    template.options.A = `${Math.round(newDistance / 2)} m`;
+    template.options.B = `${Math.round(newDistance)} m`;
+    template.options.C = `${Math.round(newDistance * 1.5)} m`;
+    template.options.D = `${Math.round(newDistance / 3)} m`;
+    template.correct = "B";
+  }
+  
+  return template;
+}
+
+function modifyChemistryTemplate(template, index) {
+  // Chemistry modifications could involve changing concentrations, reagents, etc.
+  if (template.question.includes('pH')) {
+    const concentrations = [0.1, 0.01, 0.001, 0.0001];
+    const newConcentration = concentrations[index % concentrations.length];
+    const newPH = -Math.log10(newConcentration);
+    
+    template.question = `Calculate the pH of a ${newConcentration} M HCl solution.`;
+    template.options.A = `${Math.floor(newPH)}`;
+    template.options.B = `${Math.ceil(newPH)}`;
+    template.options.C = `${Math.round(newPH + 1)}`;
+    template.options.D = `${Math.round(newPH - 1)}`;
+    template.correct = newPH === Math.floor(newPH) ? "A" : "B";
+  }
+  
+  return template;
+}
+
+function modifyBiologyTemplate(template, index) {
+  // For biology, we might change cell types, organisms, or processes
+  return template; // Simple implementation for now
+}
+
+function modifyEnglishTemplate(template, index) {
+  // For English, we might change the sentences or literary works
+  return template; // Simple implementation for now
+}
+
+function modifyHistoryTemplate(template, index) {
+  // For History, we might change dates, figures, or events
+  return template; // Simple implementation for now
+}
+
+function modifyGeographyTemplate(template, index) {
+  // For Geography, we might change locations or phenomena
+  return template; // Simple implementation for now
+}
+
+function modifyDefaultTemplate(template, index) {
+  // Generic modification - shuffle the answer options
+  const options = Object.entries(template.options);
+  shuffleArray(options);
+  
+  // Track where the correct answer moved to
+  const correctValue = template.options[template.correct];
+  let newCorrect = '';
+  
+  // Rebuild the options object
+  const newOptions = {};
+  options.forEach(([key, value], i) => {
+    const newKey = ['A', 'B', 'C', 'D'][i];
+    newOptions[newKey] = value;
+    if (value === correctValue) {
+      newCorrect = newKey;
+    }
+  });
+  
+  template.options = newOptions;
+  template.correct = newCorrect;
+  
+  return template;
 }
 
 // Helper function to shuffle an array (Fisher-Yates algorithm)
