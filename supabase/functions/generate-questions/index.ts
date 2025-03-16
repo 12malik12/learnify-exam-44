@@ -579,23 +579,49 @@ serve(async (req) => {
       );
     }
 
-    // Generate questions using the templates
+    // Generate questions only from the selected subject
     let questions = [];
+    const subjectLower = subject.toLowerCase();
+    
+    // Check if templates exist for this subject
+    if (!QUESTION_TEMPLATES[subjectLower]) {
+      return new Response(
+        JSON.stringify({ error: `No question templates available for subject: ${subject}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     if (difficulty === 'all') {
-      // If "all" is selected, generate questions from all difficulties
-      const easyQuestions = generateQuestionsForSubject(subject, unitObjective, 'easy', Math.floor(count / 3));
-      const mediumQuestions = generateQuestionsForSubject(subject, unitObjective, 'medium', Math.floor(count / 3));
-      const hardQuestions = generateQuestionsForSubject(subject, unitObjective, 'hard', count - Math.floor(count / 3) * 2);
+      // If "all" is selected, generate questions from all difficulties for the selected subject
+      const easyQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'easy', Math.floor(count / 3));
+      const mediumQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'medium', Math.floor(count / 3));
+      const hardQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'hard', count - Math.floor(count / 3) * 2);
       
       questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
       
       // Shuffle the questions to mix difficulty levels
       questions = shuffleArray(questions);
     } else {
-      // Generate questions for the specific difficulty
-      questions = generateQuestionsForSubject(subject, unitObjective, difficulty, count);
+      // Generate questions for the specific difficulty from the selected subject
+      questions = generateQuestionsForSubject(subjectLower, unitObjective, difficulty, count);
     }
+
+    // If we don't have enough questions for the requested count, duplicate some to meet the count
+    if (questions.length < count) {
+      const originalQuestions = [...questions];
+      while (questions.length < count) {
+        const randomQuestion = originalQuestions[Math.floor(Math.random() * originalQuestions.length)];
+        // Create a copy with a new ID to avoid duplicate IDs
+        const questionCopy = {
+          ...randomQuestion,
+          id: `question-${questions.length + 1}`
+        };
+        questions.push(questionCopy);
+      }
+    }
+
+    // Make sure we have exactly the number of questions requested
+    questions = questions.slice(0, count);
 
     return new Response(
       JSON.stringify({ questions }),
@@ -611,10 +637,8 @@ serve(async (req) => {
 });
 
 function generateQuestionsForSubject(subject, unitObjective, difficulty, count) {
-  const subjectLower = subject.toLowerCase();
-  
-  // Use existing templates if available for this subject
-  const subjectTemplates = QUESTION_TEMPLATES[subjectLower] || [];
+  // Use templates only from the specified subject
+  const subjectTemplates = QUESTION_TEMPLATES[subject] || [];
   const questions = [];
   
   // Filter templates by difficulty
@@ -644,59 +668,23 @@ function generateQuestionsForSubject(subject, unitObjective, difficulty, count) 
     });
   }
   
-  // If we need more questions than we have specific templates for
+  // If we need more questions than we have templates for this subject/difficulty,
+  // create generic questions for the subject
   if (templateCount < count) {
-    // Generate remaining questions with fallback templates from similar subjects
-    // This is just to ensure we return the requested number of questions
-    
-    // Get all templates of the specified difficulty to use as fallbacks
-    let allTemplatesForDifficulty = [];
-    for (const [subj, templates] of Object.entries(QUESTION_TEMPLATES)) {
-      if (subj !== subjectLower) {
-        const difficultyTemplates = templates.filter(t => t.difficulty === difficulty);
-        allTemplatesForDifficulty.push(...difficultyTemplates);
-      }
-    }
-    
-    // Shuffle all available templates
-    const shuffledAllTemplates = shuffleArray(allTemplatesForDifficulty);
-    
-    // Fill remaining questions with adapted templates
+    // Create basic questions specific to the subject to fill the count
     for (let i = templateCount; i < count; i++) {
-      // If we have a fallback template, adapt it to the current subject
-      if (shuffledAllTemplates.length > 0) {
-        const fallbackTemplate = shuffledAllTemplates.pop();
-        
-        // Adapt the template to the current subject
-        const adaptedQuestion = `[${subject}] ${fallbackTemplate.question}`;
-        
-        questions.push({
-          id: `question-${i+1}`,
-          question_text: adaptedQuestion,
-          option_a: fallbackTemplate.options.A,
-          option_b: fallbackTemplate.options.B,
-          option_c: fallbackTemplate.options.C,
-          option_d: fallbackTemplate.options.D,
-          correct_answer: fallbackTemplate.correct,
-          explanation: `Explanation for: ${adaptedQuestion}`,
-          difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-          subject: subject
-        });
-      } else {
-        // If we have no templates left, create a basic question
-        questions.push({
-          id: `question-${i+1}`,
-          question_text: `${subject} question about ${unitObjective || "general knowledge"} (Question ${i+1})`,
-          option_a: "Option A",
-          option_b: "Option B",
-          option_c: "Option C",
-          option_d: "Option D",
-          correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
-          explanation: `Explanation for this ${subject} question`,
-          difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-          subject: subject
-        });
-      }
+      questions.push({
+        id: `question-${i+1}`,
+        question_text: `${subject} question ${i+1}: This is a placeholder question for ${subject} about ${unitObjective || "general knowledge"}`,
+        option_a: `${subject} Option A`,
+        option_b: `${subject} Option B`,
+        option_c: `${subject} Option C`,
+        option_d: `${subject} Option D`,
+        correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
+        explanation: `Explanation for this ${subject} question about ${unitObjective || "general knowledge"}`,
+        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
+        subject: subject
+      });
     }
   }
   
