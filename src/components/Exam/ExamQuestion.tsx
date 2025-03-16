@@ -24,6 +24,8 @@ interface ExamQuestionProps {
     option_d: string;
     correct_answer?: string;
     explanation?: string;
+    difficulty_level?: number;
+    subject?: string;
   };
   selectedAnswer: string | null;
   onSelectAnswer: (answer: string) => void;
@@ -58,6 +60,17 @@ const ExamQuestion = ({
     return selectedAnswer === option && option !== question.correct_answer;
   };
   
+  // Get difficulty label
+  const getDifficultyLabel = () => {
+    if (!question.difficulty_level) return null;
+    
+    if (question.difficulty_level <= 1) return "Easy";
+    if (question.difficulty_level <= 3) return "Medium";
+    return "Hard";
+  };
+  
+  const difficultyLabel = getDifficultyLabel();
+  
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
@@ -66,10 +79,27 @@ const ExamQuestion = ({
             <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-sm font-semibold">
               {questionNumber}
             </span>
-            <div 
-              className="text-lg font-medium flex-1" 
-              dangerouslySetInnerHTML={questionHtml}
-            />
+            <div className="text-lg font-medium flex-1">
+              {question.subject && (
+                <span className="inline-block mr-2 text-sm font-medium text-muted-foreground">
+                  {question.subject}
+                </span>
+              )}
+              {difficultyLabel && (
+                <span className={cn(
+                  "inline-block mb-1 text-xs font-medium px-2 py-0.5 rounded-full",
+                  difficultyLabel === "Easy" ? "bg-green-100 text-green-800" : 
+                  difficultyLabel === "Medium" ? "bg-yellow-100 text-yellow-800" : 
+                  "bg-red-100 text-red-800"
+                )}>
+                  {difficultyLabel}
+                </span>
+              )}
+              <div 
+                className="mt-1" 
+                dangerouslySetInnerHTML={questionHtml}
+              />
+            </div>
           </div>
         </div>
         
