@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -62,7 +63,7 @@ const Exam = () => {
         body: {
           subject: selectedSubjectObj?.name || "",
           unitObjective: "General knowledge", // Default value since we removed the unit objective selection
-          difficulty: difficulty === "all" ? "medium" : difficulty, // Pass "medium" if "all" is selected
+          difficulty: difficulty, // Pass the selected difficulty (including "all")
           count: questionCount
         }
       });
@@ -72,7 +73,16 @@ const Exam = () => {
       }
       
       if (!data?.questions || data.questions.length === 0) {
-        throw new Error("No questions were generated");
+        throw new Error("No questions were generated. There might not be enough high-quality templates available for the selected subject and difficulty.");
+      }
+      
+      // If we got fewer questions than requested, inform the user
+      if (data.questions.length < questionCount) {
+        toast({
+          title: "Limited Questions Available",
+          description: `Only ${data.questions.length} high-quality questions were available for ${selectedSubjectObj?.name} with the selected difficulty.`,
+          variant: "default",
+        });
       }
       
       // Start the exam with the generated questions
@@ -91,7 +101,7 @@ const Exam = () => {
       console.error("Error generating questions:", error);
       toast({
         title: "Generation Failed",
-        description: "Failed to generate questions. Please try again.",
+        description: "Failed to generate questions. Please try again or select a different subject/difficulty.",
         variant: "destructive",
       });
     } finally {

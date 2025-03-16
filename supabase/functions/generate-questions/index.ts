@@ -586,16 +586,37 @@ serve(async (req) => {
     // Check if templates exist for this subject
     if (!QUESTION_TEMPLATES[subjectLower]) {
       return new Response(
-        JSON.stringify({ error: `No question templates available for subject: ${subject}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: `No question templates available for subject: ${subject}`,
+          questions: []
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     if (difficulty === 'all') {
       // If "all" is selected, generate questions from all difficulties for the selected subject
-      const easyQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'easy', Math.floor(count / 3));
-      const mediumQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'medium', Math.floor(count / 3));
-      const hardQuestions = generateQuestionsForSubject(subjectLower, unitObjective, 'hard', count - Math.floor(count / 3) * 2);
+      // First, determine how many templates are available for each difficulty
+      const easyTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'easy');
+      const mediumTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'medium');
+      const hardTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === 'hard');
+      
+      const totalTemplates = easyTemplates.length + mediumTemplates.length + hardTemplates.length;
+      
+      // Log a warning if requested count exceeds available templates
+      if (count > totalTemplates) {
+        console.warn(`Warning: Requested ${count} questions but only ${totalTemplates} high-quality templates are available for ${subject} (all difficulties). Reducing question count.`);
+      }
+      
+      // Calculate proportions while respecting available templates
+      const targetEasy = Math.min(Math.floor(count / 3), easyTemplates.length);
+      const targetMedium = Math.min(Math.floor(count / 3), mediumTemplates.length);
+      const targetHard = Math.min(count - targetEasy - targetMedium, hardTemplates.length);
+      
+      // Generate questions based on available templates
+      const easyQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'easy', targetEasy);
+      const mediumQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'medium', targetMedium);
+      const hardQuestions = generateQuestionsForDifficulty(subjectLower, unitObjective, 'hard', targetHard);
       
       questions = [...easyQuestions, ...mediumQuestions, ...hardQuestions];
       
@@ -603,25 +624,8 @@ serve(async (req) => {
       questions = shuffleArray(questions);
     } else {
       // Generate questions for the specific difficulty from the selected subject
-      questions = generateQuestionsForSubject(subjectLower, unitObjective, difficulty, count);
+      questions = generateQuestionsForDifficulty(subjectLower, unitObjective, difficulty, count);
     }
-
-    // If we don't have enough questions for the requested count, duplicate some to meet the count
-    if (questions.length < count) {
-      const originalQuestions = [...questions];
-      while (questions.length < count) {
-        const randomQuestion = originalQuestions[Math.floor(Math.random() * originalQuestions.length)];
-        // Create a copy with a new ID to avoid duplicate IDs
-        const questionCopy = {
-          ...randomQuestion,
-          id: `question-${questions.length + 1}`
-        };
-        questions.push(questionCopy);
-      }
-    }
-
-    // Make sure we have exactly the number of questions requested
-    questions = questions.slice(0, count);
 
     return new Response(
       JSON.stringify({ questions }),
@@ -630,28 +634,38 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error generating questions:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to generate questions", details: error.message }),
+      JSON.stringify({ error: "Failed to generate questions", details: error.message, questions: [] }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-function generateQuestionsForSubject(subject, unitObjective, difficulty, count) {
-  // Use templates only from the specified subject
+function generateQuestionsForDifficulty(subject, unitObjective, difficulty, count) {
+  // Use templates only from the specified subject and difficulty
   const subjectTemplates = QUESTION_TEMPLATES[subject] || [];
-  const questions = [];
   
   // Filter templates by difficulty
   const matchingTemplates = subjectTemplates.filter(template => template.difficulty === difficulty);
   
+  // Log warning if not enough templates
+  if (count > matchingTemplates.length) {
+    console.warn(`Warning: Requested ${count} questions but only ${matchingTemplates.length} high-quality templates are available for ${subject} (${difficulty}). Reducing question count.`);
+  }
+  
+  // Limit count to available templates
+  const finalCount = Math.min(count, matchingTemplates.length);
+  
+  if (finalCount === 0) {
+    console.warn(`Warning: No templates available for ${subject} (${difficulty}).`);
+    return [];
+  }
+  
   // Shuffle the matching templates to ensure random selection
   const shuffledTemplates = shuffleArray([...matchingTemplates]);
   
-  // Determine how many questions we can generate from templates
-  const templateCount = Math.min(shuffledTemplates.length, count);
-  
-  // Generate questions from templates
-  for (let i = 0; i < templateCount; i++) {
+  // Generate questions from templates (limited to available templates)
+  const questions = [];
+  for (let i = 0; i < finalCount; i++) {
     const template = shuffledTemplates[i];
     
     questions.push({
@@ -662,30 +676,10 @@ function generateQuestionsForSubject(subject, unitObjective, difficulty, count) 
       option_c: template.options.C,
       option_d: template.options.D,
       correct_answer: template.correct,
-      explanation: `Explanation for: ${template.question}`,
+      explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
       difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
       subject: subject
     });
-  }
-  
-  // If we need more questions than we have templates for this subject/difficulty,
-  // create generic questions for the subject
-  if (templateCount < count) {
-    // Create basic questions specific to the subject to fill the count
-    for (let i = templateCount; i < count; i++) {
-      questions.push({
-        id: `question-${i+1}`,
-        question_text: `${subject} question ${i+1}: This is a placeholder question for ${subject} about ${unitObjective || "general knowledge"}`,
-        option_a: `${subject} Option A`,
-        option_b: `${subject} Option B`,
-        option_c: `${subject} Option C`,
-        option_d: `${subject} Option D`,
-        correct_answer: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
-        explanation: `Explanation for this ${subject} question about ${unitObjective || "general knowledge"}`,
-        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-        subject: subject
-      });
-    }
   }
   
   return questions;
