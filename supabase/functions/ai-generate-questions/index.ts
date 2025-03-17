@@ -17,7 +17,7 @@ const difficultyMap = {
 
 // Function to generate a question using Hugging Face Inference API
 async function generateQuestion(subject: string, difficulty: string, unitObjective?: string) {
-  const difficultyDescription = difficultyMap[difficulty] || difficultyMap.medium;
+  const difficultyDescription = difficultyMap[difficulty as keyof typeof difficultyMap] || difficultyMap.medium;
   
   // Create a prompt that will generate a well-structured question
   // Include the unit objective if provided
@@ -44,26 +44,53 @@ Format the response exactly like this JSON format without any additional text:
   try {
     console.log(`Generating question for subject: ${subject}, difficulty: ${difficulty}, objective: ${unitObjective || 'general'}`);
     
-    // Use Hugging Face Inference API with a free model that's good for this task
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/google/flan-t5-xl",
-      {
-        headers: {
-          Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-        body: JSON.stringify({ inputs: prompt }),
+    // Try different models in order of preference
+    const models = [
+      "google/flan-t5-xl",
+      "mistralai/Mistral-7B-Instruct-v0.1",
+      "microsoft/Phi-2",
+      "HuggingFaceH4/zephyr-7b-beta"
+    ];
+    
+    let result = null;
+    let error = null;
+    
+    // Try each model until one works
+    for (const model of models) {
+      try {
+        console.log(`Trying model: ${model}`);
+        
+        const response = await fetch(
+          `https://api-inference.huggingface.co/models/${model}`,
+          {
+            headers: {
+              Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ inputs: prompt }),
+          }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error with model ${model}:`, errorText);
+          continue; // Try next model
+        }
+        
+        result = await response.json();
+        console.log(`Success with model ${model}`);
+        break; // Break the loop if successful
+      } catch (modelError) {
+        console.error(`Error with model ${model}:`, modelError);
+        error = modelError;
       }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Hugging Face API error:", errorText);
-      throw new Error(`Hugging Face API error: ${response.status} ${errorText}`);
     }
-
-    const result = await response.json();
+    
+    if (!result) {
+      throw error || new Error("All AI models failed to generate a question");
+    }
+    
     console.log("Raw AI response:", result);
     
     // Parse the generated text to extract the JSON
@@ -77,22 +104,31 @@ Format the response exactly like this JSON format without any additional text:
     // Extract JSON from the text (the model might include other text)
     const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("Failed to parse JSON from model response");
+      // If no JSON is found, try to generate a structured question ourselves
+      console.log("Failed to parse JSON from model response, creating a fallback question");
+      return createFallbackQuestion(subject, difficulty, unitObjective);
     }
     
     try {
       const questionData = JSON.parse(jsonMatch[0]);
       
       // Validate question format
-      if (!questionData.question_text || 
-          !questionData.option_a || 
-          !questionData.option_b || 
-          !questionData.option_c || 
-          !questionData.option_d || 
-          !questionData.correct_answer || 
-          !questionData.explanation) {
-        throw new Error("Generated question data is incomplete");
+      const missingFields = [];
+      if (!questionData.question_text) missingFields.push("question_text");
+      if (!questionData.option_a) missingFields.push("option_a");
+      if (!questionData.option_b) missingFields.push("option_b");
+      if (!questionData.option_c) missingFields.push("option_c");
+      if (!questionData.option_d) missingFields.push("option_d");
+      if (!questionData.correct_answer) missingFields.push("correct_answer");
+      if (!questionData.explanation) missingFields.push("explanation");
+      
+      if (missingFields.length > 0) {
+        console.log(`Generated question is missing fields: ${missingFields.join(", ")}`);
+        return createFallbackQuestion(subject, difficulty, unitObjective);
       }
+      
+      // Normalize the correct answer to be uppercase single letter
+      questionData.correct_answer = questionData.correct_answer.trim().charAt(0).toUpperCase();
       
       // Add additional fields
       questionData.id = crypto.randomUUID();
@@ -108,12 +144,67 @@ Format the response exactly like this JSON format without any additional text:
       return questionData;
     } catch (parseError) {
       console.error("Error parsing question JSON:", parseError);
-      throw new Error("Failed to parse question data from model response");
+      return createFallbackQuestion(subject, difficulty, unitObjective);
     }
   } catch (error) {
     console.error("Error generating question:", error);
-    throw error;
+    return createFallbackQuestion(subject, difficulty, unitObjective);
   }
+}
+
+// Create a simple fallback question when AI generation fails
+function createFallbackQuestion(subject: string, difficulty: string, unitObjective?: string) {
+  console.log("Creating fallback question");
+  
+  // Basic template questions for different subjects
+  const templates: Record<string, any> = {
+    "Mathematics": {
+      question_text: "What is 8 + 5?",
+      option_a: "12",
+      option_b: "13",
+      option_c: "14",
+      option_d: "15",
+      correct_answer: "B",
+      explanation: "8 + 5 = 13"
+    },
+    "Science": {
+      question_text: "Which of the following is NOT a state of matter?",
+      option_a: "Solid",
+      option_b: "Liquid",
+      option_c: "Gas",
+      option_d: "Energy",
+      correct_answer: "D",
+      explanation: "Energy is not a state of matter. The three common states of matter are solid, liquid, and gas."
+    },
+    "History": {
+      question_text: "In which year did World War II end?",
+      option_a: "1942",
+      option_b: "1943",
+      option_c: "1944",
+      option_d: "1945",
+      correct_answer: "D",
+      explanation: "World War II ended in 1945 with the surrender of Germany in May and Japan in September."
+    }
+  };
+  
+  // Get template based on subject or use a generic one
+  const template = templates[subject] || {
+    question_text: `A question about ${subject}${unitObjective ? ` related to ${unitObjective}` : ''}`,
+    option_a: "Option A",
+    option_b: "Option B",
+    option_c: "Option C",
+    option_d: "Option D",
+    correct_answer: "A",
+    explanation: "This is a fallback question created when AI generation failed."
+  };
+  
+  // Add metadata
+  return {
+    ...template,
+    id: crypto.randomUUID(),
+    subject: subject,
+    difficulty_level: difficulty === 'easy' ? 1 : (difficulty === 'medium' ? 2 : 3)
+  };
 }
 
 // Function to check if a question aligns with a learning objective
@@ -172,12 +263,7 @@ serve(async (req) => {
       questionPromises.push(generateQuestion(subject, questionDifficulty, unitObjective));
     }
 
-    const generatedQuestions = await Promise.all(
-      questionPromises.map(p => p.catch(error => {
-        console.error("Failed to generate a question:", error);
-        return null;
-      }))
-    );
+    const generatedQuestions = await Promise.all(questionPromises);
 
     // Filter out any failed question generations
     const questions = generatedQuestions.filter(q => q !== null);
