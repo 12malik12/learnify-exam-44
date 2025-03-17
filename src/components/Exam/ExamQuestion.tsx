@@ -60,17 +60,6 @@ const ExamQuestion = ({
     return selectedAnswer === option && option !== question.correct_answer;
   };
   
-  // Get difficulty label
-  const getDifficultyLabel = () => {
-    if (!question.difficulty_level) return null;
-    
-    if (question.difficulty_level <= 1) return "Easy";
-    if (question.difficulty_level <= 3) return "Medium";
-    return "Hard";
-  };
-  
-  const difficultyLabel = getDifficultyLabel();
-  
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
@@ -83,16 +72,6 @@ const ExamQuestion = ({
               {question.subject && (
                 <span className="inline-block mr-2 text-sm font-medium text-muted-foreground">
                   {question.subject}
-                </span>
-              )}
-              {difficultyLabel && (
-                <span className={cn(
-                  "inline-block mb-1 text-xs font-medium px-2 py-0.5 rounded-full",
-                  difficultyLabel === "Easy" ? "bg-green-100 text-green-800" : 
-                  difficultyLabel === "Medium" ? "bg-yellow-100 text-yellow-800" : 
-                  "bg-red-100 text-red-800"
-                )}>
-                  {difficultyLabel}
                 </span>
               )}
               <div 
@@ -143,7 +122,17 @@ const ExamQuestion = ({
         {showCorrectAnswer && explanationHtml && (
           <div className="mt-4 p-3 bg-secondary/20 rounded-md">
             <div className="font-semibold mb-1">Explanation:</div>
-            <div dangerouslySetInnerHTML={explanationHtml} />
+            <div className="text-sm" dangerouslySetInnerHTML={explanationHtml} />
+            {selectedAnswer && !isCorrect(selectedAnswer) && (
+              <div className="mt-2 text-sm font-medium text-red-600">
+                You selected option {selectedAnswer}, but the correct answer is option {question.correct_answer}.
+              </div>
+            )}
+            {selectedAnswer && isCorrect(selectedAnswer) && (
+              <div className="mt-2 text-sm font-medium text-green-600">
+                Correct! You selected the right answer.
+              </div>
+            )}
           </div>
         )}
       </CardContent>
