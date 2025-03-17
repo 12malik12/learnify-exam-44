@@ -891,125 +891,109 @@ serve(async (req) => {
       );
     }
     
+    let templatePool = [];
+    let usedTemplateHashes = new Set(); // Track used templates to avoid exact duplicates
+    
     if (difficulty === 'all') {
-      // If "all" is selected, generate questions from all difficulties for the selected subject
-      // Get all templates for this subject
-      let allTemplates = QUESTION_TEMPLATES[subjectLower];
-      
-      // Make a deep copy to avoid modifying the original templates
-      allTemplates = JSON.parse(JSON.stringify(allTemplates));
-      
-      // Shuffle all templates to ensure randomness
-      allTemplates = shuffleArray(allTemplates);
-      
-      // Limit the number of questions to the requested count or available templates
-      const availableCount = Math.min(count, allTemplates.length);
-      
-      // Generate the questions from the shuffled templates
-      questions = allTemplates.slice(0, availableCount).map((template, index) => ({
-        id: `question-${index+1}-${template.difficulty}-${subjectLower}`,
-        question_text: template.question,
-        option_a: template.options.A,
-        option_b: template.options.B,
-        option_c: template.options.C,
-        option_d: template.options.D,
-        correct_answer: template.correct,
-        explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-        difficulty_level: template.difficulty === "easy" ? 1 : template.difficulty === "medium" ? 3 : 5,
-        subject: subject
-      }));
-      
-      // If we need more questions than templates available, create modified versions
-      if (count > allTemplates.length) {
-        console.warn(`Using template modifications to meet requested count of ${count} questions for ${subject} (all difficulties).`);
-        
-        // Create modified versions of templates
-        const additionalQuestionsNeeded = count - allTemplates.length;
-        
-        for (let i = 0; i < additionalQuestionsNeeded; i++) {
-          // Choose a template to modify
-          const templateIndex = i % allTemplates.length;
-          const template = JSON.parse(JSON.stringify(allTemplates[templateIndex]));
-          
-          // Create a deep modified version to ensure uniqueness
-          const modifiedTemplate = createUniqueModification(template, subjectLower, i, questions);
-          
-          questions.push({
-            id: `question-${allTemplates.length + i + 1}-${template.difficulty}-${subjectLower}-unique-${i}`,
-            question_text: modifiedTemplate.question,
-            option_a: modifiedTemplate.options.A,
-            option_b: modifiedTemplate.options.B,
-            option_c: modifiedTemplate.options.C,
-            option_d: modifiedTemplate.options.D,
-            correct_answer: modifiedTemplate.correct,
-            explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-            difficulty_level: template.difficulty === "easy" ? 1 : template.difficulty === "medium" ? 3 : 5,
-            subject: subject
-          });
-        }
-      }
+      // If "all" is selected, gather templates from all difficulties for the selected subject
+      templatePool = JSON.parse(JSON.stringify(QUESTION_TEMPLATES[subjectLower]));
     } else {
-      // Generate questions for the specific difficulty from the selected subject
-      const difficultyTemplates = QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === difficulty);
-      
-      // Make a deep copy to avoid modifying the original templates
-      const templatesCopy = JSON.parse(JSON.stringify(difficultyTemplates));
-      
-      // Shuffle to ensure randomness
-      const shuffledTemplates = shuffleArray(templatesCopy);
-      
-      // Limit to available templates
-      const availableCount = Math.min(count, shuffledTemplates.length);
-      
-      // Generate questions from templates
-      questions = shuffledTemplates.slice(0, availableCount).map((template, index) => ({
-        id: `question-${index+1}-${difficulty}-${subjectLower}`,
-        question_text: template.question,
-        option_a: template.options.A,
-        option_b: template.options.B,
-        option_c: template.options.C,
-        option_d: template.options.D,
-        correct_answer: template.correct,
-        explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-        difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-        subject: subject
-      }));
-      
-      // If we need more questions than templates available, create modified versions
-      if (count > shuffledTemplates.length) {
-        console.warn(`Using template modifications to meet requested count of ${count} questions for ${subject} (${difficulty}).`);
-        
-        const additionalQuestionsNeeded = count - shuffledTemplates.length;
-        
-        for (let i = 0; i < additionalQuestionsNeeded; i++) {
-          // Choose a template to modify
-          const templateIndex = i % shuffledTemplates.length;
-          const template = JSON.parse(JSON.stringify(shuffledTemplates[templateIndex]));
-          
-          // Create a deep modified version to ensure uniqueness
-          const modifiedTemplate = createUniqueModification(template, subjectLower, i, questions);
-          
-          questions.push({
-            id: `question-${shuffledTemplates.length + i + 1}-${difficulty}-${subjectLower}-unique-${i}`,
-            question_text: modifiedTemplate.question,
-            option_a: modifiedTemplate.options.A,
-            option_b: modifiedTemplate.options.B,
-            option_c: modifiedTemplate.options.C,
-            option_d: modifiedTemplate.options.D,
-            correct_answer: modifiedTemplate.correct,
-            explanation: `This is the correct answer because of the principles outlined in the ${subject} curriculum.`,
-            difficulty_level: difficulty === "easy" ? 1 : difficulty === "medium" ? 3 : 5,
-            subject: subject
-          });
-        }
-      }
+      // Gather templates only for the specific difficulty
+      templatePool = JSON.parse(JSON.stringify(
+        QUESTION_TEMPLATES[subjectLower].filter(t => t.difficulty === difficulty)
+      ));
     }
-
+    
+    // Shuffle the template pool for randomness
+    templatePool = shuffleArray(templatePool);
+    
+    // Track if we're reusing templates
+    let isReusingTemplates = false;
+    
+    // Generate the requested number of questions
+    for (let i = 0; i < count; i++) {
+      let template;
+      let modifiedTemplate;
+      let templateHash;
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      // If we've used all templates at least once, we need to reuse and modify them significantly
+      if (i >= templatePool.length) {
+        isReusingTemplates = true;
+        console.warn(`Reusing templates for ${subject} (${difficulty}) to meet requested count of ${count} questions.`);
+      }
+      
+      do {
+        // Select a template (with cycling if we've used all available templates)
+        const templateIndex = i % templatePool.length;
+        template = JSON.parse(JSON.stringify(templatePool[templateIndex]));
+        
+        // Create a significantly modified version of the template that's unique
+        modifiedTemplate = createUniqueTemplate(
+          template, 
+          subjectLower, 
+          i, 
+          attempts, 
+          isReusingTemplates,
+          usedTemplateHashes
+        );
+        
+        // Generate a hash of the question to check for duplicates
+        templateHash = hashQuestion(modifiedTemplate.question);
+        attempts++;
+        
+      } while (
+        usedTemplateHashes.has(templateHash) && 
+        attempts < maxAttempts
+      );
+      
+      // If we couldn't create a unique question after max attempts, force uniqueness
+      if (usedTemplateHashes.has(templateHash)) {
+        modifiedTemplate = createForcedUniqueTemplate(
+          template, 
+          subjectLower, 
+          i, 
+          usedTemplateHashes
+        );
+        templateHash = hashQuestion(modifiedTemplate.question);
+      }
+      
+      // Add the hash to our set of used templates
+      usedTemplateHashes.add(templateHash);
+      
+      // Generate a unique ID for this question
+      const questionId = isReusingTemplates
+        ? `question-${i+1}-${subjectLower}-${difficulty}-modified-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+        : `question-${i+1}-${subjectLower}-${difficulty}`;
+      
+      // Create the question object
+      questions.push({
+        id: questionId,
+        question_text: modifiedTemplate.question,
+        option_a: modifiedTemplate.options.A,
+        option_b: modifiedTemplate.options.B,
+        option_c: modifiedTemplate.options.C,
+        option_d: modifiedTemplate.options.D,
+        correct_answer: modifiedTemplate.correct,
+        explanation: generateExplanation(modifiedTemplate, subject, difficulty),
+        difficulty_level: getDifficultyLevel(modifiedTemplate.difficulty || difficulty),
+        subject: subject
+      });
+    }
+    
     // Final shuffle of questions to mix original and modified templates
     questions = shuffleArray(questions);
     
     return new Response(
-      JSON.stringify({ questions }),
+      JSON.stringify({ 
+        questions,
+        meta: {
+          isReusingTemplates,
+          subjectTemplateCount: templatePool.length,
+          requestedCount: count
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -1021,81 +1005,766 @@ serve(async (req) => {
   }
 });
 
-// Create a uniquely modified version of a template, ensuring it doesn't duplicate existing questions
-function createUniqueModification(template, subject, index, existingQuestions) {
-  let modifiedTemplate;
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  do {
-    // Create a modified version of the template
-    modifiedTemplate = modifyTemplate(template, subject, index + attempts);
-    
-    // Check if the modified question text already exists in the questions list
-    const isDuplicate = existingQuestions.some(q => q.question_text === modifiedTemplate.question);
-    
-    if (!isDuplicate) {
-      // If it's unique, we can use it
-      break;
-    }
-    
-    attempts++;
-  } while (attempts < maxAttempts);
-  
-  // If we couldn't create a unique question after max attempts,
-  // make a more significant modification to ensure uniqueness
-  if (attempts >= maxAttempts) {
-    modifiedTemplate = createForcedUniqueTemplate(template, subject, index, existingQuestions);
+// Function to hash a question text for duplicate detection
+function hashQuestion(questionText) {
+  // Simple hash function for question text
+  let hash = 0;
+  for (let i = 0; i < questionText.length; i++) {
+    const char = questionText.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
   }
-  
-  return modifiedTemplate;
+  return hash.toString();
 }
 
-// Create a forced unique template by making more significant changes
-function createForcedUniqueTemplate(template, subject, index, existingQuestions) {
+// Function to generate a more detailed explanation
+function generateExplanation(template, subject, difficulty) {
+  const difficultyTexts = {
+    easy: "This is a fundamental concept in",
+    medium: "This problem requires application of key principles in",
+    hard: "This advanced question tests deep understanding of"
+  };
+  
+  const difficultyText = difficultyTexts[template.difficulty || difficulty] || 
+    "This question tests your knowledge of";
+  
+  return `${difficultyText} ${subject}. The correct answer applies principles from the ${subject} curriculum.`;
+}
+
+// Get numeric difficulty level from difficulty string
+function getDifficultyLevel(difficulty) {
+  if (difficulty === "easy") return 1;
+  if (difficulty === "medium") return 3;
+  return 5; // hard
+}
+
+// Create a uniquely modified template that won't duplicate existing questions
+function createUniqueTemplate(template, subject, index, attempt, forceUniqueness, usedHashes) {
+  // If we need to force uniqueness, make more significant changes
+  const variationFactor = forceUniqueness ? 2 : 1;
+  
+  // Create a deep copy of the template
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  // Modify the template based on the subject with more variation
+  switch (subject) {
+    case 'mathematics':
+      return modifyMathTemplate(newTemplate, index, attempt, variationFactor);
+    case 'physics':
+      return modifyPhysicsTemplate(newTemplate, index, attempt, variationFactor);
+    case 'chemistry':
+      return modifyChemistryTemplate(newTemplate, index, attempt, variationFactor);
+    case 'biology':
+      return modifyBiologyTemplate(newTemplate, index, attempt, variationFactor);
+    case 'english':
+      return modifyEnglishTemplate(newTemplate, index, attempt, variationFactor);
+    case 'history':
+      return modifyHistoryTemplate(newTemplate, index, attempt, variationFactor);
+    case 'geography':
+      return modifyGeographyTemplate(newTemplate, index, attempt, variationFactor);
+    default:
+      // For other subjects, use option shuffling and textual modifications
+      const textMods = [
+        "Consider the following: ",
+        "Analyze this problem: ",
+        "In this case: ",
+        "Evaluate the following: ",
+        "For this question: "
+      ];
+      
+      // Add a prefix to make the question different
+      if (forceUniqueness) {
+        const prefix = textMods[Math.floor(Math.random() * textMods.length)];
+        newTemplate.question = prefix + newTemplate.question;
+      }
+      
+      return shuffleOptions(newTemplate);
+  }
+}
+
+// Create a forced unique template by making significant changes
+function createForcedUniqueTemplate(template, subject, index, usedHashes) {
   // Make a deep copy of the template
   const newTemplate = JSON.parse(JSON.stringify(template));
   
-  // Add a unique identifier to the question to ensure it's different
-  const unique_id = Math.floor(Math.random() * 10000);
+  // Generate a truly unique identifier
+  const unique_id = Date.now() + Math.floor(Math.random() * 10000);
   
   // Make different modifications based on subject
   switch (subject) {
     case 'mathematics':
       if (newTemplate.question.includes('rectangle')) {
-        const newLength = 10 + (index % 7);
-        const newWidth = 5 + (index % 5);
-        newTemplate.question = `Find the perimeter of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+        const newLength = 10 + (index % 7) + Math.floor(Math.random() * 5);
+        const newWidth = 5 + (index % 5) + Math.floor(Math.random() * 3);
+        const area = newLength * newWidth;
+        
+        newTemplate.question = `Calculate the area of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+        newTemplate.options.A = `${newLength + newWidth} cm²`;
+        newTemplate.options.B = `${2 * (newLength + newWidth)} cm²`;
+        newTemplate.options.C = `${area} cm²`;
+        newTemplate.options.D = `${area + 10} cm²`;
+        newTemplate.correct = "C";
       } else if (newTemplate.question.includes('equation')) {
-        const a = 2 + (index % 3);
-        const b = 5 + (index % 4);
-        const c = a * 3 + b;
+        const a = 2 + (index % 3) + Math.floor(Math.random() * 3);
+        const b = 5 + (index % 4) + Math.floor(Math.random() * 5);
+        const c = a * 3 + b + Math.floor(Math.random() * 2);
+        
         newTemplate.question = `Solve for x: ${a}x + ${b} = ${c}.`;
+        const solution = (c - b) / a;
+        
+        newTemplate.options.A = `x = ${(solution - 1).toFixed(1)}`;
+        newTemplate.options.B = `x = ${(solution + 1).toFixed(1)}`;
+        newTemplate.options.C = `x = ${solution.toFixed(1)}`;
+        newTemplate.options.D = `x = ${(solution + 2).toFixed(1)}`;
+        newTemplate.correct = "C";
       } else {
-        // Generic modification for other math questions
-        newTemplate.question = `Variation #${unique_id}: ${newTemplate.question}`;
+        // Apply random modifications for other math questions
+        newTemplate.question = `Alternative ${unique_id % 100}: ${newTemplate.question}`;
       }
       break;
       
     case 'physics':
       if (newTemplate.question.includes('force')) {
-        const mass = 2 + (index % 8);
-        const accel = 3 + (index % 5);
+        const mass = 2 + (index % 8) + Math.floor(Math.random() * 5);
+        const accel = 3 + (index % 5) + Math.floor(Math.random() * 4);
+        const force = mass * accel;
+        
         newTemplate.question = `Calculate the force needed to accelerate a ${mass} kg object at ${accel} m/s².`;
+        newTemplate.options.A = `${force - 5} N`;
+        newTemplate.options.B = `${force} N`;
+        newTemplate.options.C = `${force + 5} N`;
+        newTemplate.options.D = `${force * 2} N`;
+        newTemplate.correct = "B";
       } else {
-        // Generic modification for other physics questions
-        newTemplate.question = `Alternate scenario #${unique_id}: ${newTemplate.question}`;
+        // Apply random modifications for other physics questions
+        newTemplate.question = `Modified scenario ${unique_id % 100}: ${newTemplate.question}`;
       }
       break;
       
-    // Add similar cases for other subjects
+    case 'chemistry':
+      if (newTemplate.question.includes('pH')) {
+        const concentrations = [0.1, 0.01, 0.001, 0.0001];
+        const concentrationIndex = (index + Math.floor(Math.random() * 3)) % concentrations.length;
+        const concentration = concentrations[concentrationIndex];
+        const pH = -Math.log10(concentration);
+        
+        newTemplate.question = `Calculate the pH of a ${concentration} M HCl solution.`;
+        newTemplate.options.A = `${Math.floor(pH)}`;
+        newTemplate.options.B = `${Math.ceil(pH)}`;
+        newTemplate.options.C = `${Math.round(pH + 1)}`;
+        newTemplate.options.D = `${Math.round(pH - 1)}`;
+        newTemplate.correct = pH === Math.floor(pH) ? "A" : "B";
+      } else {
+        newTemplate.question = `Variant ${unique_id % 100}: ${newTemplate.question}`;
+      }
+      break;
+    
+    // Handle other subjects with similar depth of modification
     default:
-      // Generic modification for any subject
-      newTemplate.question = `Version ${unique_id}: ${newTemplate.question}`;
+      // Generic modification with prefixes and option shuffling
+      const prefixes = [
+        "For this specific case: ",
+        "Consider carefully: ",
+        "In this particular scenario: ",
+        "Analyze the following: ",
+        "Taking a different approach: "
+      ];
+      const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      newTemplate.question = `${randomPrefix}${newTemplate.question}`;
+      return shuffleOptions(newTemplate);
   }
   
-  // Also modify the answer options to ensure they're different
-  shuffleOptions(newTemplate);
+  // Shuffle options for additional uniqueness
+  return shuffleOptions(newTemplate);
+}
+
+// Helper functions to modify templates for each subject
+function modifyMathTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  // Identify different types of math questions for specialized modifications
+  if (newTemplate.question.includes('rectangle') || newTemplate.question.includes('area')) {
+    // For area/perimeter questions, change dimensions
+    const baseLength = 5 + (index % 7);
+    const baseWidth = 3 + (index % 5);
+    
+    // Apply variation factor to create more diverse values
+    const variation = Math.floor(Math.random() * variationFactor * 5);
+    const newLength = baseLength + variation;
+    const newWidth = baseWidth + Math.floor(Math.random() * variationFactor * 3);
+    
+    const area = newLength * newWidth;
+    const perimeter = 2 * (newLength + newWidth);
+    
+    // Decide randomly whether to create an area or perimeter question
+    const isAreaQuestion = (index + attempt) % 2 === 0;
+    
+    if (isAreaQuestion) {
+      newTemplate.question = `Calculate the area of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+      newTemplate.options.A = `${newLength + newWidth} cm²`;
+      newTemplate.options.B = `${perimeter} cm²`;
+      newTemplate.options.C = `${area} cm²`;
+      newTemplate.options.D = `${area + Math.floor(Math.random() * 10) + 1} cm²`;
+      newTemplate.correct = "C";
+    } else {
+      newTemplate.question = `Find the perimeter of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
+      newTemplate.options.A = `${area} cm`;
+      newTemplate.options.B = `${perimeter} cm`;
+      newTemplate.options.C = `${newLength * 2} cm`;
+      newTemplate.options.D = `${newWidth * 2} cm`;
+      newTemplate.correct = "B";
+    }
+  } else if (newTemplate.question.includes('equation') || newTemplate.question.includes('solve')) {
+    // For equation solving, generate new coefficients
+    const a = 1 + (index % 5) + Math.floor(Math.random() * variationFactor * 2);
+    const b = 3 + (index % 7) + Math.floor(Math.random() * variationFactor * 3);
+    const x = 1 + Math.floor(Math.random() * 5); // The solution we want
+    const c = a * x + b; // Calculate c to make x the solution
+    
+    newTemplate.question = `Solve the equation $${a}x + ${b} = ${c}$.`;
+    
+    // Generate options around the correct answer
+    newTemplate.options.A = `$x = ${x - 2}$`;
+    newTemplate.options.B = `$x = ${x - 1}$`;
+    newTemplate.options.C = `$x = ${x}$`;
+    newTemplate.options.D = `$x = ${x + 1}$`;
+    newTemplate.correct = "C";
+  } else if (newTemplate.question.includes('derivative')) {
+    // For calculus questions, change the function
+    const coefficients = [
+      [2, 3, 1],
+      [3, 2, 4],
+      [1, 4, 2],
+      [4, 1, 3]
+    ];
+    
+    const coefSet = coefficients[(index + attempt) % coefficients.length];
+    const a = coefSet[0];
+    const b = coefSet[1];
+    const c = coefSet[2];
+    
+    newTemplate.question = `Find the derivative of $f(x) = ${a}x^3 - ${b}x^2 + ${c}x - 2$.`;
+    
+    newTemplate.options.A = `$f'(x) = ${3*a}x^2 - ${2*b}x + ${c}$`;
+    newTemplate.options.B = `$f'(x) = ${3*a}x^2 - ${2*b}x - ${c}$`;
+    newTemplate.options.C = `$f'(x) = ${3*a}x^2 + ${2*b}x + ${c}$`;
+    newTemplate.options.D = `$f'(x) = ${3*a}x^2 - ${2*b}x$`;
+    newTemplate.correct = "A";
+  } else {
+    // For other math questions, apply minor modifications and shuffle options
+    if (variationFactor > 1) {
+      // For stronger variations, add prefixes to questions
+      const prefixes = ["Determine", "Calculate", "Find", "Evaluate", "Compute"];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      
+      // Remove any existing similar prefixes
+      let cleanQuestion = newTemplate.question;
+      prefixes.forEach(p => {
+        if (cleanQuestion.startsWith(p)) {
+          cleanQuestion = cleanQuestion.substring(p.length).trim();
+          // Remove ":" if present
+          if (cleanQuestion.startsWith(":")) {
+            cleanQuestion = cleanQuestion.substring(1).trim();
+          }
+        }
+      });
+      
+      newTemplate.question = `${prefix}: ${cleanQuestion}`;
+    }
+
+    return shuffleOptions(newTemplate);
+  }
+  
+  return newTemplate;
+}
+
+function modifyPhysicsTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  if (newTemplate.question.includes('accelerates') || newTemplate.question.includes('acceleration')) {
+    // Modify acceleration problems with unique values
+    const accel = (2 + (index % 3) + Math.floor(Math.random() * variationFactor * 2)).toFixed(1);
+    const time = 5 + (index % 7) + Math.floor(Math.random() * variationFactor * 3);
+    const distance = 0.5 * parseFloat(accel) * time * time;
+    
+    newTemplate.question = `A car accelerates from rest at $${accel} m/s^2$. How far will it travel in ${time} seconds?`;
+    newTemplate.options.A = `${Math.round(distance / 2)} m`;
+    newTemplate.options.B = `${Math.round(distance)} m`;
+    newTemplate.options.C = `${Math.round(distance * 1.5)} m`;
+    newTemplate.options.D = `${Math.round(accel * time)} m`;
+    newTemplate.correct = "B";
+  } else if (newTemplate.question.includes('resistor') || newTemplate.question.includes('resistance')) {
+    // Create variant resistor problems
+    const r1 = 2 + (index % 6) + Math.floor(Math.random() * variationFactor * 4);
+    const r2 = 4 + (index % 4) + Math.floor(Math.random() * variationFactor * 3);
+    
+    // Calculate parallel and series resistances
+    const rSeries = r1 + r2;
+    const rParallel = (r1 * r2) / (r1 + r2);
+    
+    // Randomly choose between parallel and series problems
+    const isParallel = (index + attempt) % 2 === 0;
+    
+    if (isParallel) {
+      newTemplate.question = `What is the equivalent resistance of two resistors $R_1 = ${r1}\\Omega$ and $R_2 = ${r2}\\Omega$ connected in parallel?`;
+      newTemplate.options.A = `${r1 + r2}\\Omega`;
+      newTemplate.options.B = `${Math.round(rParallel * 10) / 10}\\Omega`;
+      newTemplate.options.C = `${Math.round(r1 * r2 * 10) / 10}\\Omega`;
+      newTemplate.options.D = `${Math.round((r1 + r2) / 2 * 10) / 10}\\Omega`;
+      newTemplate.correct = "B";
+    } else {
+      newTemplate.question = `What is the equivalent resistance of two resistors $R_1 = ${r1}\\Omega$ and $R_2 = ${r2}\\Omega$ connected in series?`;
+      newTemplate.options.A = `${rSeries}\\Omega`;
+      newTemplate.options.B = `${Math.round(rParallel * 10) / 10}\\Omega`;
+      newTemplate.options.C = `${Math.round((r1 * r2) * 10) / 10}\\Omega`;
+      newTemplate.options.D = `${Math.abs(r1 - r2)}\\Omega`;
+      newTemplate.correct = "A";
+    }
+  } else {
+    // For other physics questions, apply option shuffling and minor text changes
+    if (variationFactor > 1) {
+      const contexts = [
+        "In a laboratory experiment, ",
+        "During a physics demonstration, ",
+        "Consider the following scenario: ",
+        "In an ideal system, ",
+        "According to principles of physics, "
+      ];
+      
+      const randomContext = contexts[Math.floor(Math.random() * contexts.length)];
+      newTemplate.question = randomContext + newTemplate.question.charAt(0).toLowerCase() + newTemplate.question.slice(1);
+    }
+    
+    return shuffleOptions(newTemplate);
+  }
+  
+  return newTemplate;
+}
+
+function modifyChemistryTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  if (newTemplate.question.includes('pH')) {
+    // Create variant pH calculation problems
+    const concentrationValues = [0.1, 0.01, 0.001, 0.0001, 0.00001];
+    const concentrationIndex = (index + attempt) % concentrationValues.length;
+    const concentration = concentrationValues[concentrationIndex];
+    
+    // Calculate pH
+    const pH = -Math.log10(concentration);
+    
+    // Add some acids variation
+    const acids = ["HCl", "HNO₃", "H₂SO₄"];
+    const acid = acids[(index + attempt) % acids.length];
+    
+    newTemplate.question = `Calculate the pH of a ${concentration} M ${acid} solution.`;
+    
+    // Create answer options around the correct value
+    newTemplate.options.A = `${Math.floor(pH)}`;
+    newTemplate.options.B = `${Math.ceil(pH)}`;
+    newTemplate.options.C = `${Math.round(pH + 1)}`;
+    newTemplate.options.D = `${Math.round(pH - 1) || 1}`; // Prevent negative pH values
+    
+    // Determine the correct answer based on the calculated pH
+    if (pH === Math.floor(pH)) {
+      newTemplate.correct = "A";
+    } else {
+      newTemplate.correct = "B";
+    }
+  } else if (newTemplate.question.includes('reaction') || newTemplate.question.includes('product')) {
+    // Create variation for reaction questions
+    const reactions = [
+      {
+        reactants: "Na₂CO₃ + 2HCl",
+        products: "2NaCl + H₂O + CO₂",
+        correct: "B"
+      },
+      {
+        reactants: "CaCO₃ + 2HCl",
+        products: "CaCl₂ + H₂O + CO₂",
+        correct: "A"
+      },
+      {
+        reactants: "2NaOH + H₂SO₄",
+        products: "Na₂SO₄ + 2H₂O",
+        correct: "C"
+      },
+      {
+        reactants: "Mg + 2HCl",
+        products: "MgCl₂ + H₂",
+        correct: "D"
+      }
+    ];
+    
+    const reactionIndex = (index + attempt) % reactions.length;
+    const reaction = reactions[reactionIndex];
+    
+    newTemplate.question = `What is the product of the reaction: ${reaction.reactants} → ?`;
+    
+    // Create answer options with the correct product and distractors
+    const products = reactions.map(r => r.products);
+    
+    // Ensure the correct answer is in the options
+    newTemplate.options.A = products[0];
+    newTemplate.options.B = products[1];
+    newTemplate.options.C = products[2];
+    newTemplate.options.D = products[3];
+    newTemplate.correct = reaction.correct;
+  } else {
+    // For other chemistry questions, apply minor modifications
+    if (variationFactor > 1) {
+      const prefixes = [
+        "According to chemical principles, ",
+        "In chemical terms, ",
+        "From a chemical perspective, ",
+        "Based on chemical theory, ",
+        "When considering chemical properties, "
+      ];
+      
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      newTemplate.question = prefix + newTemplate.question.charAt(0).toLowerCase() + newTemplate.question.slice(1);
+    }
+    
+    return shuffleOptions(newTemplate);
+  }
+  
+  return newTemplate;
+}
+
+function modifyBiologyTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  if (newTemplate.question.includes('organelle') || newTemplate.question.includes('cell')) {
+    // Create variations of organelle function questions
+    const organelles = [
+      { name: "Mitochondria", function: "ATP production", alt: "Cellular respiration" },
+      { name: "Ribosome", function: "Protein synthesis", alt: "Translation of mRNA" },
+      { name: "Golgi apparatus", function: "Processing and packaging macromolecules", alt: "Protein modification and sorting" },
+      { name: "Endoplasmic reticulum", function: "Synthesis of lipids and proteins", alt: "Transport of cellular materials" },
+      { name: "Chloroplast", function: "Photosynthesis", alt: "Light energy conversion" },
+      { name: "Lysosome", function: "Cellular digestion", alt: "Breaking down waste materials" }
+    ];
+    
+    const organelleIndex = (index + attempt) % organelles.length;
+    const selectedOrganelle = organelles[organelleIndex];
+    
+    // Decide between main function and alternative description
+    const useAltDescription = (index + attempt) % 2 === 1;
+    const functionDescription = useAltDescription ? selectedOrganelle.alt : selectedOrganelle.function;
+    
+    newTemplate.question = `What is the primary function of the ${selectedOrganelle.name} in a eukaryotic cell?`;
+    
+    // Create answer options with one correct and three incorrect
+    const allFunctions = organelles.map(o => useAltDescription ? o.alt : o.function);
+    
+    // Shuffle functions but ensure the correct one is included
+    const shuffledFunctions = shuffleArray([...allFunctions]);
+    
+    // Ensure the correct answer is in the options
+    newTemplate.options.A = shuffledFunctions[0];
+    newTemplate.options.B = shuffledFunctions[1];
+    newTemplate.options.C = shuffledFunctions[2];
+    newTemplate.options.D = shuffledFunctions[3];
+    
+    // Find the correct option letter
+    for (const [key, value] of Object.entries(newTemplate.options)) {
+      if (value === functionDescription) {
+        newTemplate.correct = key;
+        break;
+      }
+    }
+  } else if (newTemplate.question.includes('cell') || newTemplate.question.includes('solution')) {
+    // Create osmosis/diffusion variations
+    const solutionTypes = ["hypotonic", "hypertonic", "isotonic"];
+    const cellResponses = [
+      "It would swell and possibly lyse",
+      "It would shrink due to water loss",
+      "It would remain unchanged"
+    ];
+    
+    const solutionIndex = (index + attempt) % solutionTypes.length;
+    const selectedSolution = solutionTypes[solutionIndex];
+    const correctResponse = cellResponses[solutionIndex];
+    
+    newTemplate.question = `What would happen to a red blood cell placed in a ${selectedSolution} solution?`;
+    
+    newTemplate.options.A = cellResponses[0];
+    newTemplate.options.B = cellResponses[1];
+    newTemplate.options.C = cellResponses[2];
+    newTemplate.options.D = "It would divide rapidly";
+    
+    // Set correct answer
+    for (const [key, value] of Object.entries(newTemplate.options)) {
+      if (value === correctResponse) {
+        newTemplate.correct = key;
+        break;
+      }
+    }
+  } else {
+    // For other biology questions, apply context modifications
+    if (variationFactor > 1) {
+      const contexts = [
+        "In a cellular context, ",
+        "From an evolutionary perspective, ",
+        "In modern biology, ",
+        "According to current understanding, ",
+        "In biological systems, "
+      ];
+      
+      const context = contexts[Math.floor(Math.random() * contexts.length)];
+      newTemplate.question = context + newTemplate.question.charAt(0).toLowerCase() + newTemplate.question.slice(1);
+    }
+    
+    return shuffleOptions(newTemplate);
+  }
+  
+  return newTemplate;
+}
+
+function modifyEnglishTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  if (newTemplate.question.includes('literary device') || newTemplate.question.includes('figure of speech')) {
+    // Create variations for literary device questions
+    const literaryExamples = [
+      { text: "The wind whispered through the trees.", device: "Personification" },
+      { text: "Life is like a box of chocolates.", device: "Simile" },
+      { text: "The curtain of night fell upon the city.", device: "Metaphor" },
+      { text: "She's as cold as ice.", device: "Simile" },
+      { text: "The thunder roared in anger.", device: "Personification" },
+      { text: "He's drowning in a sea of grief.", device: "Metaphor" }
+    ];
+    
+    const exampleIndex = (index + attempt) % literaryExamples.length;
+    const selectedExample = literaryExamples[exampleIndex];
+    
+    newTemplate.question = `Identify the literary device in the following sentence: "${selectedExample.text}"`;
+    
+    // Common literary devices for options
+    const devices = ["Simile", "Metaphor", "Personification", "Hyperbole", "Onomatopoeia", "Alliteration"];
+    
+    // Ensure correct device is in the options
+    newTemplate.options.A = devices[0];
+    newTemplate.options.B = devices[1];
+    newTemplate.options.C = devices[2];
+    newTemplate.options.D = devices[3];
+    
+    // Set correct answer
+    for (const [key, value] of Object.entries(newTemplate.options)) {
+      if (value === selectedExample.device) {
+        newTemplate.correct = key;
+        break;
+      }
+    }
+  } else if (newTemplate.question.includes('grammar') || newTemplate.question.includes('verb')) {
+    // Grammar question variations
+    const grammarExamples = [
+      { 
+        question: "Which sentence uses the correct verb tense?",
+        options: {
+          A: "I will went to the store tomorrow.",
+          B: "I have go to the store yesterday.",
+          C: "I will go to the store tomorrow.",
+          D: "I have went to the store yesterday."
+        },
+        correct: "C"
+      },
+      { 
+        question: "Which sentence demonstrates correct subject-verb agreement?",
+        options: {
+          A: "The team are playing well.",
+          B: "The team is playing well.",
+          C: "The team be playing well.",
+          D: "The team were been playing well."
+        },
+        correct: "B"
+      },
+      { 
+        question: "Which sentence uses the correct pronoun?",
+        options: {
+          A: "Between you and I, this is important.",
+          B: "Between you and me, this is important.",
+          C: "Between we, this is important.",
+          D: "Between us and they, this is important."
+        },
+        correct: "B"
+      }
+    ];
+    
+    const grammarIndex = (index + attempt) % grammarExamples.length;
+    const selectedGrammar = grammarExamples[grammarIndex];
+    
+    newTemplate.question = selectedGrammar.question;
+    newTemplate.options = selectedGrammar.options;
+    newTemplate.correct = selectedGrammar.correct;
+  } else {
+    // For other English questions, apply context and option shuffling
+    if (variationFactor > 1) {
+      const contexts = [
+        "In literary analysis, ",
+        "From a grammatical perspective, ",
+        "In the study of language, ",
+        "According to English conventions, ",
+        "When examining text, "
+      ];
+      
+      const context = contexts[Math.floor(Math.random() * contexts.length)];
+      newTemplate.question = context + newTemplate.question.charAt(0).toLowerCase() + newTemplate.question.slice(1);
+    }
+    
+    return shuffleOptions(newTemplate);
+  }
+  
+  return newTemplate;
+}
+
+function modifyHistoryTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  // For history, we'll focus on question presentation rather than changing facts
+  const prefixes = [
+    "According to historical accounts, ",
+    "Historical evidence suggests that ",
+    "Based on historical records, ",
+    "From a historical perspective, ",
+    "Historians generally agree that "
+  ];
+  
+  const qFormats = [
+    "Which of the following is true about ",
+    "Which statement correctly describes ",
+    "What is the historical significance of ",
+    "Which event led to "
+  ];
+  
+  if (variationFactor > 1) {
+    // For more significant variations, combine prefixes and question formats
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const format = qFormats[Math.floor(Math.random() * qFormats.length)];
+    
+    // Extract the subject of the question where possible
+    let subject = "";
+    
+    if (newTemplate.question.includes("World War")) {
+      subject = "World War II";
+    } else if (newTemplate.question.includes("President")) {
+      subject = "the first U.S. President";
+    } else if (newTemplate.question.includes("Revolution")) {
+      subject = "the French Revolution";
+    } else {
+      // Use the original question
+      return shuffleOptions(newTemplate);
+    }
+    
+    newTemplate.question = prefix + format + subject + "?";
+  }
+  
+  return shuffleOptions(newTemplate);
+}
+
+function modifyGeographyTemplate(template, index, attempt, variationFactor) {
+  const newTemplate = JSON.parse(JSON.stringify(template));
+  
+  if (newTemplate.question.includes('largest') || newTemplate.question.includes('ocean')) {
+    // Create variations of geography superlative questions
+    const geographySuperlatives = [
+      { 
+        question: "Which is the largest ocean on Earth?",
+        answer: "Pacific Ocean",
+        options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"]
+      },
+      { 
+        question: "Which is the longest river in the world?",
+        answer: "Nile River",
+        options: ["Amazon River", "Mississippi River", "Nile River", "Yangtze River"]
+      },
+      { 
+        question: "Which is the highest mountain peak in the world?",
+        answer: "Mount Everest",
+        options: ["Mount Kilimanjaro", "K2", "Mount Everest", "Denali"]
+      },
+      { 
+        question: "Which is the largest desert in the world?",
+        answer: "Antarctic Desert",
+        options: ["Sahara Desert", "Arabian Desert", "Antarctic Desert", "Gobi Desert"]
+      }
+    ];
+    
+    const superlativeIndex = (index + attempt) % geographySuperlatives.length;
+    const selectedQuestion = geographySuperlatives[superlativeIndex];
+    
+    newTemplate.question = selectedQuestion.question;
+    
+    // Set options
+    const options = shuffleArray([...selectedQuestion.options]);
+    newTemplate.options.A = options[0];
+    newTemplate.options.B = options[1];
+    newTemplate.options.C = options[2];
+    newTemplate.options.D = options[3];
+    
+    // Set correct answer
+    for (const [key, value] of Object.entries(newTemplate.options)) {
+      if (value === selectedQuestion.answer) {
+        newTemplate.correct = key;
+        break;
+      }
+    }
+  } else if (newTemplate.question.includes('landlocked') || newTemplate.question.includes('countries')) {
+    // Create variations with different countries
+    const countries = [
+      { name: "Bolivia", landlocked: true },
+      { name: "Paraguay", landlocked: true },
+      { name: "Switzerland", landlocked: true },
+      { name: "Mongolia", landlocked: true },
+      { name: "Vietnam", landlocked: false },
+      { name: "Thailand", landlocked: false },
+      { name: "Ecuador", landlocked: false },
+      { name: "Japan", landlocked: false }
+    ];
+    
+    // Shuffle countries and take the first 4
+    const shuffledCountries = shuffleArray([...countries]).slice(0, 4);
+    
+    // Ensure at least one landlocked country is included
+    let hasLandlocked = shuffledCountries.some(c => c.landlocked);
+    if (!hasLandlocked) {
+      // Replace the last country with a landlocked one
+      const landlockedCountries = countries.filter(c => c.landlocked);
+      shuffledCountries[3] = landlockedCountries[0];
+    }
+    
+    newTemplate.question = "Which of the following countries is landlocked (has no direct access to the ocean)?";
+    
+    // Set options
+    newTemplate.options.A = shuffledCountries[0].name;
+    newTemplate.options.B = shuffledCountries[1].name;
+    newTemplate.options.C = shuffledCountries[2].name;
+    newTemplate.options.D = shuffledCountries[3].name;
+    
+    // Set correct answer
+    for (let i = 0; i < shuffledCountries.length; i++) {
+      if (shuffledCountries[i].landlocked) {
+        newTemplate.correct = ["A", "B", "C", "D"][i];
+        break;
+      }
+    }
+  } else {
+    // For other geography questions, apply context variations
+    if (variationFactor > 1) {
+      const contexts = [
+        "In geographical terms, ",
+        "According to physical geography, ",
+        "Based on geographical studies, ",
+        "From a geographical perspective, ",
+        "When examining the Earth's features, "
+      ];
+      
+      const context = contexts[Math.floor(Math.random() * contexts.length)];
+      newTemplate.question = context + newTemplate.question.charAt(0).toLowerCase() + newTemplate.question.slice(1);
+    }
+    
+    return shuffleOptions(newTemplate);
+  }
   
   return newTemplate;
 }
@@ -1103,7 +1772,7 @@ function createForcedUniqueTemplate(template, subject, index, existingQuestions)
 // Helper function to shuffle answer options
 function shuffleOptions(template) {
   const options = Object.entries(template.options);
-  shuffleArray(options);
+  const shuffledOptions = shuffleArray([...options]);
   
   // Track where the correct answer moved to
   const correctValue = template.options[template.correct];
@@ -1111,7 +1780,7 @@ function shuffleOptions(template) {
   
   // Rebuild the options object
   const newOptions = {};
-  options.forEach(([key, value], i) => {
+  shuffledOptions.forEach(([key, value], i) => {
     const newKey = ['A', 'B', 'C', 'D'][i];
     newOptions[newKey] = value;
     if (value === correctValue) {
@@ -1123,150 +1792,6 @@ function shuffleOptions(template) {
   template.correct = newCorrect;
   
   return template;
-}
-
-// Helper function to modify a template to make it unique
-function modifyTemplate(template, subject, index) {
-  // Create a deep copy of the template
-  const newTemplate = JSON.parse(JSON.stringify(template));
-  
-  // Modify the template based on the subject
-  switch (subject) {
-    case 'mathematics':
-      return modifyMathTemplate(newTemplate, index);
-    case 'physics':
-      return modifyPhysicsTemplate(newTemplate, index);
-    case 'chemistry':
-      return modifyChemistryTemplate(newTemplate, index);
-    case 'biology':
-      return modifyBiologyTemplate(newTemplate, index);
-    case 'english':
-      return modifyEnglishTemplate(newTemplate, index);
-    case 'history':
-      return modifyHistoryTemplate(newTemplate, index);
-    case 'geography':
-      return modifyGeographyTemplate(newTemplate, index);
-    default:
-      return modifyDefaultTemplate(newTemplate, index);
-  }
-}
-
-// Helper functions to modify templates for each subject
-function modifyMathTemplate(template, index) {
-  // For math questions, we can change numerical values
-  if (template.question.includes('$x =')) {
-    // For equation solving questions
-    const newValue = 5 + (index % 5);
-    template.question = template.question.replace(/\d+/, newValue.toString());
-    
-    // Also update the answer
-    const correctOption = template.correct;
-    template.options[correctOption] = template.options[correctOption].replace(/\d+/, (newValue + 3).toString());
-  } else if (template.question.includes('rectangle')) {
-    // For area/perimeter questions
-    const newLength = 5 + (index % 7);
-    const newWidth = 3 + (index % 5);
-    const newArea = newLength * newWidth;
-    
-    template.question = `Calculate the area of a rectangle with length ${newLength} cm and width ${newWidth} cm.`;
-    template.options.A = `${newLength + newWidth} cm²`;
-    template.options.B = `${2 * (newLength + newWidth)} cm²`;
-    template.options.C = `${newArea} cm²`;
-    template.options.D = `${newArea + 10} cm²`;
-    template.correct = "C";
-  }
-  
-  return template;
-}
-
-function modifyPhysicsTemplate(template, index) {
-  if (template.question.includes('accelerates')) {
-    // Modify acceleration problem
-    const newAcceleration = 2 + (index % 3);
-    const newTime = 5 + (index % 7);
-    const newDistance = 0.5 * newAcceleration * newTime * newTime;
-    
-    template.question = `A car accelerates from rest at $${newAcceleration} m/s^2$. How far will it travel in ${newTime} seconds?`;
-    template.options.A = `${Math.round(newDistance / 2)} m`;
-    template.options.B = `${Math.round(newDistance)} m`;
-    template.options.C = `${Math.round(newDistance * 1.5)} m`;
-    template.options.D = `${Math.round(newDistance / 3)} m`;
-    template.correct = "B";
-  }
-  
-  return template;
-}
-
-function modifyChemistryTemplate(template, index) {
-  // Chemistry modifications could involve changing concentrations, reagents, etc.
-  if (template.question.includes('pH')) {
-    const concentrations = [0.1, 0.01, 0.001, 0.0001];
-    const newConcentration = concentrations[index % concentrations.length];
-    const newPH = -Math.log10(newConcentration);
-    
-    template.question = `Calculate the pH of a ${newConcentration} M HCl solution.`;
-    template.options.A = `${Math.floor(newPH)}`;
-    template.options.B = `${Math.ceil(newPH)}`;
-    template.options.C = `${Math.round(newPH + 1)}`;
-    template.options.D = `${Math.round(newPH - 1)}`;
-    template.correct = newPH === Math.floor(newPH) ? "A" : "B";
-  }
-  
-  return template;
-}
-
-function modifyBiologyTemplate(template, index) {
-  // For biology, we might modify terminology or examples
-  if (template.question.includes('organelle')) {
-    const organelles = [
-      { name: "Mitochondria", function: "ATP production" },
-      { name: "Ribosome", function: "Protein synthesis" },
-      { name: "Golgi apparatus", function: "Processing and packaging macromolecules" },
-      { name: "Endoplasmic reticulum", function: "Synthesis of lipids and proteins" }
-    ];
-    
-    const selectedOrganelle = organelles[index % organelles.length];
-    
-    template.question = `What is the main function of the ${selectedOrganelle.name} in a cell?`;
-    
-    // Create new options
-    const allFunctions = organelles.map(o => o.function);
-    const correctAnswer = selectedOrganelle.function;
-    template.options.A = allFunctions[0];
-    template.options.B = allFunctions[1];
-    template.options.C = allFunctions[2];
-    template.options.D = allFunctions[3];
-    
-    // Set correct answer
-    for (const [key, value] of Object.entries(template.options)) {
-      if (value === correctAnswer) {
-        template.correct = key;
-        break;
-      }
-    }
-  }
-  
-  return template;
-}
-
-function modifyEnglishTemplate(template, index) {
-  // For English, we might change literary works, examples, or terminology
-  return shuffleOptions(template); // Simple implementation using option shuffling
-}
-
-function modifyHistoryTemplate(template, index) {
-  // For History, we might change dates, figures, or events
-  return shuffleOptions(template); // Simple implementation using option shuffling
-}
-
-function modifyGeographyTemplate(template, index) {
-  // For Geography, we might change locations or phenomena
-  return shuffleOptions(template); // Simple implementation using option shuffling
-}
-
-function modifyDefaultTemplate(template, index) {
-  // Generic modification - shuffle the answer options
-  return shuffleOptions(template);
 }
 
 // Helper function to shuffle an array (Fisher-Yates algorithm)
