@@ -65,7 +65,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
         const result = await supabase.functions.invoke("ai-generate-questions", {
           body: {
             subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
-            difficulty: "hard",
             count: 1,
             unitObjective: userQuery,
             challengeLevel: "advanced",
