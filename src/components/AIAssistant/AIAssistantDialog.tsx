@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -30,18 +29,15 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
-  const [difficultyLevel, setDifficultyLevel] = useState("hard"); // Default to hard for challenging questions
   const [mode, setMode] = useState<"chat" | "practice">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Auto-scroll to bottom of messages
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
   
-  // Initialize with a welcome message
   useEffect(() => {
     if (open && messages.length === 0) {
       setMessages([
@@ -58,25 +54,22 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     
     if (!query.trim()) return;
     
-    // Add user message to chat
     setMessages(prev => [...prev, { role: "user", content: query }]);
     
-    // Prepare to generate response
     const userQuery = query;
-    setQuery(""); // Clear input
+    setQuery("");
     setLoading(true);
     
     try {
       if (mode === "practice") {
-        // Generate challenging practice questions
         const result = await supabase.functions.invoke("ai-generate-questions", {
           body: {
             subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
-            difficulty: "hard", // Always use hard difficulty for challenging questions
+            difficulty: "hard",
             count: 1,
             unitObjective: userQuery,
-            challengeLevel: "advanced", // Additional parameter to signal advanced questions
-            instructionType: "challenging" // Parameter to indicate we want challenging questions
+            challengeLevel: "advanced",
+            instructionType: "challenging"
           }
         });
         
@@ -90,7 +83,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
           throw new Error("Could not generate a challenging question. Please try again with a different topic.");
         }
         
-        // Format the AI response with an advanced practice question
         const question = data.questions[0];
         const responseContent = `
 Here's a challenging question about ${selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name : "this topic"}:
@@ -109,16 +101,14 @@ The correct answer is **${question.correct_answer}**.
 Would you like another challenging question or would you like me to explain a concept in more detail?
         `;
         
-        // Add AI response to chat
         setMessages(prev => [...prev, { role: "assistant", content: responseContent }]);
       } else {
-        // Regular chat mode - provide explanations and assistance
         const result = await supabase.functions.invoke("ai-generate-questions", {
           body: {
             subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
             mode: "chat",
             query: userQuery,
-            context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n") // Provide recent conversation context
+            context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n")
           }
         });
         
@@ -126,7 +116,6 @@ Would you like another challenging question or would you like me to explain a co
           throw new Error(result.error.message);
         }
         
-        // Add AI response to chat
         if (result.data?.response) {
           setMessages(prev => [...prev, { role: "assistant", content: result.data.response }]);
         } else {
@@ -142,7 +131,6 @@ Would you like another challenging question or would you like me to explain a co
         description: "Failed to generate a response. Please try again."
       });
       
-      // Add error message to chat
       setMessages(prev => [...prev, { 
         role: "assistant", 
         content: "I'm sorry, I couldn't generate a response at this time. Please try again with a different question or topic." 
@@ -203,19 +191,6 @@ Would you like another challenging question or would you like me to explain a co
             </SelectContent>
           </Select>
         </div>
-        
-        {mode === "practice" && (
-          <div className="flex items-center space-x-2 mb-4">
-            <Switch
-              id="difficulty-mode"
-              checked={difficultyLevel === "hard"}
-              onCheckedChange={(checked) => setDifficultyLevel(checked ? "hard" : "medium")}
-            />
-            <Label htmlFor="difficulty-mode" className="text-sm">
-              Advanced Challenge Mode {difficultyLevel === "hard" && "✓"}
-            </Label>
-          </div>
-        )}
         
         <div className="flex-1 overflow-y-auto my-4 p-4 bg-secondary/20 rounded-md min-h-[200px]">
           {messages.length === 0 ? (
