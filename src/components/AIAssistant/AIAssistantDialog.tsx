@@ -4,11 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useLanguage } from "@/context/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, BrainCircuit, Sparkles, Loader2 } from "lucide-react";
+import { Send, BrainCircuit, Sparkles, Loader2, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { subjects } from "@/utils/subjects";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AIAssistantDialogProps {
@@ -28,6 +30,8 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [difficultyLevel, setDifficultyLevel] = useState("hard"); // Default to hard for challenging questions
+  const [mode, setMode] = useState<"chat" | "practice">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Auto-scroll to bottom of messages
@@ -43,7 +47,7 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
       setMessages([
         {
           role: "assistant",
-          content: t("ai.welcome")
+          content: t("ai.welcome") + " I'm designed to assist with challenging academic questions based on your curriculum. Select a subject and ask me a question or switch to Practice mode for challenging exercises."
         }
       ]);
     }
@@ -63,30 +67,33 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     setLoading(true);
     
     try {
-      // Generate a question based on the user's query and selected subject
-      const result = await supabase.functions.invoke("ai-generate-questions", {
-        body: {
-          subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
-          difficulty: "medium",
-          count: 1,
-          unitObjective: userQuery
+      if (mode === "practice") {
+        // Generate challenging practice questions
+        const result = await supabase.functions.invoke("ai-generate-questions", {
+          body: {
+            subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
+            difficulty: "hard", // Always use hard difficulty for challenging questions
+            count: 1,
+            unitObjective: userQuery,
+            challengeLevel: "advanced", // Additional parameter to signal advanced questions
+            instructionType: "challenging" // Parameter to indicate we want challenging questions
+          }
+        });
+        
+        if (result.error) {
+          throw new Error(result.error.message);
         }
-      });
-      
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      
-      const data = result.data;
-      
-      if (!data?.questions || data.questions.length === 0) {
-        throw new Error("Could not generate a response. Please try again with a different question.");
-      }
-      
-      // Format the AI response
-      const question = data.questions[0];
-      const responseContent = `
-Here's a practice question about ${selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name : "this topic"}:
+        
+        const data = result.data;
+        
+        if (!data?.questions || data.questions.length === 0) {
+          throw new Error("Could not generate a challenging question. Please try again with a different topic.");
+        }
+        
+        // Format the AI response with an advanced practice question
+        const question = data.questions[0];
+        const responseContent = `
+Here's a challenging question about ${selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name : "this topic"}:
 
 **Question:** ${question.question_text}
 
@@ -99,11 +106,33 @@ The correct answer is **${question.correct_answer}**.
 
 **Explanation:** ${question.explanation}
 
-Would you like me to generate another question on this topic or explain something else?
-      `;
-      
-      // Add AI response to chat
-      setMessages(prev => [...prev, { role: "assistant", content: responseContent }]);
+Would you like another challenging question or would you like me to explain a concept in more detail?
+        `;
+        
+        // Add AI response to chat
+        setMessages(prev => [...prev, { role: "assistant", content: responseContent }]);
+      } else {
+        // Regular chat mode - provide explanations and assistance
+        const result = await supabase.functions.invoke("ai-generate-questions", {
+          body: {
+            subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
+            mode: "chat",
+            query: userQuery,
+            context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n") // Provide recent conversation context
+          }
+        });
+        
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        
+        // Add AI response to chat
+        if (result.data?.response) {
+          setMessages(prev => [...prev, { role: "assistant", content: result.data.response }]);
+        } else {
+          throw new Error("Failed to generate a response.");
+        }
+      }
       
     } catch (error) {
       console.error("Error generating AI response:", error);
@@ -130,7 +159,7 @@ Would you like me to generate another question on this topic or explain somethin
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BrainCircuit className="size-5 text-ethiopia-green" />
@@ -140,6 +169,19 @@ Would you like me to generate another question on this topic or explain somethin
             {t("ai.description")}
           </DialogDescription>
         </DialogHeader>
+        
+        <Tabs value={mode} onValueChange={(value) => setMode(value as "chat" | "practice")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="chat" className="flex items-center">
+              <BrainCircuit className="mr-2 size-4" />
+              Chat Assistant
+            </TabsTrigger>
+            <TabsTrigger value="practice" className="flex items-center">
+              <Lightbulb className="mr-2 size-4" />
+              Practice Questions
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         
         <div className="mb-4">
           <Label htmlFor="subject" className="mb-2 block text-sm font-medium">
@@ -162,10 +204,25 @@ Would you like me to generate another question on this topic or explain somethin
           </Select>
         </div>
         
+        {mode === "practice" && (
+          <div className="flex items-center space-x-2 mb-4">
+            <Switch
+              id="difficulty-mode"
+              checked={difficultyLevel === "hard"}
+              onCheckedChange={(checked) => setDifficultyLevel(checked ? "hard" : "medium")}
+            />
+            <Label htmlFor="difficulty-mode" className="text-sm">
+              Advanced Challenge Mode {difficultyLevel === "hard" && "✓"}
+            </Label>
+          </div>
+        )}
+        
         <div className="flex-1 overflow-y-auto my-4 p-4 bg-secondary/20 rounded-md min-h-[200px]">
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground">
-              {t("ai.prompt")}
+              {mode === "chat" 
+                ? t("ai.prompt") 
+                : "Ask for a challenging practice question in your chosen subject"}
             </div>
           ) : (
             <div className="space-y-4">
@@ -175,7 +232,7 @@ Would you like me to generate another question on this topic or explain somethin
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div 
-                    className={`max-w-[75%] rounded-lg p-3 ${
+                    className={`max-w-[80%] rounded-lg p-3 ${
                       msg.role === 'user' 
                         ? 'bg-primary text-primary-foreground' 
                         : 'bg-muted'
@@ -202,9 +259,11 @@ Would you like me to generate another question on this topic or explain somethin
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={selectedSubject 
-              ? `Ask about ${getSubjectIcon(selectedSubject)} ${subjects.find(s => s.id === selectedSubject)?.name}...` 
-              : t("ai.placeholder")
+            placeholder={mode === "chat"
+              ? (selectedSubject 
+                ? `Ask about ${getSubjectIcon(selectedSubject)} ${subjects.find(s => s.id === selectedSubject)?.name}...` 
+                : t("ai.placeholder"))
+              : "Enter a topic for a challenging practice question..."
             }
             className="flex-1"
             disabled={loading}
