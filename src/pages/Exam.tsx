@@ -19,8 +19,6 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 
 const EXAM_DURATION = 60; // minutes
@@ -59,11 +57,10 @@ const Exam = () => {
     setLoading(true);
     
     try {
-      // Always use hard difficulty and pass challengeLevel as "advanced"
+      // Generate challenging questions (always hard difficulty)
       const result = await supabase.functions.invoke("ai-generate-questions", {
         body: {
           subject: selectedSubjectObj?.name || "",
-          difficulty: "hard",
           count: questionCount,
           unitObjective: unitObjective.trim() || undefined,
           challengeLevel: "advanced",
@@ -444,4 +441,3 @@ const Exam = () => {
 };
 
 export default Exam;
-

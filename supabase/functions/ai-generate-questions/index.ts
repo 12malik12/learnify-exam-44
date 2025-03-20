@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,13 +7,6 @@ const corsHeaders = {
 };
 
 const HUGGING_FACE_API_KEY = Deno.env.get('HUGGING_FACE_API_KEY') || '';
-
-// Map difficulty levels to more specific instructions
-const difficultyMap = {
-  'easy': 'basic knowledge, suitable for beginners',
-  'medium': 'intermediate knowledge, requiring some deeper understanding',
-  'hard': 'advanced knowledge with multi-step reasoning and application of concepts, challenging even for experienced students'
-};
 
 // Subject-specific instructions to guide the AI in generating better quality questions
 const subjectPromptGuides = {
@@ -77,9 +71,36 @@ const learningObjectives: Record<string, Record<string, string[]>> = {
   }
 };
 
+// Diverse question type templates to ensure variety
+const questionTypes = [
+  "Create a scenario-based question that requires analyzing a real-world application of {concept}",
+  "Design a question that requires multi-step reasoning and calculation involving {concept}",
+  "Create a conceptual question that tests deep understanding of {concept} principles",
+  "Design a question with a challenging twist about {concept} that might initially mislead students",
+  "Create a comparison question requiring students to evaluate different approaches to {concept}",
+  "Design a question requiring students to predict outcomes based on {concept}",
+  "Create a question requiring students to identify errors in a proposed solution about {concept}",
+  "Design a question involving data interpretation related to {concept}",
+  "Create a question requiring synthesis of multiple aspects of {concept}",
+  "Design a case study question where students must apply {concept} to solve a complex problem"
+];
+
+// Different context templates to add variety
+const contextTemplates = [
+  "In a laboratory setting, where measurements must be precise,",
+  "During a scientific investigation involving {subject},",
+  "In a real-world engineering application,",
+  "At a manufacturing facility that produces {product},",
+  "While analyzing data from a recent experiment,",
+  "When designing a solution for a community problem,",
+  "In an environmental monitoring situation,",
+  "During a medical diagnosis procedure,",
+  "While constructing a mathematical model of a natural phenomenon,",
+  "In a research project studying {phenomenon},"
+];
+
 // Enhanced challenging question generation prompt
 function generateChallengingQuestionPrompt(subject: string, unitObjective?: string, questionIndex: number = 0) {
-  const difficultyDescription = difficultyMap.hard;
   const subjectGuide = subjectPromptGuides[subject as keyof typeof subjectPromptGuides] || '';
   
   // Find relevant learning objectives if available
@@ -100,22 +121,23 @@ function generateChallengingQuestionPrompt(subject: string, unitObjective?: stri
   }
   
   // Add variety based on question index to prevent repetitive questions
-  const questionTypes = [
-    "Create a scenario-based question that requires analyzing a real-world application",
-    "Design a question that requires multi-step reasoning and calculation",
-    "Create a conceptual question that tests deep understanding of principles",
-    "Design a question with a challenging twist that might initially mislead students",
-    "Create a question requiring students to synthesize multiple concepts",
-    "Design a question involving interpreting data or a graph",
-    "Create a question that requires evaluating different approaches or solutions"
-  ];
+  const questionType = questionTypes[questionIndex % questionTypes.length]
+    .replace("{concept}", unitObjective || subject);
   
-  const questionTypeInstruction = questionTypes[questionIndex % questionTypes.length];
+  // Add varied contexts
+  const contextTemplate = contextTemplates[Math.floor(Math.random() * contextTemplates.length)]
+    .replace("{subject}", subject)
+    .replace("{product}", getRandomProductForSubject(subject))
+    .replace("{phenomenon}", getRandomPhenomenonForSubject(subject));
   
   return `
-${questionTypeInstruction} about ${subject} at hard difficulty level (${difficultyDescription}) ${objectiveContent}
+${questionType}
+
+${contextTemplate}
 
 ${subjectGuide}
+
+${objectiveContent}
 
 IMPORTANT QUESTION REQUIREMENTS:
 1. Focus on deep understanding, application, and problem-solving—NOT simple recall
@@ -125,8 +147,9 @@ IMPORTANT QUESTION REQUIREMENTS:
 5. Ensure the question has one definitively correct answer
 6. Make distractors (wrong options) plausible and based on common misconceptions
 7. Ensure the correct answer isn't obvious
-8. Make this question DIFFERENT from other questions in structure, wording, and approach
+8. Make this question DIFFERENT from previous questions in structure, wording, and approach
 9. Use unique contexts and examples not commonly found in textbooks
+10. DO NOT create a question that looks like other questions - create something original
 
 Format the response exactly like this JSON without any additional text:
 {
@@ -139,6 +162,37 @@ Format the response exactly like this JSON without any additional text:
   "explanation": "A detailed explanation of why the correct answer is right and why other options are wrong, including the underlying concepts"
 }
 `;
+}
+
+// Helper functions to add diversity to prompts
+function getRandomProductForSubject(subject: string): string {
+  const productsBySubject: Record<string, string[]> = {
+    'Mathematics': ['statistical software', 'financial instruments', 'engineering tools', 'cryptographic systems'],
+    'Chemistry': ['pharmaceuticals', 'polymers', 'catalysts', 'specialty chemicals'],
+    'Physics': ['optical instruments', 'aerospace components', 'electrical devices', 'quantum computers'],
+    'Biology': ['vaccines', 'genetic tests', 'biomedical devices', 'agricultural products'],
+    'History': ['historical documentation', 'museum exhibits', 'archaeological artifacts', 'educational materials'],
+    'Geography': ['mapping software', 'climate models', 'urban planning tools', 'resource management systems'],
+    'Civics': ['policy documents', 'governance frameworks', 'legal interpretations', 'ethical guidelines']
+  };
+  
+  const products = productsBySubject[subject] || ['specialized products'];
+  return products[Math.floor(Math.random() * products.length)];
+}
+
+function getRandomPhenomenonForSubject(subject: string): string {
+  const phenomenaBySubject: Record<string, string[]> = {
+    'Mathematics': ['exponential growth', 'statistical distributions', 'optimization problems', 'chaotic systems'],
+    'Chemistry': ['catalytic reactions', 'polymer degradation', 'acid-base equilibria', 'redox processes'],
+    'Physics': ['quantum entanglement', 'relativistic effects', 'electromagnetic interactions', 'thermodynamic processes'],
+    'Biology': ['cellular signaling', 'ecological succession', 'genetic drift', 'immune responses'],
+    'History': ['cultural diffusion', 'technological revolutions', 'political transformations', 'social movements'],
+    'Geography': ['climate patterns', 'urbanization', 'resource depletion', 'migration flows'],
+    'Civics': ['democratic participation', 'policy implementation', 'civil disobedience', 'institutional reform']
+  };
+  
+  const phenomena = phenomenaBySubject[subject] || ['complex phenomena'];
+  return phenomena[Math.floor(Math.random() * phenomena.length)];
 }
 
 // Chat response generation prompt
@@ -177,7 +231,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       // Handle chat mode
       prompt = generateChatResponsePrompt(subject, unitObjective || "");
     } else {
-      // Handle question generation mode - always using hard difficulty
+      // Handle question generation mode
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
@@ -256,7 +310,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       if (!jsonMatch) {
         // If no JSON is found, try to generate a structured question ourselves
         console.log("Failed to parse JSON from model response, creating a fallback question");
-        return createFallbackQuestion(subject, "hard", unitObjective);
+        return createFallbackQuestion(subject, unitObjective, questionIndex);
       }
       
       try {
@@ -274,7 +328,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         
         if (missingFields.length > 0) {
           console.log(`Generated question is missing fields: ${missingFields.join(", ")}`);
-          return createFallbackQuestion(subject, "hard", unitObjective);
+          return createFallbackQuestion(subject, unitObjective, questionIndex);
         }
         
         // Normalize the correct answer to be uppercase single letter
@@ -283,18 +337,18 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         // Add additional fields
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
-        questionData.difficulty_level = 3;
+        questionData.difficulty_level = 3; // Always hard difficulty
         
         // Enhanced validation for unit objective alignment
         if (unitObjective && !isQuestionAlignedWithObjective(questionData, unitObjective)) {
           console.log("Question doesn't align with the learning objective, regenerating...");
-          return generateQuestion(subject, unitObjective, challengeLevel, "question", questionIndex); // Recursively try again
+          return generateQuestion(subject, unitObjective, challengeLevel, "question", questionIndex + 1); // Try again with a different question index
         }
         
         return questionData;
       } catch (parseError) {
         console.error("Error parsing question JSON:", parseError);
-        return createFallbackQuestion(subject, "hard", unitObjective);
+        return createFallbackQuestion(subject, unitObjective, questionIndex);
       }
     }
   } catch (error) {
@@ -302,14 +356,14 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     if (mode === "chat") {
       return { response: "I'm sorry, I couldn't generate a response at this time. Please try again with a different question." };
     } else {
-      return createFallbackQuestion(subject, "hard", unitObjective);
+      return createFallbackQuestion(subject, unitObjective, questionIndex);
     }
   }
 }
 
-// Enhanced fallback question creation with subject-specific advanced templates
-function createFallbackQuestion(subject: string, difficulty: string, unitObjective?: string) {
-  console.log("Creating advanced fallback question");
+// Enhanced fallback question creation with more variety
+function createFallbackQuestion(subject: string, unitObjective?: string, questionIndex: number = 0) {
+  console.log(`Creating advanced fallback question for ${subject}, index: ${questionIndex}`);
   
   // Advanced subject-specific template questions focused on challenging concepts
   const templates: Record<string, any[]> = {
@@ -331,6 +385,15 @@ function createFallbackQuestion(subject: string, difficulty: string, unitObjecti
         option_d: "500",
         correct_answer: "A",
         explanation: "The profit function is Revenue - Cost = x·p(x) - C(x) = x(20 - 0.02x) - (2000 + 5x + 0.01x²) = 20x - 0.02x² - 2000 - 5x - 0.01x² = -2000 + 15x - 0.03x². To maximize profit, we take the derivative and set it equal to zero: P'(x) = 15 - 0.06x = 0, which gives x = 15/0.06 = 250. To verify this is a maximum, we note P''(x) = -0.06 < 0. Therefore, producing 250 units maximizes profit."
+      },
+      {
+        question_text: "A researcher is modeling the spread of a technology using the logistic function P(t) = 1,000,000 / (1 + 999e^(-0.5t)), where t is time in years. At what time will the technology reach 75% of its maximum adoption?",
+        option_a: "t = 8.39 years",
+        option_b: "t = 13.82 years",
+        option_c: "t = 10.39 years",
+        option_d: "t = 9.19 years",
+        correct_answer: "C",
+        explanation: "The maximum adoption is 1,000,000. We need to find when P(t) = 0.75 × 1,000,000 = 750,000. So we solve: 750,000 = 1,000,000 / (1 + 999e^(-0.5t)). Multiplying both sides by (1 + 999e^(-0.5t)): 750,000(1 + 999e^(-0.5t)) = 1,000,000. Simplifying: 750,000 + 749,250,000e^(-0.5t) = 1,000,000. Therefore: 749,250,000e^(-0.5t) = 250,000. So e^(-0.5t) = 250,000/749,250,000 = 1/3. Taking natural log of both sides: -0.5t = ln(1/3) = -ln(3). Therefore: t = 2ln(3) ≈ 2.2 ≈ 10.39 years."
       }
     ],
     "Chemistry": [
@@ -344,44 +407,35 @@ function createFallbackQuestion(subject: string, difficulty: string, unitObjecti
         explanation: "Initial buffer: [HA] = 0.20 M, [A⁻] = 0.15 M. Using the Henderson-Hasselbalch equation: pH = pKa + log([A⁻]/[HA]) = -log(1.8×10⁻⁵) + log(0.15/0.20) = 4.74 + log(0.75) = 4.74 - 0.12 = 4.62. When HCl is added, it reacts with A⁻: A⁻ + H⁺ → HA, so [HA] increases to 0.21 M and [A⁻] decreases to 0.14 M. The new pH = pKa + log([A⁻]/[HA]) = 4.74 + log(0.14/0.21) = 4.74 + log(0.67) = 4.74 - 0.18 = 4.56."
       },
       {
-        question_text: "An electrochemical cell is constructed with a zinc electrode in a 0.10 M Zn²⁺ solution and a copper electrode in a 0.20 M Cu²⁺ solution at 25°C. If the standard reduction potentials are E°(Zn²⁺/Zn) = -0.76 V and E°(Cu²⁺/Cu) = +0.34 V, what is the cell potential?",
-        option_a: "1.08 V",
-        option_b: "1.10 V", 
-        option_c: "1.12 V",
-        option_d: "1.14 V",
+        question_text: "An industrial electrolysis cell uses a current of 50.0 A to plate copper from a CuSO₄ solution. How many grams of copper will be deposited in 2.00 hours? (Atomic mass of Cu = 63.5 g/mol, Faraday constant = 96,500 C/mol)",
+        option_a: "62.5 g",
+        option_b: "118.7 g",
+        option_c: "59.4 g", 
+        option_d: "31.7 g",
         correct_answer: "B",
-        explanation: "The cell reaction is: Zn(s) + Cu²⁺(aq) → Zn²⁺(aq) + Cu(s). Using the Nernst equation: E = E° - (0.0592/n)log(Q) where E° = E°(cathode) - E°(anode) = 0.34 - (-0.76) = 1.10 V, n = 2 (electrons transferred), and Q = [Zn²⁺]/[Cu²⁺] = 0.10/0.20 = 0.50. So E = 1.10 - (0.0592/2)log(0.5) = 1.10 + 0.0089 = 1.11 V, which rounds to 1.10 V."
+        explanation: "In the electrolysis of CuSO₄, copper ions (Cu²⁺) are reduced to copper metal at the cathode: Cu²⁺ + 2e⁻ → Cu. We need to determine the amount of charge passed through the cell: Charge = Current × Time = 50.0 A × 2.00 h × 3600 s/h = 360,000 C. Using Faraday's law: moles of Cu = Charge ÷ (number of electrons × Faraday constant) = 360,000 C ÷ (2 × 96,500 C/mol) = 1.87 mol Cu. Mass of Cu = 1.87 mol × 63.5 g/mol = 118.7 g."
       }
     ],
     "Physics": [
       {
-        question_text: "A projectile is launched from the ground with an initial velocity of 50 m/s at an angle of 37° above the horizontal. Assuming no air resistance and g = 9.8 m/s², what is the maximum height reached by the projectile?",
-        option_a: "45.8 m",
-        option_b: "62.3 m",
-        option_c: "30.1 m", 
-        option_d: "51.5 m",
-        correct_answer: "A",
-        explanation: "The initial vertical velocity component is v₀y = v₀sin(θ) = 50sin(37°) = 50 × 0.6 = 30 m/s. The maximum height is reached when the vertical velocity becomes zero, and can be calculated using the formula h = v₀y²/(2g) = 30²/(2 × 9.8) = 900/19.6 = 45.9 m, which rounds to 45.8 m."
-      },
-      {
-        question_text: "A cylindrical water tank with radius 2 m and height 10 m is filled to the top. What is the force exerted by the water on the bottom of the tank? (Density of water = 1000 kg/m³, g = 9.8 m/s²)",
-        option_a: "1.23 × 10⁶ N",
-        option_b: "1.23 × 10⁵ N", 
-        option_c: "3.92 × 10⁵ N",
-        option_d: "7.85 × 10⁵ N",
-        correct_answer: "A",
-        explanation: "The force on the bottom is given by F = P × A, where P is the pressure at the bottom and A is the area of the bottom. Pressure at the bottom is P = ρgh = 1000 × 9.8 × 10 = 98,000 Pa. The area of the bottom is A = πr² = π × 2² = 12.57 m². Therefore, F = P × A = 98,000 × 12.57 = 1,231,860 N ≈ 1.23 × 10⁶ N."
+        question_text: "Two projectiles A and B are launched simultaneously from the ground. Projectile A has an initial velocity of 30 m/s at an angle of 60° above the horizontal, while projectile B has an initial velocity of 40 m/s at an angle of 30° above the horizontal. Ignoring air resistance and assuming g = 9.8 m/s², how far apart are the projectiles when they both reach the ground?",
+        option_a: "159.2 m",
+        option_b: "79.6 m",
+        option_c: "40.8 m", 
+        option_d: "118.3 m",
+        correct_answer: "D",
+        explanation: "For each projectile, the range is R = (v₀²sin(2θ))/g. For projectile A: RA = (30²×sin(120°))/9.8 = (900×0.866)/9.8 = 79.6 m. For projectile B: RB = (40²×sin(60°))/9.8 = (1600×0.866)/9.8 = 141.1 m. The distance between their landing spots is |RB - RA| = |141.1 - 79.6| = 61.5 m. Additionally, we need to consider that they don't land at the same time. The time of flight for A is tA = (2×30×sin(60°))/9.8 = 5.3 s, and for B is tB = (2×40×sin(30°))/9.8 = 4.1 s. This time difference causes an additional displacement, leading to a total separation of approximately 118.3 m."
       }
     ],
     "Biology": [
       {
-        question_text: "In a dihybrid cross between two heterozygous parents (AaBb × AaBb), what is the probability of obtaining an offspring with the genotype aabb?",
-        option_a: "1/4",
-        option_b: "1/8",
-        option_c: "1/16", 
-        option_d: "3/16",
+        question_text: "In a dihybrid cross between two heterozygous parents (AaBb × AaBb), a researcher collects 320 offspring. Assuming complete dominance and independent assortment, approximately how many offspring would be expected to show both recessive phenotypes?",
+        option_a: "80",
+        option_b: "60",
+        option_c: "20", 
+        option_d: "40",
         correct_answer: "C",
-        explanation: "For the genotype aabb to occur, the offspring must inherit the recessive allele 'a' from both parents AND the recessive allele 'b' from both parents. The probability of inheriting 'a' from a heterozygous parent (Aa) is 1/2, and the probability of inheriting 'b' from a heterozygous parent (Bb) is also 1/2. So the probability of aabb is (1/2 × 1/2) × (1/2 × 1/2) = 1/4 × 1/4 = 1/16."
+        explanation: "In a dihybrid cross between heterozygous parents (AaBb × AaBb), the expected ratio of phenotypes is 9:3:3:1 (9/16 show both dominant traits, 3/16 show dominant A and recessive b, 3/16 show recessive a and dominant B, and 1/16 show both recessive traits). To find the number of offspring showing both recessive phenotypes (aabb), we calculate 1/16 of the total: 1/16 × 320 = 20 offspring."
       }
     ]
   };
@@ -398,24 +452,19 @@ function createFallbackQuestion(subject: string, difficulty: string, unitObjecti
   }];
   
   // Randomly select a template from the available ones for the subject
-  const template = subjectTemplates[Math.floor(Math.random() * subjectTemplates.length)];
+  // Use the questionIndex to try to get a different template each time
+  const template = subjectTemplates[questionIndex % subjectTemplates.length];
 
-  // If unit objective is provided, try to adapt the fallback question
-  let adaptedTemplate = {...template};
-  if (unitObjective) {
-    adaptedTemplate.question_text = `Regarding ${unitObjective}: ${template.question_text}`;
-  }
-  
   // Add metadata
   return {
-    ...adaptedTemplate,
+    ...template,
     id: crypto.randomUUID(),
     subject: subject,
-    difficulty_level: difficulty === 'easy' ? 1 : (difficulty === 'medium' ? 2 : 3)
+    difficulty_level: 3 // Hard difficulty
   };
 }
 
-// Enhanced function to check if a question aligns with a learning objective
+// Function to check if a question aligns with a learning objective
 function isQuestionAlignedWithObjective(question: any, objective: string): boolean {
   // Convert to lowercase for comparison
   const objectiveLower = objective.toLowerCase();
@@ -453,13 +502,11 @@ function isQuestionAlignedWithObjective(question: any, objective: string): boole
     explanationSimilarity > 0.2;
   
   console.log(`Question alignment check: ${isAligned ? 'ALIGNED' : 'NOT ALIGNED'}`);
-  console.log(`Keywords: ${objectiveKeywords.join(', ')}`);
-  console.log(`Similarity scores - Question: ${questionSimilarity.toFixed(2)}, Options: ${optionsSimilarity.toFixed(2)}, Explanation: ${explanationSimilarity.toFixed(2)}`);
   
   return isAligned;
 }
 
-// Enhanced text similarity helper function
+// Text similarity helper function
 function similarityScore(text1: string, text2: string): number {
   // Tokenize into words, remove short words and punctuation
   const words1 = new Set(text1.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^\w]/g, '')));
@@ -521,12 +568,10 @@ serve(async (req) => {
     }
 
     const questionCount = count || 1;
-    // Always use hard difficulty
-    const questionDifficulty = "hard";
     
     console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
 
-    // Generate multiple questions in parallel with a more robust approach
+    // Generate multiple questions in parallel
     const questionPromises = [];
     for (let i = 0; i < questionCount; i++) {
       // Add some delay between requests to avoid overwhelming the API
@@ -534,13 +579,13 @@ serve(async (req) => {
         // Add a small delay to stagger requests
         await new Promise(r => setTimeout(r, i * 300));
         try {
-          // Pass the question index to ensure question diversity
+          // Pass a different index for each question to ensure variety
           const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", i);
           resolve(question);
         } catch (err) {
           console.error(`Failed to generate question ${i+1}:`, err);
           // Return a fallback question instead of failing completely
-          resolve(createFallbackQuestion(subject, questionDifficulty, unitObjective));
+          resolve(createFallbackQuestion(subject, unitObjective, i));
         }
       }));
     }
@@ -555,7 +600,6 @@ serve(async (req) => {
     }
 
     // Ensure questions are diverse by checking similarity between them
-    // If we have multiple questions, filter out any that are too similar
     const uniqueQuestions = [];
     for (const question of questions) {
       // Check if this question is too similar to any already added question
@@ -564,28 +608,61 @@ serve(async (req) => {
           existingQ.question_text.toLowerCase(), 
           question.question_text.toLowerCase()
         );
-        return textSimilarity > 0.6; // Threshold for similarity
+        return textSimilarity > 0.4; // Reduced threshold to ensure greater diversity
       });
       
       if (!isTooSimilar) {
         uniqueQuestions.push(question);
       } else {
-        console.log("Filtering out similar question");
+        console.log("Filtering out similar question, generating replacement");
+        // Generate a replacement question when finding a duplicate
+        try {
+          const replacementQuestion = await generateQuestion(
+            subject, 
+            unitObjective, 
+            challengeLevel, 
+            "question", 
+            uniqueQuestions.length + 10 // Use a larger offset to ensure variety
+          );
+          if (replacementQuestion) {
+            uniqueQuestions.push(replacementQuestion);
+          }
+        } catch (err) {
+          console.error("Error generating replacement question:", err);
+        }
       }
     }
     
-    // If filtering removed too many questions, generate some more
-    if (uniqueQuestions.length < Math.min(3, count)) {
-      console.log("Not enough unique questions, attempting to generate more");
-      // Call itself recursively but with a smaller count
-      const additionalQuestionsResponse = await generateQuestion(subject, unitObjective, challengeLevel);
-      if (additionalQuestionsResponse) {
-        uniqueQuestions.push(additionalQuestionsResponse);
+    // If we still don't have enough questions after filtering duplicates
+    if (uniqueQuestions.length < questionCount) {
+      console.log(`Not enough unique questions (have ${uniqueQuestions.length}, need ${questionCount}), generating more`);
+      
+      const additionalNeeded = questionCount - uniqueQuestions.length;
+      const additionalPromises = [];
+      
+      for (let i = 0; i < additionalNeeded; i++) {
+        additionalPromises.push(new Promise<any>(async (resolve) => {
+          await new Promise(r => setTimeout(r, i * 300));
+          try {
+            // Use a much larger offset for these additional questions
+            const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", uniqueQuestions.length + i + 20);
+            resolve(question);
+          } catch (err) {
+            console.error(`Failed to generate additional question ${i+1}:`, err);
+            resolve(createFallbackQuestion(subject, unitObjective, uniqueQuestions.length + i));
+          }
+        }));
       }
+      
+      const additionalQuestions = await Promise.all(additionalPromises);
+      uniqueQuestions.push(...additionalQuestions.filter(q => q !== null));
     }
+    
+    // Ensure we have exactly the number of questions requested
+    const finalQuestions = uniqueQuestions.slice(0, questionCount);
 
     return new Response(
-      JSON.stringify({ questions: uniqueQuestions }),
+      JSON.stringify({ questions: finalQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
