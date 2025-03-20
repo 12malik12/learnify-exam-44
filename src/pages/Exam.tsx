@@ -29,7 +29,6 @@ const Exam = () => {
   const { toast } = useToast();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [examType, setExamType] = useState("practice");
-  const [difficulty, setDifficulty] = useState("all");
   const [questionCount, setQuestionCount] = useState(10);
   const [loading, setLoading] = useState(false);
   const [unitObjective, setUnitObjective] = useState("");
@@ -60,13 +59,15 @@ const Exam = () => {
     setLoading(true);
     
     try {
-      // Always call the AI-powered Edge Function now
+      // Always use hard difficulty and pass challengeLevel as "advanced"
       const result = await supabase.functions.invoke("ai-generate-questions", {
         body: {
           subject: selectedSubjectObj?.name || "",
-          difficulty: difficulty === "all" ? "medium" : difficulty,
+          difficulty: "hard",
           count: questionCount,
-          unitObjective: unitObjective.trim() || undefined
+          unitObjective: unitObjective.trim() || undefined,
+          challengeLevel: "advanced",
+          instructionType: "challenging"
         }
       });
       
@@ -97,8 +98,8 @@ const Exam = () => {
         });
       } else {
         toast({
-          title: "Exam Ready - AI Generated",
-          description: `${data.questions.length} questions have been freshly created by AI based on your requirements. Good luck!`
+          title: "Exam Ready - Advanced Questions Generated",
+          description: `${data.questions.length} challenging questions have been freshly created by AI based on your requirements. Good luck!`
         });
       }
       
@@ -125,7 +126,6 @@ const Exam = () => {
     if (currentQuestionIndex < examQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-      // On last question, finish the exam
       handleFinishExam();
     }
   };
@@ -137,7 +137,6 @@ const Exam = () => {
   };
   
   const handleFinishExam = () => {
-    // Calculate score
     let correctCount = 0;
     examQuestions.forEach(question => {
       if (answers[question.id] === question.correct_answer) {
@@ -163,7 +162,6 @@ const Exam = () => {
       
       <main className="flex-grow pt-20">
         {!examStarted ? (
-          // Streamlined exam setup screen
           <section className="py-10 md:py-16 bg-secondary/30">
             <div className="container px-4 md:px-6">
               <div className="flex flex-col items-center text-center mb-8">
@@ -173,12 +171,13 @@ const Exam = () => {
                 </div>
                 
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
-                  AI-Generated Exams
+                  AI-Generated Advanced Exams
                 </h1>
                 
                 <p className="max-w-[700px] text-muted-foreground md:text-lg">
-                  Practice with dynamically generated questions created by our AI system.
-                  Each question is crafted specifically for your selected subject and learning objectives.
+                  Practice with dynamically generated challenging questions created by our AI system.
+                  Each question is crafted specifically for your selected subject and learning objectives
+                  to test deep understanding and application.
                 </p>
               </div>
               
@@ -186,12 +185,11 @@ const Exam = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
-                      Generate Your Exam <Sparkles className="ml-2 size-4 text-yellow-500" />
+                      Generate Your Advanced Exam <Sparkles className="ml-2 size-4 text-yellow-500" />
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-6">
-                      {/* Exam Type Selection */}
                       <div>
                         <Label className="block text-sm font-medium mb-2">
                           Exam Type
@@ -214,13 +212,12 @@ const Exam = () => {
                         </div>
                         <p className="text-sm text-muted-foreground mt-2">
                           {examType === "practice" 
-                            ? "Take your time to answer questions and see explanations for each answer."
+                            ? "Take your time to answer challenging questions and see explanations for each answer."
                             : `Simulate the real exam experience with timed conditions (${EXAM_DURATION} minutes).`
                           }
                         </p>
                       </div>
                       
-                      {/* Subject Selection */}
                       <div>
                         <Label htmlFor="subject" className="block text-sm font-medium mb-2">
                           Subject
@@ -242,7 +239,6 @@ const Exam = () => {
                         </Select>
                       </div>
                       
-                      {/* Learning Objective Input */}
                       <div>
                         <Label htmlFor="unitObjective" className="block text-sm font-medium mb-2">
                           Learning Objective (Optional)
@@ -255,40 +251,10 @@ const Exam = () => {
                           className="w-full"
                         />
                         <p className="text-sm text-muted-foreground mt-2">
-                          Specify what you want to learn to get more targeted questions
+                          Specify what you want to learn to get more targeted challenging questions
                         </p>
                       </div>
                       
-                      {/* Difficulty Selection */}
-                      <div>
-                        <Label htmlFor="difficulty" className="block text-sm font-medium mb-2">
-                          Difficulty Level
-                        </Label>
-                        <RadioGroup
-                          value={difficulty}
-                          onValueChange={setDifficulty}
-                          className="grid grid-cols-2 sm:grid-cols-4 gap-2"
-                        >
-                          <div className="flex items-center space-x-2 rounded-md border p-2">
-                            <RadioGroupItem value="all" id="all" />
-                            <Label htmlFor="all" className="cursor-pointer">All</Label>
-                          </div>
-                          <div className="flex items-center space-x-2 rounded-md border p-2">
-                            <RadioGroupItem value="easy" id="easy" />
-                            <Label htmlFor="easy" className="cursor-pointer">Easy</Label>
-                          </div>
-                          <div className="flex items-center space-x-2 rounded-md border p-2">
-                            <RadioGroupItem value="medium" id="medium" />
-                            <Label htmlFor="medium" className="cursor-pointer">Medium</Label>
-                          </div>
-                          <div className="flex items-center space-x-2 rounded-md border p-2">
-                            <RadioGroupItem value="hard" id="hard" />
-                            <Label htmlFor="hard" className="cursor-pointer">Hard</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      
-                      {/* Question Count Selection */}
                       <div>
                         <Label htmlFor="questionCount" className="block text-sm font-medium mb-2">
                           Number of Questions
@@ -315,9 +281,9 @@ const Exam = () => {
                         disabled={loading}
                       >
                         {loading ? (
-                          "AI Generating Questions..."
+                          "AI Generating Advanced Questions..."
                         ) : (
-                          <>Start Exam <Sparkles className="ml-2 size-4 text-yellow-500" /><ArrowRight className="ml-2 size-4" /></>
+                          <>Start Advanced Exam <Sparkles className="ml-2 size-4 text-yellow-500" /><ArrowRight className="ml-2 size-4" /></>
                         )}
                       </Button>
                     </div>
@@ -327,7 +293,6 @@ const Exam = () => {
             </div>
           </section>
         ) : (
-          // Exam in progress
           <section className="py-10">
             <div className="container px-4 md:px-6">
               <div className="mx-auto max-w-3xl">
@@ -397,7 +362,6 @@ const Exam = () => {
           </section>
         )}
         
-        {/* Recent Exams section - only show when not in an active exam */}
         {!examStarted && (
           <section className="py-12">
             <div className="container px-4 md:px-6">
@@ -409,7 +373,6 @@ const Exam = () => {
               </div>
               
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {/* If there were real exam data, we'd map over it here */}
                 <div className="rounded-lg border bg-card p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
@@ -481,3 +444,4 @@ const Exam = () => {
 };
 
 export default Exam;
+

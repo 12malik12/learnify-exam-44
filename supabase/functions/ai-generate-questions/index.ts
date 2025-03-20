@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -79,8 +78,8 @@ const learningObjectives: Record<string, Record<string, string[]>> = {
 };
 
 // Enhanced challenging question generation prompt
-function generateChallengingQuestionPrompt(subject: string, difficulty: string, unitObjective?: string) {
-  const difficultyDescription = difficultyMap[difficulty as keyof typeof difficultyMap] || difficultyMap.medium;
+function generateChallengingQuestionPrompt(subject: string, unitObjective?: string, questionIndex: number = 0) {
+  const difficultyDescription = difficultyMap.hard;
   const subjectGuide = subjectPromptGuides[subject as keyof typeof subjectPromptGuides] || '';
   
   // Find relevant learning objectives if available
@@ -100,8 +99,21 @@ function generateChallengingQuestionPrompt(subject: string, difficulty: string, 
     }
   }
   
+  // Add variety based on question index to prevent repetitive questions
+  const questionTypes = [
+    "Create a scenario-based question that requires analyzing a real-world application",
+    "Design a question that requires multi-step reasoning and calculation",
+    "Create a conceptual question that tests deep understanding of principles",
+    "Design a question with a challenging twist that might initially mislead students",
+    "Create a question requiring students to synthesize multiple concepts",
+    "Design a question involving interpreting data or a graph",
+    "Create a question that requires evaluating different approaches or solutions"
+  ];
+  
+  const questionTypeInstruction = questionTypes[questionIndex % questionTypes.length];
+  
   return `
-Generate 1 CHALLENGING multiple-choice question about ${subject} at ${difficulty} difficulty level (${difficultyDescription}) ${objectiveContent}
+${questionTypeInstruction} about ${subject} at hard difficulty level (${difficultyDescription}) ${objectiveContent}
 
 ${subjectGuide}
 
@@ -113,6 +125,8 @@ IMPORTANT QUESTION REQUIREMENTS:
 5. Ensure the question has one definitively correct answer
 6. Make distractors (wrong options) plausible and based on common misconceptions
 7. Ensure the correct answer isn't obvious
+8. Make this question DIFFERENT from other questions in structure, wording, and approach
+9. Use unique contexts and examples not commonly found in textbooks
 
 Format the response exactly like this JSON without any additional text:
 {
@@ -154,17 +168,17 @@ Your response should demonstrate deep expertise in the subject while remaining a
 }
 
 // Function to generate a question using Hugging Face Inference API
-async function generateQuestion(subject: string, difficulty: string, unitObjective?: string, challengeLevel: string = "normal", mode: string = "question") {
+async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0) {
   try {
-    console.log(`Generating ${mode} for subject: ${subject}, difficulty: ${difficulty}, objective: ${unitObjective || 'general'}, challenge level: ${challengeLevel}`);
+    console.log(`Generating ${mode} for subject: ${subject}, objective: ${unitObjective || 'general'}, challenge level: ${challengeLevel}, question index: ${questionIndex}`);
     
     let prompt = "";
     if (mode === "chat") {
       // Handle chat mode
       prompt = generateChatResponsePrompt(subject, unitObjective || "");
     } else {
-      // Handle question generation mode
-      prompt = generateChallengingQuestionPrompt(subject, difficulty, unitObjective);
+      // Handle question generation mode - always using hard difficulty
+      prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
     // Try different models in order of preference
@@ -242,7 +256,7 @@ async function generateQuestion(subject: string, difficulty: string, unitObjecti
       if (!jsonMatch) {
         // If no JSON is found, try to generate a structured question ourselves
         console.log("Failed to parse JSON from model response, creating a fallback question");
-        return createFallbackQuestion(subject, difficulty, unitObjective);
+        return createFallbackQuestion(subject, "hard", unitObjective);
       }
       
       try {
@@ -260,7 +274,7 @@ async function generateQuestion(subject: string, difficulty: string, unitObjecti
         
         if (missingFields.length > 0) {
           console.log(`Generated question is missing fields: ${missingFields.join(", ")}`);
-          return createFallbackQuestion(subject, difficulty, unitObjective);
+          return createFallbackQuestion(subject, "hard", unitObjective);
         }
         
         // Normalize the correct answer to be uppercase single letter
@@ -269,18 +283,18 @@ async function generateQuestion(subject: string, difficulty: string, unitObjecti
         // Add additional fields
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
-        questionData.difficulty_level = difficulty === 'easy' ? 1 : (difficulty === 'medium' ? 2 : 3);
+        questionData.difficulty_level = 3;
         
         // Enhanced validation for unit objective alignment
         if (unitObjective && !isQuestionAlignedWithObjective(questionData, unitObjective)) {
           console.log("Question doesn't align with the learning objective, regenerating...");
-          return generateQuestion(subject, difficulty, unitObjective, challengeLevel); // Recursively try again
+          return generateQuestion(subject, unitObjective, challengeLevel, "question", questionIndex); // Recursively try again
         }
         
         return questionData;
       } catch (parseError) {
         console.error("Error parsing question JSON:", parseError);
-        return createFallbackQuestion(subject, difficulty, unitObjective);
+        return createFallbackQuestion(subject, "hard", unitObjective);
       }
     }
   } catch (error) {
@@ -288,7 +302,7 @@ async function generateQuestion(subject: string, difficulty: string, unitObjecti
     if (mode === "chat") {
       return { response: "I'm sorry, I couldn't generate a response at this time. Please try again with a different question." };
     } else {
-      return createFallbackQuestion(subject, difficulty, unitObjective);
+      return createFallbackQuestion(subject, "hard", unitObjective);
     }
   }
 }
@@ -472,11 +486,10 @@ serve(async (req) => {
     const requestData = await req.json();
     const { 
       subject, 
-      difficulty = "hard", // Default to hard for challenging questions
       count = 1, 
       unitObjective,
-      challengeLevel = "normal",
-      instructionType = "standard",
+      challengeLevel = "advanced",
+      instructionType = "challenging",
       mode = "question",
       query = ""
     } = requestData;
@@ -487,10 +500,10 @@ serve(async (req) => {
       
       const result = await generateQuestion(
         subject || "",
-        "medium", // Difficulty doesn't matter for chat
         query, // Use query as the input for chat
-        "normal", // Challenge level doesn't matter for chat
-        "chat" // Specify chat mode
+        "advanced", // Challenge level doesn't matter for chat
+        "chat", // Specify chat mode
+        0
       );
       
       return new Response(
@@ -508,9 +521,10 @@ serve(async (req) => {
     }
 
     const questionCount = count || 1;
-    const questionDifficulty = difficulty || 'hard'; // Default to hard for challenging questions
+    // Always use hard difficulty
+    const questionDifficulty = "hard";
     
-    console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, difficulty: ${questionDifficulty}, objective: ${unitObjective || 'general'}`);
+    console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
 
     // Generate multiple questions in parallel with a more robust approach
     const questionPromises = [];
@@ -520,7 +534,8 @@ serve(async (req) => {
         // Add a small delay to stagger requests
         await new Promise(r => setTimeout(r, i * 300));
         try {
-          const question = await generateQuestion(subject, questionDifficulty, unitObjective, challengeLevel);
+          // Pass the question index to ensure question diversity
+          const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", i);
           resolve(question);
         } catch (err) {
           console.error(`Failed to generate question ${i+1}:`, err);
@@ -539,8 +554,38 @@ serve(async (req) => {
       throw new Error("Failed to generate any valid questions");
     }
 
+    // Ensure questions are diverse by checking similarity between them
+    // If we have multiple questions, filter out any that are too similar
+    const uniqueQuestions = [];
+    for (const question of questions) {
+      // Check if this question is too similar to any already added question
+      const isTooSimilar = uniqueQuestions.some(existingQ => {
+        const textSimilarity = similarityScore(
+          existingQ.question_text.toLowerCase(), 
+          question.question_text.toLowerCase()
+        );
+        return textSimilarity > 0.6; // Threshold for similarity
+      });
+      
+      if (!isTooSimilar) {
+        uniqueQuestions.push(question);
+      } else {
+        console.log("Filtering out similar question");
+      }
+    }
+    
+    // If filtering removed too many questions, generate some more
+    if (uniqueQuestions.length < Math.min(3, count)) {
+      console.log("Not enough unique questions, attempting to generate more");
+      // Call itself recursively but with a smaller count
+      const additionalQuestionsResponse = await generateQuestion(subject, unitObjective, challengeLevel);
+      if (additionalQuestionsResponse) {
+        uniqueQuestions.push(additionalQuestionsResponse);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ questions }),
+      JSON.stringify({ questions: uniqueQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
