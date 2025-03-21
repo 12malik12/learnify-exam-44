@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -9,8 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { subjects } from "@/utils/subjects";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { generateQuestions } from "@/utils/offlineQuestionGenerator";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -43,7 +43,7 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
       setMessages([
         {
           role: "assistant",
-          content: t("ai.welcome") + " I can help with practice questions based on your curriculum. Select a subject and ask me a question or switch to Practice mode for practice exercises."
+          content: t("ai.welcome") + " I'm designed to assist with challenging academic questions based on your curriculum. Select a subject and ask me a question or switch to Practice mode for challenging exercises."
         }
       ]);
     }
@@ -62,23 +62,29 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     
     try {
       if (mode === "practice") {
-        // Generate a single practice question using our offline generator
-        const subjectId = selectedSubject || subjects[0]?.id || "";
-        const subject = subjects.find(s => s.id === subjectId);
-        
-        const result = generateQuestions({
-          subject: subjectId,
-          count: 1,
-          unitObjective: userQuery
+        const result = await supabase.functions.invoke("ai-generate-questions", {
+          body: {
+            subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
+            count: 1,
+            unitObjective: userQuery,
+            challengeLevel: "advanced",
+            instructionType: "challenging"
+          }
         });
         
-        if (result.questions.length === 0) {
-          throw new Error("Could not find a question matching your criteria. Please try a different topic.");
+        if (result.error) {
+          throw new Error(result.error.message);
         }
         
-        const question = result.questions[0];
+        const data = result.data;
+        
+        if (!data?.questions || data.questions.length === 0) {
+          throw new Error("Could not generate a challenging question. Please try again with a different topic.");
+        }
+        
+        const question = data.questions[0];
         const responseContent = `
-Here's a practice question about ${subject ? subject.name : "this topic"}:
+Here's a challenging question about ${selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name : "this topic"}:
 
 **Question:** ${question.question_text}
 
@@ -91,19 +97,33 @@ The correct answer is **${question.correct_answer}**.
 
 **Explanation:** ${question.explanation}
 
-Would you like another practice question or would you like me to explain a concept in more detail?
+Would you like another challenging question or would you like me to explain a concept in more detail?
         `;
         
         setMessages(prev => [...prev, { role: "assistant", content: responseContent }]);
       } else {
-        // In a real app, this would use a more sophisticated offline response system
-        // For now, we'll provide simple predefined responses
-        const chatResponse = getOfflineChatResponse(userQuery, selectedSubject);
-        setMessages(prev => [...prev, { role: "assistant", content: chatResponse }]);
+        const result = await supabase.functions.invoke("ai-generate-questions", {
+          body: {
+            subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
+            mode: "chat",
+            query: userQuery,
+            context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n")
+          }
+        });
+        
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+        
+        if (result.data?.response) {
+          setMessages(prev => [...prev, { role: "assistant", content: result.data.response }]);
+        } else {
+          throw new Error("Failed to generate a response.");
+        }
       }
       
     } catch (error) {
-      console.error("Error generating response:", error);
+      console.error("Error generating AI response:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -117,40 +137,6 @@ Would you like another practice question or would you like me to explain a conce
     } finally {
       setLoading(false);
     }
-  };
-
-  // Simple function to provide predefined responses for common questions
-  // In a real app, this would be much more sophisticated
-  const getOfflineChatResponse = (query: string, subjectId: string): string => {
-    const lowerQuery = query.toLowerCase();
-    const subject = subjects.find(s => s.id === subjectId);
-    
-    // Check for common question patterns
-    if (lowerQuery.includes("hello") || lowerQuery.includes("hi")) {
-      return "Hello! How can I help you with your studies today?";
-    }
-    
-    if (lowerQuery.includes("how are you")) {
-      return "I'm just a program, but I'm ready to help you with your academic questions!";
-    }
-    
-    if (lowerQuery.includes("thanks") || lowerQuery.includes("thank you")) {
-      return "You're welcome! Feel free to ask if you have more questions.";
-    }
-    
-    // Subject-specific responses
-    if (subject) {
-      if (lowerQuery.includes("study tips") || lowerQuery.includes("how to study")) {
-        return `For ${subject.name}, I recommend: 1) Break down complex topics into smaller parts, 2) Use flashcards for key terms, 3) Practice regularly with problems, and 4) Connect new information to what you already know.`;
-      }
-      
-      if (lowerQuery.includes("difficult") || lowerQuery.includes("hard") || lowerQuery.includes("struggling")) {
-        return `Many students find ${subject.name} challenging at first. Try to focus on understanding the fundamentals before moving to more complex topics. Consider forming a study group with classmates to discuss difficult concepts.`;
-      }
-    }
-    
-    // Default response
-    return "I'm currently operating in offline mode with limited functionality. For specific academic questions, try using the Practice mode to test your knowledge with questions from our database.";
   };
 
   const getSubjectIcon = (subjectId: string) => {
@@ -210,7 +196,7 @@ Would you like another practice question or would you like me to explain a conce
             <div className="text-center text-muted-foreground">
               {mode === "chat" 
                 ? t("ai.prompt") 
-                : "Ask for a practice question in your chosen subject"}
+                : "Ask for a challenging practice question in your chosen subject"}
             </div>
           ) : (
             <div className="space-y-4">
@@ -229,7 +215,7 @@ Would you like another practice question or would you like me to explain a conce
                     {msg.role === 'assistant' && (
                       <div className="flex items-center mb-1">
                         <Sparkles className="size-3 mr-1 text-ethiopia-green" />
-                        <span className="text-xs font-medium">Assistant</span>
+                        <span className="text-xs font-medium">AI Assistant</span>
                       </div>
                     )}
                     <div className="whitespace-pre-wrap text-sm">
@@ -251,7 +237,7 @@ Would you like another practice question or would you like me to explain a conce
               ? (selectedSubject 
                 ? `Ask about ${getSubjectIcon(selectedSubject)} ${subjects.find(s => s.id === selectedSubject)?.name}...` 
                 : t("ai.placeholder"))
-              : "Enter a topic for a practice question..."
+              : "Enter a topic for a challenging practice question..."
             }
             className="flex-1"
             disabled={loading}
