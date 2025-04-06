@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -13,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateUniqueQuestions } from "@/services/questionBankService";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -56,7 +56,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     }
   }, [open, messages.length, t, isOnline]);
   
-  // When connection status changes, let the user know
   useEffect(() => {
     if (wasOffline && isOnline && messages.length > 0) {
       setMessages(prev => [
@@ -90,7 +89,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     
     try {
       if (mode === "practice") {
-        // Use our hybrid question generation system
         const result = await generateUniqueQuestions(
           1, // Just one question for practice
           selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
@@ -127,14 +125,12 @@ Would you like another challenging question or would you like me to explain a co
         
         setMessages(prev => [...prev, { role: "assistant", content: responseContent }]);
       } else {
-        // Chat mode
         if (!isOnline) {
           setMessages(prev => [...prev, { 
             role: "assistant", 
             content: "I'm sorry, but the chat feature requires an internet connection to work properly. Please connect to the internet to use this feature, or try using Practice mode which works offline with our stored question bank." 
           }]);
         } else {
-          // Use Supabase Edge Function for chat
           const result = await supabase.functions.invoke("ai-generate-questions", {
             body: {
               subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
@@ -189,7 +185,7 @@ Would you like another challenging question or would you like me to explain a co
           <DialogTitle className="flex items-center gap-2">
             <BrainCircuit className="size-5 text-ethiopia-green" />
             {t("ai.title")}
-            {!isOnline && <WifiOff className="ml-2 size-4 text-amber-500" title="Offline Mode" />}
+            {!isOnline && <WifiOff className="ml-2 size-4 text-amber-500" aria-label="Offline Mode" />}
           </DialogTitle>
           <DialogDescription>
             {isOnline ? t("ai.description") : "Offline mode active. Limited features available."}
