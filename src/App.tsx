@@ -30,12 +30,26 @@ const queryClient = new QueryClient({
       // Cache data for longer when offline
       staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000, // 5 min online, 1 hour offline
       gcTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 min online, 24 hours offline
-      // Handle failure gracefully
-      onError: (err) => {
-        console.error('Query error:', err);
+      // Handle failure through meta configuration
+      meta: {
+        errorHandler: (err: Error) => {
+          console.error('Query error:', err);
+        }
       }
     },
   },
+});
+
+// Add a global error handler for queries that don't have a specific handler
+queryClient.setDefaultOptions({
+  queries: {
+    onError: (error) => {
+      const handler = queryClient.getDefaultOptions()?.queries?.meta?.errorHandler;
+      if (handler && typeof handler === 'function') {
+        handler(error as Error);
+      }
+    }
+  }
 });
 
 const BackButtonHandler = () => {
