@@ -29,7 +29,7 @@ const queryClient = new QueryClient({
       },
       // Cache data for longer when offline
       staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000, // 5 min online, 1 hour offline
-      cacheTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 min online, 24 hours offline
+      gcTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 min online, 24 hours offline
       // Handle failure gracefully
       onError: (err) => {
         console.error('Query error:', err);
