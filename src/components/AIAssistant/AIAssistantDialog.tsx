@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -47,7 +48,7 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     if (open && messages.length === 0) {
       const welcomeMessage = isOnline 
         ? t("ai.welcome") + " I'm designed to assist with challenging academic questions based on your curriculum. Select a subject and ask me a question or switch to Practice mode for challenging exercises."
-        : "Welcome! You're currently in offline mode. I can provide practice questions from our stored question bank. Select a subject and try Practice mode for challenging exercises.";
+        : "Welcome! You're currently in offline mode. I won't be able to assist you fully. Please connect to the internet to use all features.";
       
       setMessages([
         {
@@ -64,7 +65,7 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
         ...prev,
         {
           role: "assistant",
-          content: "Your internet connection has been restored! You can now access AI-generated content and fresh practice questions."
+          content: "Your internet connection has been restored! You can now access AI-generated content and practice questions."
         }
       ]);
       
@@ -75,7 +76,7 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
         ...prev,
         {
           role: "assistant",
-          content: "You're currently offline. I'll use our locally stored question bank to help you with practice exercises."
+          content: "You're currently offline. I need an internet connection to generate responses. Please connect to continue."
         }
       ]);
     }
@@ -89,13 +90,18 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     }
     
     try {
+      console.log("Testing AI connection...");
       const testResult = await supabase.functions.invoke("ai-generate-questions", {
         body: {
           subject: "Mathematics",
           count: 1,
-          mode: "question"
+          mode: "question",
+          forceFallback: false,
+          forceAI: true
         }
       });
+      
+      console.log("AI test response:", testResult);
       
       if (testResult.error) {
         console.error("AI connection test failed:", testResult.error);
@@ -108,10 +114,11 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
           console.log("AI connection test passed - AI source confirmed");
           setApiStatus("working");
         } else {
-          console.warn("AI connection test yielded fallback questions");
+          console.warn("AI connection test yielded non-AI questions");
           setApiStatus("failing");
         }
       } else {
+        console.error("AI test returned no questions");
         setApiStatus("failing");
       }
     } catch (error) {
@@ -132,6 +139,15 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     
     if (!query.trim()) return;
     
+    if (!isOnline) {
+      toast({
+        variant: "destructive",
+        title: "Offline Mode",
+        description: "Internet connection required to use the AI assistant."
+      });
+      return;
+    }
+    
     setMessages(prev => [...prev, { role: "user", content: query }]);
     
     const userQuery = query;
@@ -147,42 +163,23 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
           status: "loading"
         }]);
         
-        const result = await generateUniqueQuestions(
-          1, // Just one question for practice
-          selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
-          userQuery,
-          Date.now().toString()
-        );
-        
-        // Remove the processing message
-        setMessages(prev => prev.slice(0, -1));
-        
-        if (!result.questions || result.questions.length === 0) {
-          throw new Error(isOnline 
-            ? "Could not generate a challenging question. Please try again with a different topic."
-            : "No matching questions found in the offline question bank. Please try a different topic or connect to the internet for more questions."
+        try {
+          const result = await generateUniqueQuestions(
+            1, // Just one question for practice
+            selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
+            userQuery,
+            Date.now().toString()
           );
-        }
-        
-        // Update AI status based on response
-        if (isOnline) {
+          
+          // Remove the processing message
+          setMessages(prev => prev.slice(0, -1));
+          
+          // Update AI status based on response
           setApiStatus(result.source === 'ai' ? "working" : "failing");
-        }
-        
-        const question = result.questions[0];
-        let sourceInfo = "";
-        
-        if (result.source === 'local') {
-          sourceInfo = "*This question was retrieved from our offline question bank.*";
-        } else {
-          sourceInfo = "*This question was generated by our AI.*";
-        }
-        
-        if (result.error) {
-          sourceInfo += `\n\n*Note: There was an AI generation issue: ${result.error}*`;
-        }
-        
-        const responseContent = `
+          
+          const question = result.questions[0];
+          
+          const responseContent = `
 Here's a challenging question about ${selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name : "this topic"}:
 
 **Question:** ${question.question_text}
@@ -196,39 +193,59 @@ The correct answer is **${question.correct_answer}**.
 
 **Explanation:** ${question.explanation || "No detailed explanation available for this question."}
 
-${sourceInfo}
+*This question was generated by our AI.*
 
 Would you like another challenging question or would you like me to explain a concept in more detail?
-        `;
-        
-        setMessages(prev => [...prev, { 
-          role: "assistant", 
-          content: responseContent,
-          status: result.error ? "error" : "success"
-        }]);
-      } else {
-        if (!isOnline) {
+          `;
+          
           setMessages(prev => [...prev, { 
             role: "assistant", 
-            content: "I'm sorry, but the chat feature requires an internet connection to work properly. Please connect to the internet to use this feature, or try using Practice mode which works offline with our stored question bank.",
+            content: responseContent,
+            status: "success"
+          }]);
+        } catch (error) {
+          // Remove the processing message
+          setMessages(prev => prev.slice(0, -1));
+          
+          console.error("Error in practice mode:", error);
+          setApiStatus("failing");
+          
+          const errorMessage = error instanceof Error ? error.message : "Failed to generate AI question";
+          
+          setMessages(prev => [...prev, { 
+            role: "assistant", 
+            content: `I'm sorry, I couldn't generate a question at this time. ${errorMessage}`,
             status: "error"
           }]);
-        } else {
-          // Show processing message
-          setMessages(prev => [...prev, { 
-            role: "assistant", 
-            content: "Processing your question...",
-            status: "loading"
-          }]);
           
+          toast({
+            variant: "destructive",
+            title: "AI Generation Failed",
+            description: errorMessage
+          });
+        }
+      } else {
+        // Chat mode
+        // Show processing message
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: "Processing your question...",
+          status: "loading"
+        }]);
+        
+        try {
           const result = await supabase.functions.invoke("ai-generate-questions", {
             body: {
               subject: selectedSubject ? subjects.find(s => s.id === selectedSubject)?.name || "" : "",
               mode: "chat",
               query: userQuery,
-              context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n")
+              context: messages.slice(-5).map(msg => `${msg.role}: ${msg.content}`).join("\n"),
+              forceFallback: false,
+              forceAI: true
             }
           });
+          
+          console.log("Chat AI response:", result);
           
           // Remove the processing message
           setMessages(prev => prev.slice(0, -1));
@@ -238,33 +255,47 @@ Would you like another challenging question or would you like me to explain a co
           }
           
           // Update AI status based on the response
-          if (result.data?.error) {
+          if (result.data?.error || result.data?.source !== 'ai') {
+            console.error("Chat resulted in error or non-AI response:", result.data);
             setApiStatus("failing");
+            throw new Error(result.data?.error || "Response was not generated by AI");
           } else {
             setApiStatus("working");
           }
           
           if (result.data?.response) {
-            let responseContent = result.data.response;
-            
-            // Add error info if available
-            if (result.data.error) {
-              responseContent += `\n\n*Note: There was an AI generation issue: ${result.data.error}*`;
-            }
-            
             setMessages(prev => [...prev, { 
               role: "assistant", 
-              content: responseContent,
-              status: result.data.error ? "error" : "success"
+              content: result.data.response,
+              status: "success"
             }]);
           } else {
             throw new Error("Failed to generate a response.");
           }
+        } catch (error) {
+          // Remove the processing message
+          setMessages(prev => prev.slice(0, -1));
+          
+          console.error("Error in chat mode:", error);
+          setApiStatus("failing");
+          
+          const errorMessage = error instanceof Error ? error.message : "Failed to generate AI response";
+          
+          setMessages(prev => [...prev, { 
+            role: "assistant", 
+            content: `I'm sorry, I couldn't generate a response at this time. ${errorMessage}`,
+            status: "error"
+          }]);
+          
+          toast({
+            variant: "destructive",
+            title: "AI Generation Failed",
+            description: errorMessage
+          });
         }
       }
-      
     } catch (error) {
-      console.error("Error generating AI response:", error);
+      console.error("General error in AI assistant:", error);
       
       // Remove any processing message if it exists
       setMessages(prev => {
@@ -280,19 +311,17 @@ Would you like another challenging question or would you like me to explain a co
       // Update API status on error
       setApiStatus("failing");
       
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      
       toast({
         variant: "destructive",
         title: "Error",
-        description: isOnline
-          ? "Failed to generate a response. Please try again."
-          : "This feature requires an internet connection. Please connect to continue or try Practice mode."
+        description: `Failed to generate a response: ${errorMessage}`
       });
       
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: isOnline
-          ? `I'm sorry, I couldn't generate a response at this time. ${error instanceof Error ? error.message : 'Please try again with a different question or topic.'}`
-          : "You're currently offline. I can help with practice questions using our stored question bank, but chat features need an internet connection.",
+        content: `I'm sorry, I couldn't generate a response at this time. ${errorMessage}`,
         status: "error"
       }]);
     } finally {
@@ -320,9 +349,9 @@ Would you like another challenging question or would you like me to explain a co
           </DialogTitle>
           <DialogDescription>
             {!isOnline 
-              ? "Offline mode active. Limited features available." 
+              ? "Offline mode active. Internet connection required for AI features." 
               : apiStatus === "failing"
-                ? "AI service has issues. Some features may use fallback options."
+                ? "AI service has issues. Some features may not work properly."
                 : t("ai.description")
             }
           </DialogDescription>
@@ -340,7 +369,7 @@ Would you like another challenging question or would you like me to explain a co
           <Alert variant="destructive" className="mb-4">
             <AlertDescription className="flex items-center">
               <AlertTriangle className="mr-2 size-4" />
-              The AI service is experiencing issues. You'll still receive answers but they may come from our fallback system.
+              The AI service is experiencing issues. Some features may not work properly.
             </AlertDescription>
           </Alert>
         )}
@@ -351,9 +380,9 @@ Would you like another challenging question or would you like me to explain a co
               <BrainCircuit className="mr-2 size-4" />
               Chat Assistant {!isOnline && <WifiOff className="ml-1 size-3" />}
             </TabsTrigger>
-            <TabsTrigger value="practice" className="flex items-center">
+            <TabsTrigger value="practice" className="flex items-center" disabled={!isOnline}>
               <Lightbulb className="mr-2 size-4" />
-              Practice Questions
+              Practice Questions {!isOnline && <WifiOff className="ml-1 size-3" />}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -384,7 +413,7 @@ Would you like another challenging question or would you like me to explain a co
             <div className="text-center text-muted-foreground">
               {mode === "chat" 
                 ? (isOnline ? t("ai.prompt") : "Chat requires an internet connection.") 
-                : "Ask for a challenging practice question in your chosen subject"}
+                : (isOnline ? "Ask for a challenging practice question in your chosen subject" : "Practice questions require an internet connection.")}
             </div>
           ) : (
             <div className="space-y-4">
@@ -436,13 +465,14 @@ Would you like another challenging question or would you like me to explain a co
                 ? (selectedSubject 
                   ? `Ask about ${getSubjectIcon(selectedSubject)} ${subjects.find(s => s.id === selectedSubject)?.name}...` 
                   : t("ai.placeholder"))
-                : "Chat unavailable offline")
-              : "Enter a topic for a challenging practice question..."
-            }
+                : "Internet connection required for AI features")
+              : (isOnline 
+                ? "Enter a topic for a challenging practice question..." 
+                : "Internet connection required for AI features")}
             className="flex-1"
-            disabled={loading || (mode === "chat" && !isOnline)}
+            disabled={loading || !isOnline}
           />
-          <Button type="submit" size="icon" disabled={loading || (mode === "chat" && !isOnline)}>
+          <Button type="submit" size="icon" disabled={loading || !isOnline}>
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (

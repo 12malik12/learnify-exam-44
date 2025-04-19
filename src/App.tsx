@@ -15,6 +15,9 @@ import NotFound from "./pages/NotFound";
 import SplashScreen from "./components/Mobile/SplashScreen";
 import Performance from "./pages/Performance";
 import AIAssistant from "./pages/AIAssistant";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Wifi, WifiOff } from "lucide-react";
+import { useNetworkStatus } from "@/hooks/use-network-status";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -61,6 +64,45 @@ const BackButtonHandler = () => {
   return null;
 };
 
+const NetworkStatusBanner = () => {
+  const { isOnline, wasOffline } = useNetworkStatus();
+  const [showBanner, setShowBanner] = useState(false);
+  
+  useEffect(() => {
+    if (!isOnline) {
+      setShowBanner(true);
+    } else if (wasOffline) {
+      setShowBanner(true);
+      const timer = setTimeout(() => {
+        setShowBanner(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, wasOffline]);
+  
+  if (!showBanner) return null;
+  
+  return (
+    <div className="fixed top-16 left-0 right-0 z-50 px-4">
+      <Alert variant={isOnline ? "default" : "destructive"} className="shadow-md">
+        <AlertDescription className="flex items-center justify-center">
+          {isOnline ? (
+            <>
+              <Wifi className="mr-2 size-4 text-green-500" />
+              Connection restored. Full features are now available.
+            </>
+          ) : (
+            <>
+              <WifiOff className="mr-2 size-4" />
+              You're offline. AI features require an internet connection.
+            </>
+          )}
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+};
+
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
@@ -87,6 +129,7 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <BackButtonHandler />
+              <NetworkStatusBanner />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/subjects" element={<Subjects />} />
