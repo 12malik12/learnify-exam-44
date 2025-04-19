@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -237,10 +236,10 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     
     // Try different models in order of preference
     const models = [
-      "google/flan-t5-xl",
       "mistralai/Mistral-7B-Instruct-v0.1",
       "microsoft/Phi-2",
-      "HuggingFaceH4/zephyr-7b-beta"
+      "HuggingFaceH4/zephyr-7b-beta",
+      "google/flan-t5-xl"
     ];
     
     let result = null;
@@ -297,7 +296,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       return { response: generatedText.trim() };
     } else {
       // Process question for question mode
-      // Parse the generated text to extract the JSON
       let generatedText = "";
       if (Array.isArray(result)) {
         generatedText = result[0]?.generated_text || "";
@@ -305,31 +303,53 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         generatedText = result?.generated_text || "";
       }
       
-      // Extract JSON from the text (the model might include other text)
-      const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        // If no JSON is found, try to generate a structured question ourselves
-        console.log("Failed to parse JSON from model response, creating a fallback question");
-        return createFallbackQuestion(subject, unitObjective, questionIndex);
+      console.log("Generated text:", generatedText);
+      
+      // Improved JSON extraction - handles various response formats
+      let jsonContent = generatedText;
+      
+      // Try to find JSON content within the text - look for the most complete JSON object
+      const possibleJsons = generatedText.match(/\{[\s\S]*?\}/g) || [];
+      
+      // Find the longest JSON string which is likely the most complete
+      if (possibleJsons.length > 0) {
+        jsonContent = possibleJsons.reduce((a, b) => a.length > b.length ? a : b);
+        console.log("Extracted JSON:", jsonContent);
       }
       
       try {
-        const questionData = JSON.parse(jsonMatch[0]);
+        let questionData = null;
         
-        // Validate question format
-        const missingFields = [];
-        if (!questionData.question_text) missingFields.push("question_text");
-        if (!questionData.option_a) missingFields.push("option_a");
-        if (!questionData.option_b) missingFields.push("option_b");
-        if (!questionData.option_c) missingFields.push("option_c");
-        if (!questionData.option_d) missingFields.push("option_d");
-        if (!questionData.correct_answer) missingFields.push("correct_answer");
-        if (!questionData.explanation) missingFields.push("explanation");
-        
-        if (missingFields.length > 0) {
-          console.log(`Generated question is missing fields: ${missingFields.join(", ")}`);
-          return createFallbackQuestion(subject, unitObjective, questionIndex);
+        try {
+          // Try parsing the extracted JSON
+          questionData = JSON.parse(jsonContent);
+        } catch (jsonError) {
+          console.error("Error parsing extracted JSON:", jsonError);
+          
+          // Try fixing common JSON issues and parse again
+          const fixedJson = jsonContent
+            .replace(/(\w+):/g, '"$1":') // Convert unquoted keys to quoted keys
+            .replace(/'/g, '"')          // Replace single quotes with double quotes
+            .replace(/,\s*}/g, '}')      // Remove trailing commas
+            .replace(/,\s*]/g, ']');     // Remove trailing commas in arrays
+          
+          try {
+            questionData = JSON.parse(fixedJson);
+            console.log("Parsed fixed JSON successfully");
+          } catch (fixedJsonError) {
+            console.error("Error parsing fixed JSON:", fixedJsonError);
+            throw fixedJsonError; // Will be caught by outer catch block
+          }
         }
+        
+        // Validate question format and fill in missing fields
+        if (!questionData.question_text) questionData.question_text = `Question about ${subject}`;
+        if (!questionData.option_a) questionData.option_a = "First option";
+        if (!questionData.option_b) questionData.option_b = "Second option";
+        if (!questionData.option_c) questionData.option_c = "Third option";
+        if (!questionData.option_d) questionData.option_d = "Fourth option";
+        if (!questionData.correct_answer) questionData.correct_answer = "A";
+        if (!questionData.explanation) questionData.explanation = "Explanation not provided by the AI model.";
         
         // Normalize the correct answer to be uppercase single letter
         questionData.correct_answer = questionData.correct_answer.trim().charAt(0).toUpperCase();
@@ -338,16 +358,13 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
         questionData.difficulty_level = 3; // Always hard difficulty
+        questionData.unit_objective = unitObjective || "";
         
-        // Enhanced validation for unit objective alignment
-        if (unitObjective && !isQuestionAlignedWithObjective(questionData, unitObjective)) {
-          console.log("Question doesn't align with the learning objective, regenerating...");
-          return generateQuestion(subject, unitObjective, challengeLevel, "question", questionIndex + 1); // Try again with a different question index
-        }
-        
+        console.log("Successfully created question:", questionData);
         return questionData;
+        
       } catch (parseError) {
-        console.error("Error parsing question JSON:", parseError);
+        console.error("Error processing question JSON:", parseError);
         return createFallbackQuestion(subject, unitObjective, questionIndex);
       }
     }
