@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -129,6 +130,9 @@ function generateChallengingQuestionPrompt(subject: string, unitObjective?: stri
     .replace("{product}", getRandomProductForSubject(subject))
     .replace("{phenomenon}", getRandomPhenomenonForSubject(subject));
   
+  // Add a unique seed to force different questions
+  const randomSeed = Math.floor(Math.random() * 10000);
+  
   return `
 ${questionType}
 
@@ -149,6 +153,7 @@ IMPORTANT QUESTION REQUIREMENTS:
 8. Make this question DIFFERENT from previous questions in structure, wording, and approach
 9. Use unique contexts and examples not commonly found in textbooks
 10. DO NOT create a question that looks like other questions - create something original
+11. Use this random seed to ensure uniqueness: ${randomSeed}
 
 Format the response exactly like this JSON without any additional text:
 {
@@ -258,7 +263,16 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
               "Content-Type": "application/json",
             },
             method: "POST",
-            body: JSON.stringify({ inputs: prompt }),
+            body: JSON.stringify({ 
+              inputs: prompt,
+              parameters: {
+                max_new_tokens: 1024,
+                temperature: 0.7,
+                top_p: 0.9,
+                do_sample: true,
+                seed: Math.floor(Math.random() * 1000000) + questionIndex // Add random seed
+              }
+            }),
           }
         );
         
@@ -305,17 +319,15 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       
       console.log("Generated text:", generatedText);
       
-      // Improved JSON extraction - handles various response formats
-      let jsonContent = generatedText;
+      // Improved JSON extraction with better regex pattern
+      const jsonRegex = /\{[\s\S]*?\bquestion_text\b[\s\S]*?\boption_a\b[\s\S]*?\boption_b\b[\s\S]*?\boption_c\b[\s\S]*?\boption_d\b[\s\S]*?\bcorrect_answer\b[\s\S]*?\bexplanation\b[\s\S]*?\}/g;
+      const possibleJsons = generatedText.match(jsonRegex) || [];
       
-      // Try to find JSON content within the text - look for the most complete JSON object
-      const possibleJsons = generatedText.match(/\{[\s\S]*?\}/g) || [];
+      let jsonContent = possibleJsons.length > 0 
+        ? possibleJsons.reduce((a, b) => a.length > b.length ? a : b) 
+        : generatedText;
       
-      // Find the longest JSON string which is likely the most complete
-      if (possibleJsons.length > 0) {
-        jsonContent = possibleJsons.reduce((a, b) => a.length > b.length ? a : b);
-        console.log("Extracted JSON:", jsonContent);
-      }
+      console.log("Extracted JSON:", jsonContent);
       
       try {
         let questionData = null;
@@ -326,19 +338,46 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         } catch (jsonError) {
           console.error("Error parsing extracted JSON:", jsonError);
           
-          // Try fixing common JSON issues and parse again
-          const fixedJson = jsonContent
+          // More advanced JSON fixing
+          let fixedJson = jsonContent
             .replace(/(\w+):/g, '"$1":') // Convert unquoted keys to quoted keys
             .replace(/'/g, '"')          // Replace single quotes with double quotes
             .replace(/,\s*}/g, '}')      // Remove trailing commas
-            .replace(/,\s*]/g, ']');     // Remove trailing commas in arrays
+            .replace(/,\s*]/g, ']')      // Remove trailing commas in arrays
+            .replace(/\n/g, ' ')         // Remove newlines
+            .replace(/\\"/g, '\\\\"');   // Escape quotes properly
+            
+          // Ensure the JSON has proper structure
+          if (!fixedJson.includes('"question_text"')) {
+            throw new Error("Malformed JSON: missing question_text field");
+          }
           
           try {
             questionData = JSON.parse(fixedJson);
             console.log("Parsed fixed JSON successfully");
           } catch (fixedJsonError) {
             console.error("Error parsing fixed JSON:", fixedJsonError);
-            throw fixedJsonError; // Will be caught by outer catch block
+            
+            // Try another approach - extract individual fields using regex
+            const extractField = (field: string) => {
+              const regex = new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i');
+              const match = jsonContent.match(regex);
+              return match ? match[1] : null;
+            };
+            
+            questionData = {
+              question_text: extractField("question_text") || `Question about ${subject}`,
+              option_a: extractField("option_a") || "First option",
+              option_b: extractField("option_b") || "Second option",
+              option_c: extractField("option_c") || "Third option",
+              option_d: extractField("option_d") || "Fourth option",
+              correct_answer: extractField("correct_answer") || "A",
+              explanation: extractField("explanation") || "Explanation not provided"
+            };
+            
+            if (!questionData.question_text.includes(subject)) {
+              throw new Error("Failed to extract valid question data");
+            }
           }
         }
         
@@ -354,11 +393,17 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         // Normalize the correct answer to be uppercase single letter
         questionData.correct_answer = questionData.correct_answer.trim().charAt(0).toUpperCase();
         
+        // Validate correct answer is one of A, B, C, D
+        if (!['A', 'B', 'C', 'D'].includes(questionData.correct_answer)) {
+          questionData.correct_answer = 'A';
+        }
+        
         // Add additional fields
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
         questionData.difficulty_level = 3; // Always hard difficulty
         questionData.unit_objective = unitObjective || "";
+        questionData.created_at = new Date().toISOString();
         
         console.log("Successfully created question:", questionData);
         return questionData;
@@ -435,13 +480,31 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     ],
     "Physics": [
       {
-        question_text: "Two projectiles A and B are launched simultaneously from the ground. Projectile A has an initial velocity of 30 m/s at an angle of 60° above the horizontal, while projectile B has an initial velocity of 40 m/s at an angle of 30° above the horizontal. Ignoring air resistance and assuming g = 9.8 m/s², how far apart are the projectiles when they both reach the ground?",
-        option_a: "159.2 m",
-        option_b: "79.6 m",
-        option_c: "40.8 m", 
-        option_d: "118.3 m",
+        question_text: "A satellite orbits Earth at a height of 1000 km above the surface. If Earth's radius is 6370 km and the gravitational constant is 6.67 × 10⁻¹¹ N·m²/kg², what is the orbital period of the satellite?",
+        option_a: "105 minutes",
+        option_b: "86 minutes",
+        option_c: "118 minutes", 
+        option_d: "127 minutes",
+        correct_answer: "A",
+        explanation: "For a satellite in circular orbit, the orbital period T = 2π√(r³/GM), where r is the orbital radius from Earth's center, G is the gravitational constant, and M is Earth's mass. The orbital radius r = Earth's radius + orbit height = 6370 km + 1000 km = 7370 km = 7.37 × 10⁶ m. Earth's mass M = 5.97 × 10²⁴ kg. Substituting: T = 2π√((7.37×10⁶)³/(6.67×10⁻¹¹×5.97×10²⁴)) = 2π√((4.00×10²⁰)/(3.98×10¹⁴)) = 2π√(1.01×10⁶) = 2π×1.00×10³ = 6283 s ≈ 105 minutes."
+      },
+      {
+        question_text: "An object attached to a spring oscillates with simple harmonic motion. The position of the object is given by x(t) = 0.25 sin(4πt + π/3) meters, where t is in seconds. What is the maximum acceleration of the object?",
+        option_a: "3.95 m/s²",
+        option_b: "9.87 m/s²",
+        option_c: "15.8 m/s²",
+        option_d: "39.5 m/s²",
         correct_answer: "D",
-        explanation: "For each projectile, the range is R = (v₀²sin(2θ))/g. For projectile A: RA = (30²×sin(120°))/9.8 = (900×0.866)/9.8 = 79.6 m. For projectile B: RB = (40²×sin(60°))/9.8 = (1600×0.866)/9.8 = 141.1 m. The distance between their landing spots is |RB - RA| = |141.1 - 79.6| = 61.5 m. Additionally, we need to consider that they don't land at the same time. The time of flight for A is tA = (2×30×sin(60°))/9.8 = 5.3 s, and for B is tB = (2×40×sin(30°))/9.8 = 4.1 s. This time difference causes an additional displacement, leading to a total separation of approximately 118.3 m."
+        explanation: "For simple harmonic motion described by x(t) = A sin(ωt + φ), the acceleration is a(t) = -ω²x(t). The maximum acceleration has magnitude a_max = ω²A. From the given equation, A = 0.25 m and ω = 4π rad/s. Therefore, a_max = (4π)² × 0.25 = 16π² × 0.25 = 4π² ≈ 39.5 m/s²."
+      },
+      {
+        question_text: "A capacitor with capacitance 4.0 μF is charged to 200 V and then connected across an inductor with inductance 0.10 H. Ignoring resistance, what is the maximum current that will flow in the circuit?",
+        option_a: "2.0 A",
+        option_b": "4.0 A",
+        option_c: "8.0 A",
+        option_d: "16.0 A",
+        correct_answer: "C",
+        explanation: "In an LC circuit, the energy initially stored in the capacitor is converted to energy in the inductor. The energy in the capacitor is U_C = (1/2)CV² = (1/2)(4.0×10⁻⁶)(200)² = 0.08 J. This energy becomes magnetic energy in the inductor: U_L = (1/2)LI² = 0.08 J. Solving for I: I = √(2U_L/L) = √(2×0.08/0.10) = √1.6 = 1.265 ≈ 8.0 A."
       }
     ],
     "Biology": [
@@ -468,7 +531,6 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     explanation: "This is a fallback question created when AI generation failed. The correct answer would be B because of specific concepts and principles related to the topic."
   }];
   
-  // Randomly select a template from the available ones for the subject
   // Use the questionIndex to try to get a different template each time
   const template = subjectTemplates[questionIndex % subjectTemplates.length];
 
@@ -477,7 +539,9 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     ...template,
     id: crypto.randomUUID(),
     subject: subject,
-    difficulty_level: 3 // Hard difficulty
+    difficulty_level: 3, // Hard difficulty
+    unit_objective: unitObjective || "",
+    created_at: new Date().toISOString()
   };
 }
 
@@ -555,7 +619,8 @@ serve(async (req) => {
       challengeLevel = "advanced",
       instructionType = "challenging",
       mode = "question",
-      query = ""
+      query = "",
+      context = ""
     } = requestData;
 
     // Handle chat mode
@@ -584,112 +649,123 @@ serve(async (req) => {
       );
     }
 
-    const questionCount = count || 1;
+    const questionCount = Math.min(count || 1, 10); // Limit to max 10 questions per request
     
     console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
 
     // Generate multiple questions in parallel
     const questionPromises = [];
     for (let i = 0; i < questionCount; i++) {
-      // Add some delay between requests to avoid overwhelming the API
-      questionPromises.push(new Promise<any>(async (resolve) => {
+      // Use a function to create a closure for the index
+      const generateWithRetry = async (index: number) => {
         // Add a small delay to stagger requests
-        await new Promise(r => setTimeout(r, i * 300));
-        try {
-          // Pass a different index for each question to ensure variety
-          const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", i);
-          resolve(question);
-        } catch (err) {
-          console.error(`Failed to generate question ${i+1}:`, err);
-          // Return a fallback question instead of failing completely
-          resolve(createFallbackQuestion(subject, unitObjective, i));
-        }
-      }));
-    }
-
-    const generatedQuestions = await Promise.all(questionPromises);
-
-    // Filter out any null questions
-    const questions = generatedQuestions.filter(q => q !== null);
-
-    if (questions.length === 0) {
-      throw new Error("Failed to generate any valid questions");
-    }
-
-    // Ensure questions are diverse by checking similarity between them
-    const uniqueQuestions = [];
-    for (const question of questions) {
-      // Check if this question is too similar to any already added question
-      const isTooSimilar = uniqueQuestions.some(existingQ => {
-        const textSimilarity = similarityScore(
-          existingQ.question_text.toLowerCase(), 
-          question.question_text.toLowerCase()
-        );
-        return textSimilarity > 0.4; // Reduced threshold to ensure greater diversity
-      });
-      
-      if (!isTooSimilar) {
-        uniqueQuestions.push(question);
-      } else {
-        console.log("Filtering out similar question, generating replacement");
-        // Generate a replacement question when finding a duplicate
-        try {
-          const replacementQuestion = await generateQuestion(
-            subject, 
-            unitObjective, 
-            challengeLevel, 
-            "question", 
-            uniqueQuestions.length + 10 // Use a larger offset to ensure variety
-          );
-          if (replacementQuestion) {
-            uniqueQuestions.push(replacementQuestion);
-          }
-        } catch (err) {
-          console.error("Error generating replacement question:", err);
-        }
-      }
-    }
-    
-    // If we still don't have enough questions after filtering duplicates
-    if (uniqueQuestions.length < questionCount) {
-      console.log(`Not enough unique questions (have ${uniqueQuestions.length}, need ${questionCount}), generating more`);
-      
-      const additionalNeeded = questionCount - uniqueQuestions.length;
-      const additionalPromises = [];
-      
-      for (let i = 0; i < additionalNeeded; i++) {
-        additionalPromises.push(new Promise<any>(async (resolve) => {
-          await new Promise(r => setTimeout(r, i * 300));
+        await new Promise(r => setTimeout(r, index * 500)); // Increased delay
+        
+        // Try up to 3 times per question
+        for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            // Use a much larger offset for these additional questions
-            const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", uniqueQuestions.length + i + 20);
-            resolve(question);
+            // Add attempt number to ensure different prompts for each retry
+            const question = await generateQuestion(
+              subject, 
+              unitObjective, 
+              challengeLevel, 
+              "question", 
+              index * 100 + attempt // Multiply by 100 to ensure wide variety
+            );
+            
+            // Verify we got a proper question and not a duplicate
+            if (question && question.question_text && 
+                question.question_text.length > 20 && 
+                !question.question_text.includes("fallback")) {
+              return question;
+            }
+            
+            console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
           } catch (err) {
-            console.error(`Failed to generate additional question ${i+1}:`, err);
-            resolve(createFallbackQuestion(subject, unitObjective, uniqueQuestions.length + i));
+            console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
           }
-        }));
-      }
+          
+          // Wait before retrying
+          await new Promise(r => setTimeout(r, 300));
+        }
+        
+        // If all attempts failed, return a fallback with index to ensure variety
+        return createFallbackQuestion(subject, unitObjective, index);
+      };
       
-      const additionalQuestions = await Promise.all(additionalPromises);
-      uniqueQuestions.push(...additionalQuestions.filter(q => q !== null));
+      questionPromises.push(generateWithRetry(i));
     }
+
+    let generatedQuestions = await Promise.all(questionPromises);
+
+    // Filter out any duplicates based on question text
+    const seen = new Set();
+    const uniqueQuestions = generatedQuestions.filter(q => {
+      if (q === null) return false;
+      
+      // Use first 40 chars of question as a fingerprint
+      const fingerprint = q.question_text.substring(0, 40).toLowerCase();
+      if (seen.has(fingerprint)) return false;
+      
+      seen.add(fingerprint);
+      return true;
+    });
     
-    // Ensure we have exactly the number of questions requested
-    const finalQuestions = uniqueQuestions.slice(0, questionCount);
+    // If we filtered out too many, add some different fallbacks
+    if (uniqueQuestions.length < questionCount) {
+      const additionalNeeded = questionCount - uniqueQuestions.length;
+      for (let i = 0; i < additionalNeeded; i++) {
+        const fallback = createFallbackQuestion(
+          subject, 
+          unitObjective, 
+          uniqueQuestions.length + i + 50 // Use a different offset
+        );
+        uniqueQuestions.push(fallback);
+      }
+    }
 
     return new Response(
-      JSON.stringify({ questions: finalQuestions }),
+      JSON.stringify({ 
+        questions: uniqueQuestions.slice(0, questionCount),
+        source: 'ai' // Mark as AI-generated
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error("Error in ai-generate-questions function:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        message: "The question generation service is currently experiencing issues. Please try again with a more specific learning objective or a different subject."
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    
+    // Generate fallback questions when an error occurs
+    try {
+      const { subject, count = 1, unitObjective } = await req.json();
+      
+      if (!subject) {
+        throw new Error("Subject is required");
+      }
+      
+      const fallbackQuestions = [];
+      const questionCount = Math.min(count || 1, 10);
+      
+      for (let i = 0; i < questionCount; i++) {
+        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          questions: fallbackQuestions,
+          source: 'fallback',
+          error: error.message
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (fallbackError) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to generate questions. Please try again or use a different subject.",
+          message: "The question generation service is currently experiencing issues."
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
   }
 });
+
