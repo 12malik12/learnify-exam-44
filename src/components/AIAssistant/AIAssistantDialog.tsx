@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -338,7 +337,7 @@ Would you like another challenging question or would you like me to explain a co
         )}
         
         {isOnline && apiStatus === "failing" && (
-          <Alert className="mb-4" variant="warning">
+          <Alert variant="destructive" className="mb-4">
             <AlertDescription className="flex items-center">
               <AlertTriangle className="mr-2 size-4" />
               The AI service is experiencing issues. You'll still receive answers but they may come from our fallback system.
