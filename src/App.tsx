@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,32 +15,7 @@ import SplashScreen from "./components/Mobile/SplashScreen";
 import Performance from "./pages/Performance";
 import AIAssistant from "./pages/AIAssistant";
 
-// Custom error handler function
-const errorHandler = (error: Error) => {
-  console.error('Query error:', error);
-};
-
-// Configure the query client to handle offline mode
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error: any) => {
-        // Don't retry network errors when offline
-        if (error?.message?.includes('network') && !navigator.onLine) {
-          return false;
-        }
-        return failureCount < 2;
-      },
-      // Cache data for longer when offline
-      staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000, // 5 min online, 1 hour offline
-      gcTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 min online, 24 hours offline
-      // Handle failure through meta configuration
-      meta: {
-        errorHandler: errorHandler
-      }
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const BackButtonHandler = () => {
   const navigate = useNavigate();
@@ -63,16 +37,6 @@ const BackButtonHandler = () => {
 
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
-  
-  // Initialize the question bank service
-  useEffect(() => {
-    // Import must be done inside useEffect to avoid issues with SSR
-    const initializeQuestionBank = async () => {
-      const { seedInitialQuestions } = await import('./services/questionBankService');
-      seedInitialQuestions();
-    };
-    initializeQuestionBank();
-  }, []);
   
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
