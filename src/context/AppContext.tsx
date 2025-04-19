@@ -12,15 +12,13 @@ interface AppContextType {
     score: number;
     date: string;
     totalQuestions: number;
-    offlineGenerated?: boolean;
   }[];
   setActiveSubject: (subject: Subject | null) => void;
   updateSubjectProgress: (subjectId: string, progress: number) => void;
   addExamResult: (
     subjectId: string,
     score: number,
-    totalQuestions: number,
-    offlineGenerated?: boolean
+    totalQuestions: number
   ) => void;
 }
 
@@ -53,7 +51,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       score: number;
       date: string;
       totalQuestions: number;
-      offlineGenerated?: boolean;
     }[]
   >([]);
 
@@ -100,8 +97,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const addExamResult = (
     subjectId: string,
     score: number,
-    totalQuestions: number,
-    offlineGenerated: boolean = false
+    totalQuestions: number
   ) => {
     const newExam = {
       id: Date.now().toString(),
@@ -109,7 +105,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       score,
       date: new Date().toISOString(),
       totalQuestions,
-      offlineGenerated
     };
 
     setRecentExams((prev) => {

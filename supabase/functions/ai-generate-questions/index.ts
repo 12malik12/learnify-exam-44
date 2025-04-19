@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,17 +7,6 @@ const corsHeaders = {
 };
 
 const HUGGING_FACE_API_KEY = Deno.env.get('HUGGING_FACE_API_KEY') || '';
-
-// Log API key status (without revealing the key)
-console.log(`HUGGING_FACE_API_KEY status: ${HUGGING_FACE_API_KEY ? 'Present (length: ' + HUGGING_FACE_API_KEY.length + ')' : 'Missing or empty'}`);
-
-if (!HUGGING_FACE_API_KEY) {
-  console.error(`⚠️ HUGGING_FACE_API_KEY is not set! Set this secret in the Supabase dashboard:
-  1. Go to your Supabase project dashboard
-  2. Navigate to Settings -> API -> Edge Functions
-  3. Add HUGGING_FACE_API_KEY with your key from https://huggingface.co/settings/tokens
-  `);
-}
 
 // Subject-specific instructions to guide the AI in generating better quality questions
 const subjectPromptGuides = {
@@ -91,7 +81,7 @@ const questionTypes = [
   "Design a question requiring students to predict outcomes based on {concept}",
   "Create a question requiring students to identify errors in a proposed solution about {concept}",
   "Design a question involving data interpretation related to {concept}",
-  "Design a question requiring synthesis of multiple aspects of {concept}",
+  "Create a question requiring synthesis of multiple aspects of {concept}",
   "Design a case study question where students must apply {concept} to solve a complex problem"
 ];
 
@@ -140,9 +130,6 @@ function generateChallengingQuestionPrompt(subject: string, unitObjective?: stri
     .replace("{product}", getRandomProductForSubject(subject))
     .replace("{phenomenon}", getRandomPhenomenonForSubject(subject));
   
-  // Add a unique seed to force different questions
-  const randomSeed = Math.floor(Math.random() * 10000);
-  
   return `
 ${questionType}
 
@@ -163,7 +150,6 @@ IMPORTANT QUESTION REQUIREMENTS:
 8. Make this question DIFFERENT from previous questions in structure, wording, and approach
 9. Use unique contexts and examples not commonly found in textbooks
 10. DO NOT create a question that looks like other questions - create something original
-11. Use this random seed to ensure uniqueness: ${randomSeed}
 
 Format the response exactly like this JSON without any additional text:
 {
@@ -235,74 +221,6 @@ Your response should demonstrate deep expertise in the subject while remaining a
 `;
 }
 
-// Simple test prompt to verify API connection
-const TEST_PROMPT = `Generate a simple test response to verify the connection works. Just respond with: "Connection to Hugging Face API is working properly."`;
-
-// Test the Hugging Face API connection
-async function testHuggingFaceConnection(model: string): Promise<{isWorking: boolean, error?: string}> {
-  try {
-    console.log(`Testing connection to Hugging Face API with model: ${model}`);
-    
-    if (!HUGGING_FACE_API_KEY) {
-      return { isWorking: false, error: "HUGGING_FACE_API_KEY is not set" };
-    }
-    
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${model}`,
-      {
-        headers: {
-          Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-        body: JSON.stringify({ 
-          inputs: TEST_PROMPT,
-          parameters: {
-            max_new_tokens: 50,
-            temperature: 0.5,
-          }
-        }),
-      }
-    );
-    
-    // Check response status
-    if (!response.ok) {
-      const status = response.status;
-      const errorText = await response.text();
-      
-      // Log specific error types
-      if (status === 429) {
-        return { isWorking: false, error: `Rate limit exceeded (429): ${errorText}` };
-      } else if (status === 401 || status === 403) {
-        return { isWorking: false, error: `Authentication error (${status}): ${errorText}` };
-      } else if (status === 404) {
-        return { isWorking: false, error: `Model not found (404): ${errorText}` };
-      } else {
-        return { isWorking: false, error: `API error (${status}): ${errorText}` };
-      }
-    }
-    
-    const result = await response.json();
-    return { isWorking: true };
-  } catch (error) {
-    return { isWorking: false, error: `Connection test failed: ${error.message}` };
-  }
-}
-
-// Better models that work well with free tier of Hugging Face Inference API
-const RECOMMENDED_MODELS = [
-  "OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5", // Smaller assistive model
-  "distilgpt2",                                     // Very small but reliable
-  "facebook/bart-large-cnn",                        // Good for text generation
-  "google/flan-t5-small",                           // Smaller T5 model
-  "microsoft/Phi-1_5",                              // Smaller Phi model
-  "bigscience/bloom-560m",                          // Smaller BLOOM model
-  "EleutherAI/pythia-410m",                         // Good small causal model
-  "microsoft/Phi-2",                                // Backup from original list
-  "HuggingFaceH4/zephyr-7b-beta",                   // Backup from original list
-  "google/flan-t5-xl"                               // Backup from original list
-];
-
 // Function to generate a question using Hugging Face Inference API
 async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0) {
   try {
@@ -317,132 +235,43 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
-    // Check if API key is set
-    if (!HUGGING_FACE_API_KEY) {
-      console.error("HUGGING_FACE_API_KEY is not set. Cannot use AI-powered question generation.");
-      throw new Error("API key is not configured. Ask the administrator to set up HUGGING_FACE_API_KEY.");
-    }
+    // Try different models in order of preference
+    const models = [
+      "google/flan-t5-xl",
+      "mistralai/Mistral-7B-Instruct-v0.1",
+      "microsoft/Phi-2",
+      "HuggingFaceH4/zephyr-7b-beta"
+    ];
     
-    // First verify that at least one model is working 
-    let workingModels: string[] = [];
-    let connectivityErrors: Record<string, string> = {};
-    
-    // Try a quick connection test with up to 3 models to find a working one
-    for (let i = 0; i < Math.min(3, RECOMMENDED_MODELS.length); i++) {
-      const model = RECOMMENDED_MODELS[i];
-      const { isWorking, error } = await testHuggingFaceConnection(model);
-      
-      if (isWorking) {
-        console.log(`✅ Model ${model} is working`);
-        workingModels.push(model);
-      } else {
-        console.error(`❌ Model ${model} test failed: ${error}`);
-        connectivityErrors[model] = error || "Unknown error";
-      }
-    }
-    
-    // If we couldn't verify any working models, try the rest of the models
-    if (workingModels.length === 0) {
-      for (let i = 3; i < RECOMMENDED_MODELS.length; i++) {
-        const model = RECOMMENDED_MODELS[i];
-        const { isWorking, error } = await testHuggingFaceConnection(model);
-        
-        if (isWorking) {
-          console.log(`✅ Model ${model} is working`);
-          workingModels.push(model);
-          break; // Stop once we find one working model
-        } else {
-          console.error(`❌ Model ${model} test failed: ${error}`);
-          connectivityErrors[model] = error || "Unknown error";
-        }
-      }
-    }
-    
-    // If we still have no working models, throw an error with details
-    if (workingModels.length === 0) {
-      const errorDetails = Object.entries(connectivityErrors)
-        .map(([model, error]) => `${model}: ${error}`)
-        .join('; ');
-      
-      throw new Error(`Unable to connect to any Hugging Face models. Errors: ${errorDetails}`);
-    }
-    
-    // Try to generate content with working models
-    const modelsToTry = [...workingModels, ...RECOMMENDED_MODELS.filter(m => !workingModels.includes(m))];
     let result = null;
     let error = null;
-    let lastResponseStatus = 0;
-    let lastResponseText = "";
     
     // Try each model until one works
-    for (const model of modelsToTry) {
+    for (const model of models) {
       try {
-        console.log(`Attempting generation with model: ${model}`);
+        console.log(`Trying model: ${model}`);
         
-        // Make up to 3 attempts with exponential backoff for rate limiting
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const response = await fetch(
-              `https://api-inference.huggingface.co/models/${model}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
-                  "Content-Type": "application/json",
-                },
-                method: "POST",
-                body: JSON.stringify({ 
-                  inputs: prompt,
-                  parameters: {
-                    max_new_tokens: 1024,
-                    temperature: 0.7,
-                    top_p: 0.9,
-                    do_sample: true,
-                    seed: Math.floor(Math.random() * 1000000) + questionIndex // Add random seed
-                  }
-                }),
-              }
-            );
-            
-            lastResponseStatus = response.status;
-            
-            // Handle rate limiting with retry
-            if (response.status === 429) {
-              lastResponseText = await response.text();
-              console.log(`Rate limit hit for ${model} (attempt ${attempt + 1}/3): ${lastResponseText}`);
-              
-              // Wait with exponential backoff before retrying (1s, 2s, 4s)
-              const waitTime = Math.pow(2, attempt) * 1000;
-              console.log(`Waiting ${waitTime}ms before retry...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              continue; // Try again with same model
-            }
-            
-            if (!response.ok) {
-              lastResponseText = await response.text();
-              console.error(`Error with model ${model} (${response.status}): ${lastResponseText}`);
-              break; // Try next model
-            }
-            
-            result = await response.json();
-            console.log(`✅ Success with model ${model}`);
-            
-            // Check if we got a useful response
-            const generatedText = Array.isArray(result) ? result[0]?.generated_text : result?.generated_text;
-            if (!generatedText || generatedText.trim().length < 20) {
-              console.error(`Model ${model} returned empty or very short response`);
-              continue; // Try next model
-            }
-            
-            // Success, break out of the retry loop
-            break;
-          } catch (attemptError) {
-            console.error(`Error during attempt ${attempt + 1} with model ${model}:`, attemptError);
-            error = attemptError;
+        const response = await fetch(
+          `https://api-inference.huggingface.co/models/${model}`,
+          {
+            headers: {
+              Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ inputs: prompt }),
           }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error with model ${model}:`, errorText);
+          continue; // Try next model
         }
         
-        // If we got a successful result, break out of the model loop
-        if (result) break;
+        result = await response.json();
+        console.log(`Success with model ${model}`);
+        break; // Break the loop if successful
       } catch (modelError) {
         console.error(`Error with model ${model}:`, modelError);
         error = modelError;
@@ -450,16 +279,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     }
     
     if (!result) {
-      // Provide detailed error information based on the last response
-      if (lastResponseStatus === 429) {
-        throw new Error(`Rate limit exceeded for all Hugging Face models. Details: ${lastResponseText}`);
-      } else if (lastResponseStatus === 401 || lastResponseStatus === 403) {
-        throw new Error(`Authentication failed for Hugging Face API. Please verify your API key is valid.`);
-      } else if (error) {
-        throw error;
-      } else {
-        throw new Error(`All AI models failed to generate content. Last status: ${lastResponseStatus}`);
-      }
+      throw error || new Error("All AI models failed to generate content");
     }
     
     console.log("Raw AI response:", result);
@@ -477,6 +297,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       return { response: generatedText.trim() };
     } else {
       // Process question for question mode
+      // Parse the generated text to extract the JSON
       let generatedText = "";
       if (Array.isArray(result)) {
         generatedText = result[0]?.generated_text || "";
@@ -484,176 +305,58 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         generatedText = result?.generated_text || "";
       }
       
-      console.log("Generated text:", generatedText);
+      // Extract JSON from the text (the model might include other text)
+      const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        // If no JSON is found, try to generate a structured question ourselves
+        console.log("Failed to parse JSON from model response, creating a fallback question");
+        return createFallbackQuestion(subject, unitObjective, questionIndex);
+      }
       
-      // First try to find a valid JSON structure in the response
-      const extractValidJSON = (text: string) => {
-        try {
-          // Try to find a JSON object with the expected question fields
-          const jsonRegex = /\{[\s\S]*?\bquestion_text\b[\s\S]*?\boption_a\b[\s\S]*?\boption_b\b[\s\S]*?\boption_c\b[\s\S]*?\boption_d\b[\s\S]*?\bcorrect_answer\b[\s\S]*?\bexplanation\b[\s\S]*?\}/g;
-          const matches = text.match(jsonRegex);
-          
-          if (matches && matches.length > 0) {
-            console.log(`Found ${matches.length} potential JSON matches`);
-            
-            // Try each match until we find a valid JSON
-            for (const match of matches) {
-              try {
-                return JSON.parse(match);
-              } catch (err) {
-                console.log(`JSON parse failed for match: ${match.substring(0, 50)}...`);
-                // Continue to next match
-              }
-            }
-          }
-          
-          // If no valid JSON found in regex matches, try some more techniques
-          
-          // Try to find JSON between triple backticks
-          const codeBlockRegex = /```json\s*([\s\S]*?)\s*```/;
-          const codeBlockMatch = text.match(codeBlockRegex);
-          if (codeBlockMatch && codeBlockMatch[1]) {
-            try {
-              return JSON.parse(codeBlockMatch[1]);
-            } catch (err) {
-              console.log(`Failed to parse JSON from code block`);
-            }
-          }
-          
-          // Try the whole text as JSON (some models return just the JSON)
-          try {
-            return JSON.parse(text);
-          } catch (err) {
-            console.log(`Failed to parse entire response as JSON`);
-          }
-          
-          return null;
-        } catch (error) {
-          console.error("Error in extractValidJSON:", error);
-          return null;
+      try {
+        const questionData = JSON.parse(jsonMatch[0]);
+        
+        // Validate question format
+        const missingFields = [];
+        if (!questionData.question_text) missingFields.push("question_text");
+        if (!questionData.option_a) missingFields.push("option_a");
+        if (!questionData.option_b) missingFields.push("option_b");
+        if (!questionData.option_c) missingFields.push("option_c");
+        if (!questionData.option_d) missingFields.push("option_d");
+        if (!questionData.correct_answer) missingFields.push("correct_answer");
+        if (!questionData.explanation) missingFields.push("explanation");
+        
+        if (missingFields.length > 0) {
+          console.log(`Generated question is missing fields: ${missingFields.join(", ")}`);
+          return createFallbackQuestion(subject, unitObjective, questionIndex);
         }
-      };
-      
-      // Try to extract valid JSON from the response
-      const questionData = extractValidJSON(generatedText);
-      
-      if (questionData && questionData.question_text) {
-        console.log("Successfully extracted JSON question data");
         
         // Normalize the correct answer to be uppercase single letter
         questionData.correct_answer = questionData.correct_answer.trim().charAt(0).toUpperCase();
-        
-        // Validate correct answer is one of A, B, C, D
-        if (!['A', 'B', 'C', 'D'].includes(questionData.correct_answer)) {
-          questionData.correct_answer = 'A';
-        }
         
         // Add additional fields
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
         questionData.difficulty_level = 3; // Always hard difficulty
-        questionData.unit_objective = unitObjective || "";
-        questionData.created_at = new Date().toISOString();
         
-        console.log("Successfully created question:", questionData);
-        return questionData;
-      } else {
-        console.error("Failed to extract valid JSON question data, attempting to parse manually");
-        
-        // If JSON extraction failed, try to parse the data manually
-        const extractField = (field: string, defaultValue: string = "") => {
-          const patterns = [
-            new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i'),
-            new RegExp(`"${field}"\\s*:\\s*'([^']*)'`, 'i'),
-            new RegExp(`${field}\\s*:\\s*"([^"]*)"`, 'i'),
-            new RegExp(`${field}\\s*:\\s*'([^']*)'`, 'i'),
-            new RegExp(`${field}\\s*=\\s*"([^"]*)"`, 'i'),
-            new RegExp(`${field}\\s*=\\s*'([^']*)'`, 'i'),
-            new RegExp(`${field}:\\s*([^,}\n]*)`, 'i'),
-          ];
-          
-          for (const pattern of patterns) {
-            const match = generatedText.match(pattern);
-            if (match && match[1] && match[1].trim()) {
-              return match[1].trim();
-            }
-          }
-          
-          // Try to find the field in sections of text
-          const sectionPatterns = [
-            new RegExp(`${field}[:\\s]*(.*?)(?=option_|correct_|explanation|$)`, 'is'),
-            new RegExp(`${field}[.:\\s]*(.*?)(?=\\n\\n|$)`, 'is'),
-          ];
-          
-          for (const pattern of sectionPatterns) {
-            const match = generatedText.match(pattern);
-            if (match && match[1] && match[1].trim()) {
-              // Clean up the extracted text
-              return match[1].trim().replace(/^[:"'\s]+|[:"'\s,]+$/g, '');
-            }
-          }
-          
-          return defaultValue;
-        };
-        
-        // Extract question parts from the text
-        const manuallyExtractedData = {
-          question_text: extractField("question_text", `Question about ${subject}`),
-          option_a: extractField("option_a", "First option"),
-          option_b: extractField("option_b", "Second option"),
-          option_c: extractField("option_c", "Third option"),
-          option_d: extractField("option_d", "Fourth option"),
-          correct_answer: extractField("correct_answer", "A"),
-          explanation: extractField("explanation", "Explanation not provided"),
-          id: crypto.randomUUID(),
-          subject: subject,
-          difficulty_level: 3,
-          unit_objective: unitObjective || "",
-          created_at: new Date().toISOString()
-        };
-        
-        // Check if we extracted reasonable data
-        const isReasonable = 
-          manuallyExtractedData.question_text.length > 20 &&
-          manuallyExtractedData.option_a.length > 5 &&
-          manuallyExtractedData.option_b.length > 5 &&
-          manuallyExtractedData.option_c.length > 5 &&
-          manuallyExtractedData.option_d.length > 5;
-        
-        if (isReasonable) {
-          console.log("Successfully created question through manual extraction:", manuallyExtractedData);
-          
-          // Normalize the correct answer
-          manuallyExtractedData.correct_answer = manuallyExtractedData.correct_answer.trim().charAt(0).toUpperCase();
-          if (!['A', 'B', 'C', 'D'].includes(manuallyExtractedData.correct_answer)) {
-            manuallyExtractedData.correct_answer = 'A';
-          }
-          
-          return manuallyExtractedData;
+        // Enhanced validation for unit objective alignment
+        if (unitObjective && !isQuestionAlignedWithObjective(questionData, unitObjective)) {
+          console.log("Question doesn't align with the learning objective, regenerating...");
+          return generateQuestion(subject, unitObjective, challengeLevel, "question", questionIndex + 1); // Try again with a different question index
         }
         
-        console.error("Manual extraction failed to produce reasonable question data");
-        throw new Error("Failed to extract valid question data from AI response");
+        return questionData;
+      } catch (parseError) {
+        console.error("Error parsing question JSON:", parseError);
+        return createFallbackQuestion(subject, unitObjective, questionIndex);
       }
     }
   } catch (error) {
     console.error("Error generating content:", error);
-    
-    // Provide detailed error message for logs
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`AI question generation failed: ${errorMessage}`);
-    
     if (mode === "chat") {
-      return { 
-        response: "I'm sorry, I couldn't generate a response at this time. The AI service encountered an error. Please try again later.",
-        error: errorMessage 
-      };
+      return { response: "I'm sorry, I couldn't generate a response at this time. Please try again with a different question." };
     } else {
-      return { 
-        ...createFallbackQuestion(subject, unitObjective, questionIndex),
-        error: errorMessage,
-        isAIGenerated: false
-      };
+      return createFallbackQuestion(subject, unitObjective, questionIndex);
     }
   }
 }
@@ -715,31 +418,13 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     ],
     "Physics": [
       {
-        question_text: "A satellite orbits Earth at a height of 1000 km above the surface. If Earth's radius is 6370 km and the gravitational constant is 6.67 × 10⁻¹¹ N·m²/kg², what is the orbital period of the satellite?",
-        option_a: "105 minutes",
-        option_b: "86 minutes",
-        option_c: "118 minutes", 
-        option_d: "127 minutes",
-        correct_answer: "A",
-        explanation: "For a satellite in circular orbit, the orbital period T = 2π√(r³/GM), where r is the orbital radius from Earth's center, G is the gravitational constant, and M is Earth's mass. The orbital radius r = Earth's radius + orbit height = 6370 km + 1000 km = 7370 km = 7.37 × 10⁶ m. Earth's mass M = 5.97 × 10²⁴ kg. Substituting: T = 2π√((7.37×10⁶)³/(6.67×10⁻¹¹×5.97×10²⁴)) = 2π√((4.00×10²⁰)/(3.98×10¹⁴)) = 2π√(1.01×10⁶) = 2π×1.00×10³ = 6283 s ≈ 105 minutes."
-      },
-      {
-        question_text: "An object attached to a spring oscillates with simple harmonic motion. The position of the object is given by x(t) = 0.25 sin(4πt + π/3) meters, where t is in seconds. What is the maximum acceleration of the object?",
-        option_a: "3.95 m/s²",
-        option_b: "9.87 m/s²",
-        option_c: "15.8 m/s²",
-        option_d: "39.5 m/s²",
+        question_text: "Two projectiles A and B are launched simultaneously from the ground. Projectile A has an initial velocity of 30 m/s at an angle of 60° above the horizontal, while projectile B has an initial velocity of 40 m/s at an angle of 30° above the horizontal. Ignoring air resistance and assuming g = 9.8 m/s², how far apart are the projectiles when they both reach the ground?",
+        option_a: "159.2 m",
+        option_b: "79.6 m",
+        option_c: "40.8 m", 
+        option_d: "118.3 m",
         correct_answer: "D",
-        explanation: "For simple harmonic motion described by x(t) = A sin(ωt + φ), the acceleration is a(t) = -ω²x(t). The maximum acceleration has magnitude a_max = ω²A. From the given equation, A = 0.25 m and ω = 4π rad/s. Therefore, a_max = (4π)² × 0.25 = 16π² × 0.25 = 4π² ≈ 39.5 m/s²."
-      },
-      {
-        question_text: "A capacitor with capacitance 4.0 μF is charged to 200 V and then connected across an inductor with inductance 0.10 H. Ignoring resistance, what is the maximum current that will flow in the circuit?",
-        option_a: "2.0 A",
-        option_b": "4.0 A",
-        option_c: "8.0 A",
-        option_d: "16.0 A",
-        correct_answer: "C",
-        explanation: "In an LC circuit, the energy initially stored in the capacitor is converted to energy in the inductor. The energy in the capacitor is U_C = (1/2)CV² = (1/2)(4.0×10⁻⁶)(200)² = 0.08 J. This energy becomes magnetic energy in the inductor: U_L = (1/2)LI² = 0.08 J. Solving for I: I = √(2U_L/L) = √(2×0.08/0.10) = √1.6 = 1.265 ≈ 8.0 A."
+        explanation: "For each projectile, the range is R = (v₀²sin(2θ))/g. For projectile A: RA = (30²×sin(120°))/9.8 = (900×0.866)/9.8 = 79.6 m. For projectile B: RB = (40²×sin(60°))/9.8 = (1600×0.866)/9.8 = 141.1 m. The distance between their landing spots is |RB - RA| = |141.1 - 79.6| = 61.5 m. Additionally, we need to consider that they don't land at the same time. The time of flight for A is tA = (2×30×sin(60°))/9.8 = 5.3 s, and for B is tB = (2×40×sin(30°))/9.8 = 4.1 s. This time difference causes an additional displacement, leading to a total separation of approximately 118.3 m."
       }
     ],
     "Biology": [
@@ -766,6 +451,7 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     explanation: "This is a fallback question created when AI generation failed. The correct answer would be B because of specific concepts and principles related to the topic."
   }];
   
+  // Randomly select a template from the available ones for the subject
   // Use the questionIndex to try to get a different template each time
   const template = subjectTemplates[questionIndex % subjectTemplates.length];
 
@@ -774,10 +460,7 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     ...template,
     id: crypto.randomUUID(),
     subject: subject,
-    difficulty_level: 3, // Hard difficulty
-    unit_objective: unitObjective || "",
-    created_at: new Date().toISOString(),
-    isAIGenerated: false // Mark clearly that this is a fallback question
+    difficulty_level: 3 // Hard difficulty
   };
 }
 
@@ -855,8 +538,7 @@ serve(async (req) => {
       challengeLevel = "advanced",
       instructionType = "challenging",
       mode = "question",
-      query = "",
-      context = ""
+      query = ""
     } = requestData;
 
     // Handle chat mode
@@ -885,200 +567,112 @@ serve(async (req) => {
       );
     }
 
-    const questionCount = Math.min(count || 1, 10); // Limit to max 10 questions per request
+    const questionCount = count || 1;
     
     console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
-
-    // First check if API key is configured
-    if (!HUGGING_FACE_API_KEY) {
-      console.error("HUGGING_FACE_API_KEY is not set. Cannot use AI-powered question generation.");
-      
-      // Create fallback questions
-      const fallbackQuestions = [];
-      for (let i = 0; i < questionCount; i++) {
-        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          questions: fallbackQuestions,
-          source: 'fallback',
-          error: "API key is not configured. Please set up HUGGING_FACE_API_KEY in your Supabase Edge Function Secrets."
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Generate multiple questions in parallel
     const questionPromises = [];
     for (let i = 0; i < questionCount; i++) {
-      // Use a function to create a closure for the index
-      const generateWithRetry = async (index: number) => {
+      // Add some delay between requests to avoid overwhelming the API
+      questionPromises.push(new Promise<any>(async (resolve) => {
         // Add a small delay to stagger requests
-        await new Promise(r => setTimeout(r, index * 600)); // Increased delay to avoid rate limits
-        
-        // Try up to 3 times per question
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            // Add attempt number to ensure different prompts for each retry
-            const question = await generateQuestion(
-              subject, 
-              unitObjective, 
-              challengeLevel, 
-              "question", 
-              index * 100 + attempt // Multiply by 100 to ensure wide variety
-            );
-            
-            // Verify we got a proper question and not a duplicate
-            if (question && question.question_text && 
-                question.question_text.length > 20 && 
-                !question.question_text.includes("fallback")) {
-              return {
-                ...question,
-                isAIGenerated: true
-              };
-            }
-            
-            console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
-            
-            // Wait before retrying to avoid rate limits
-            await new Promise(r => setTimeout(r, 500));
-          } catch (err) {
-            console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
-            
-            // If this is the last attempt, return the error information
-            if (attempt === 2) {
-              return {
-                ...createFallbackQuestion(subject, unitObjective, index),
-                error: err instanceof Error ? err.message : String(err),
-                isAIGenerated: false
-              };
-            }
-            
-            // Wait before retrying
-            await new Promise(r => setTimeout(r, 500));
-          }
+        await new Promise(r => setTimeout(r, i * 300));
+        try {
+          // Pass a different index for each question to ensure variety
+          const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", i);
+          resolve(question);
+        } catch (err) {
+          console.error(`Failed to generate question ${i+1}:`, err);
+          // Return a fallback question instead of failing completely
+          resolve(createFallbackQuestion(subject, unitObjective, i));
         }
-        
-        // If all attempts failed, return a fallback with index to ensure variety
-        return {
-          ...createFallbackQuestion(subject, unitObjective, index),
-          isAIGenerated: false
-        };
-      };
-      
-      questionPromises.push(generateWithRetry(i));
+      }));
     }
 
-    let generatedQuestions = await Promise.all(questionPromises);
-    let usedFallback = false;
-    let errorDetails = "";
+    const generatedQuestions = await Promise.all(questionPromises);
 
-    // Filter out any duplicates based on question text
-    const seen = new Set();
-    const uniqueQuestions = generatedQuestions.filter(q => {
-      if (!q) return false;
+    // Filter out any null questions
+    const questions = generatedQuestions.filter(q => q !== null);
+
+    if (questions.length === 0) {
+      throw new Error("Failed to generate any valid questions");
+    }
+
+    // Ensure questions are diverse by checking similarity between them
+    const uniqueQuestions = [];
+    for (const question of questions) {
+      // Check if this question is too similar to any already added question
+      const isTooSimilar = uniqueQuestions.some(existingQ => {
+        const textSimilarity = similarityScore(
+          existingQ.question_text.toLowerCase(), 
+          question.question_text.toLowerCase()
+        );
+        return textSimilarity > 0.4; // Reduced threshold to ensure greater diversity
+      });
       
-      // Check if this question has an error and record it
-      if (q.error && !errorDetails) {
-        errorDetails = q.error;
-      }
-      
-      // Track if we're using any fallback questions
-      if (q.isAIGenerated === false) {
-        usedFallback = true;
-      }
-      
-      // Remove error field from final output
-      delete q.error;
-      
-      // Use first 40 chars of question as a fingerprint
-      const fingerprint = q.question_text.substring(0, 40).toLowerCase();
-      if (seen.has(fingerprint)) return false;
-      
-      seen.add(fingerprint);
-      return true;
-    });
-    
-    // If we filtered out too many, add some different fallbacks
-    if (uniqueQuestions.length < questionCount) {
-      const additionalNeeded = questionCount - uniqueQuestions.length;
-      for (let i = 0; i < additionalNeeded; i++) {
-        const fallback = {
-          ...createFallbackQuestion(
+      if (!isTooSimilar) {
+        uniqueQuestions.push(question);
+      } else {
+        console.log("Filtering out similar question, generating replacement");
+        // Generate a replacement question when finding a duplicate
+        try {
+          const replacementQuestion = await generateQuestion(
             subject, 
             unitObjective, 
-            uniqueQuestions.length + i + 50 // Use a different offset
-          ),
-          isAIGenerated: false
-        };
-        uniqueQuestions.push(fallback);
-        usedFallback = true;
+            challengeLevel, 
+            "question", 
+            uniqueQuestions.length + 10 // Use a larger offset to ensure variety
+          );
+          if (replacementQuestion) {
+            uniqueQuestions.push(replacementQuestion);
+          }
+        } catch (err) {
+          console.error("Error generating replacement question:", err);
+        }
       }
     }
-
-    // Calculate how many AI-generated questions we actually have
-    const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated === true).length;
-    const totalFallbackCount = uniqueQuestions.filter(q => q.isAIGenerated === false).length;
     
-    // Clean up by removing the isAIGenerated field from output
-    uniqueQuestions.forEach(q => {
-      delete q.isAIGenerated;
-    });
-
-    // Determine source based on AI vs fallback ratio
-    const source = aiGeneratedCount > 0 ? 'ai' : 'fallback';
+    // If we still don't have enough questions after filtering duplicates
+    if (uniqueQuestions.length < questionCount) {
+      console.log(`Not enough unique questions (have ${uniqueQuestions.length}, need ${questionCount}), generating more`);
+      
+      const additionalNeeded = questionCount - uniqueQuestions.length;
+      const additionalPromises = [];
+      
+      for (let i = 0; i < additionalNeeded; i++) {
+        additionalPromises.push(new Promise<any>(async (resolve) => {
+          await new Promise(r => setTimeout(r, i * 300));
+          try {
+            // Use a much larger offset for these additional questions
+            const question = await generateQuestion(subject, unitObjective, challengeLevel, "question", uniqueQuestions.length + i + 20);
+            resolve(question);
+          } catch (err) {
+            console.error(`Failed to generate additional question ${i+1}:`, err);
+            resolve(createFallbackQuestion(subject, unitObjective, uniqueQuestions.length + i));
+          }
+        }));
+      }
+      
+      const additionalQuestions = await Promise.all(additionalPromises);
+      uniqueQuestions.push(...additionalQuestions.filter(q => q !== null));
+    }
     
-    // Prepare response with detailed information
+    // Ensure we have exactly the number of questions requested
+    const finalQuestions = uniqueQuestions.slice(0, questionCount);
+
     return new Response(
-      JSON.stringify({ 
-        questions: uniqueQuestions.slice(0, questionCount),
-        source: source,
-        stats: {
-          aiGenerated: aiGeneratedCount,
-          fallbackUsed: totalFallbackCount,
-          totalRequested: questionCount
-        },
-        error: errorDetails || undefined
-      }),
+      JSON.stringify({ questions: finalQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error("Error in ai-generate-questions function:", error);
-    
-    // Generate fallback questions when an error occurs
-    try {
-      const { subject, count = 1, unitObjective } = await req.json();
-      
-      if (!subject) {
-        throw new Error("Subject is required");
-      }
-      
-      const fallbackQuestions = [];
-      const questionCount = Math.min(count || 1, 10);
-      
-      for (let i = 0; i < questionCount; i++) {
-        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          questions: fallbackQuestions,
-          source: 'fallback',
-          error: error instanceof Error ? error.message : String(error),
-          fix: "To enable AI question generation, please set up the HUGGING_FACE_API_KEY in your Supabase Edge Function Secrets."
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } catch (fallbackError) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Failed to generate questions. Please try again or use a different subject.",
-          message: "The question generation service is currently experiencing issues.",
-          fix: "To enable AI question generation, please set up the HUGGING_FACE_API_KEY in your Supabase Edge Function Secrets."
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        message: "The question generation service is currently experiencing issues. Please try again with a more specific learning objective or a different subject."
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
   }
 });

@@ -31,7 +31,6 @@ interface ExamQuestionProps {
   onSelectAnswer: (answer: string) => void;
   showCorrectAnswer?: boolean;
   questionNumber: number;
-  source?: 'ai' | 'local';
 }
 
 const ExamQuestion = ({ 
@@ -39,8 +38,7 @@ const ExamQuestion = ({
   selectedAnswer, 
   onSelectAnswer,
   showCorrectAnswer = false,
-  questionNumber,
-  source
+  questionNumber
 }: ExamQuestionProps) => {
   // Parse LaTeX in question and options
   const questionHtml = { __html: renderMathContent(question.question_text) };
@@ -135,12 +133,6 @@ const ExamQuestion = ({
                 Correct! You selected the right answer.
               </div>
             )}
-          </div>
-        )}
-        
-        {source && (
-          <div className="mt-3 text-xs text-muted-foreground text-right">
-            Source: {source === 'ai' ? 'AI-Generated' : 'Question Bank'}
           </div>
         )}
       </CardContent>
