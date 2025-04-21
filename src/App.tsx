@@ -106,15 +106,7 @@ const NetworkStatusBanner = () => {
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
-  // Initialize the question bank service
-  useEffect(() => {
-    // Import must be done inside useEffect to avoid issues with SSR
-    const initializeQuestionBank = async () => {
-      const { seedInitialQuestions } = await import('./services/questionBankService');
-      seedInitialQuestions();
-    };
-    initializeQuestionBank();
-  }, []);
+  // We're removing the call to seedInitialQuestions since that function doesn't exist
   
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
