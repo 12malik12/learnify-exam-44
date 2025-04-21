@@ -24,7 +24,7 @@ const errorHandler = (error: Error) => {
   console.error('Query error:', error);
 };
 
-// Configure the query client to handle offline mode
+// Configure the query client to handle offline mode and improve retries
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
         if (error?.message?.includes('network') && !navigator.onLine) {
           return false;
         }
-        return failureCount < 2;
+        return failureCount < 3;  // Increase max retries
       },
       // Cache data for longer when offline
       staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000, // 5 min online, 1 hour offline
@@ -43,6 +43,12 @@ const queryClient = new QueryClient({
         errorHandler: errorHandler
       }
     },
+    mutations: {
+      retry: 2,  // Add retries for mutations 
+      onError: (error) => {
+        console.error('Mutation error:', error);
+      }
+    }
   },
 });
 
@@ -106,7 +112,25 @@ const NetworkStatusBanner = () => {
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
-  // Note: seedInitialQuestions function call was removed
+  // Note: Now we check if network is online during initialization
+  useEffect(() => {
+    const handleOnlineStatus = () => {
+      console.log(`Network status changed: ${navigator.onLine ? 'Online' : 'Offline'}`);
+      
+      // Force query client to refetch when coming back online
+      if (navigator.onLine) {
+        queryClient.invalidateQueries();
+      }
+    };
+    
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    
+    return () => {
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, []);
   
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
