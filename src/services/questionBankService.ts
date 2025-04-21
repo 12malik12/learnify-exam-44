@@ -98,10 +98,13 @@ export const generateUniqueQuestions = async (
         toast.info(`Retrying AI question generation (attempt ${attempt}/${maxAttempts})...`);
       }
       
-      // Add some randomization to the prompts to get different results on retries
-      const randomSeed = Math.floor(Math.random() * 1000);
-      const challengeVariations = ["challenging", "advanced", "complex", "difficult"];
+      // Add significant randomization to the prompts to get different results on retries
+      const randomSeed = Math.floor(Math.random() * 1000000) + Date.now() % 10000;
+      const challengeVariations = ["challenging", "advanced", "complex", "difficult", "analytical"];
       const selectedChallenge = challengeVariations[attempt % challengeVariations.length];
+      
+      // Add attempt number and timestamp to force different prompts
+      const uniqueRequestId = `${Date.now()}-${attempt}-${randomSeed}`;
       
       const result = await supabase.functions.invoke("ai-generate-questions", {
         body: {
@@ -111,7 +114,9 @@ export const generateUniqueQuestions = async (
           challengeLevel: "advanced",
           instructionType: selectedChallenge,
           randomSeed: randomSeed,
-          attempt: attempt
+          attempt: attempt,
+          uniqueRequestId: uniqueRequestId,
+          timestamp: Date.now()
         }
       });
 
@@ -162,8 +167,8 @@ export const generateUniqueQuestions = async (
         questions = filterDuplicateQuestions(questions);
         
         // If after filtering, we still have enough questions, we're good to go
-        if (questions.length >= Math.max(count * 0.8, 2)) { // Accept if we have at least 80% of requested count or at least 2
-          console.log(`Filtered to ${questions.length} unique questions out of ${count} requested`);
+        if (questions.length >= Math.max(count * 0.6, 2)) { // Accept if we have at least 60% of requested count or at least 2
+          console.log(`Filtered to ${questions.length} unique questions out of ${count} requested - proceeding with these`);
           result.data.questions = questions;
         } else {
           console.log(`Not enough unique questions after filtering (${questions.length}/${count}). Trying again...`);
@@ -231,7 +236,8 @@ const hasDuplicateQuestions = (questions: ExamQuestion[]): boolean => {
     // Strip whitespace and normalize case for more accurate comparison
     const questionText = (q.question_text || '').trim().toLowerCase().substring(0, 80);
     const correctAnswer = (q.correct_answer || '').trim();
-    return `${questionText}#${correctAnswer}`;
+    const optionA = (q.option_a || '').trim().toLowerCase().substring(0, 30);
+    return `${questionText}#${optionA}#${correctAnswer}`;
   });
   
   const uniqueFingerprints = new Set(questionFingerprints);
@@ -239,17 +245,18 @@ const hasDuplicateQuestions = (questions: ExamQuestion[]): boolean => {
 };
 
 /**
- * Enhanced duplicate question filtering
+ * Enhanced duplicate question filtering with more robust fingerprinting
  */
 const filterDuplicateQuestions = (questions: ExamQuestion[]): ExamQuestion[] => {
   const uniqueQuestions: ExamQuestion[] = [];
   const fingerprintSet = new Set<string>();
   
   questions.forEach(question => {
-    // Create a consistent fingerprint for comparison
+    // Create a more robust fingerprint for comparison
     const questionText = (question.question_text || '').trim().toLowerCase().substring(0, 80);
     const correctAnswer = (question.correct_answer || '').trim();
-    const fingerprint = `${questionText}#${correctAnswer}`;
+    const optionA = (question.option_a || '').trim().toLowerCase().substring(0, 30);
+    const fingerprint = `${questionText}#${optionA}#${correctAnswer}`;
     
     if (!fingerprintSet.has(fingerprint)) {
       fingerprintSet.add(fingerprint);
