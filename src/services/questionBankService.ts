@@ -69,7 +69,7 @@ export const trackQuestionUsage = (examId: string, questionIds: string[]): void 
 };
 
 /**
- * Generates questions using only the AI service with robust error handling and retries
+ * Generates questions using Groq AI service with robust error handling and retries
  */
 export const generateUniqueQuestions = async (
   count: number,
@@ -84,8 +84,8 @@ export const generateUniqueQuestions = async (
   console.log(`Attempting to generate ${count} AI questions for ${subject || "general"} subject with objective: ${unitObjective || "not specified"}`);
   
   // We'll make multiple attempts with increasing backoff
-  const maxAttempts = 5;
-  const baseDelay = 1000; // 1 second initial delay
+  const maxAttempts = 3;
+  const baseDelay = 2000; // 2 second initial delay
   
   let lastError: Error | null = null;
   
@@ -100,7 +100,7 @@ export const generateUniqueQuestions = async (
       
       // Add some randomization to the prompts to get different results on retries
       const randomSeed = Math.floor(Math.random() * 1000);
-      const challengeVariations = ["challenging", "difficult", "advanced", "complex"];
+      const challengeVariations = ["challenging", "advanced", "complex", "difficult"];
       const selectedChallenge = challengeVariations[attempt % challengeVariations.length];
       
       const result = await supabase.functions.invoke("ai-generate-questions", {
@@ -122,7 +122,7 @@ export const generateUniqueQuestions = async (
         lastError = new Error(`API error: ${result.error.message}`);
         
         // Wait before retrying
-        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 10000); // Exponential backoff, max 10 seconds
+        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000); // Exponential backoff, max 15 seconds
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
@@ -132,7 +132,7 @@ export const generateUniqueQuestions = async (
         lastError = new Error("The AI service failed to generate any questions");
         
         // Wait before retrying
-        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 10000);
+        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
@@ -148,7 +148,7 @@ export const generateUniqueQuestions = async (
         lastError = new Error("The AI service generated malformed questions");
         
         // Wait before retrying
-        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 10000);
+        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
@@ -170,7 +170,7 @@ export const generateUniqueQuestions = async (
           lastError = new Error(`AI service generated too many duplicate questions (${questions.length}/${count} unique)`);
           
           // Wait before retrying
-          const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 10000);
+          const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
@@ -204,7 +204,7 @@ export const generateUniqueQuestions = async (
       }
       
       // Wait before retrying
-      const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 10000);
+      const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -212,6 +212,12 @@ export const generateUniqueQuestions = async (
   // If we get here, all attempts failed
   console.error(`All ${maxAttempts} attempts to generate questions failed`);
   const finalError = lastError?.message || "Failed to generate AI questions after multiple attempts";
+  
+  // Show a more user-friendly error message
+  toast.error("AI question generation failed. Please try again in a moment.", {
+    description: "Our AI service is experiencing temporary issues. We're working on it!"
+  });
+  
   throw new Error(finalError);
 };
 
@@ -223,7 +229,7 @@ const hasDuplicateQuestions = (questions: ExamQuestion[]): boolean => {
   const questionFingerprints = questions.map(q => {
     // Use a combination of question text and correct answer to identify uniqueness
     // Strip whitespace and normalize case for more accurate comparison
-    const questionText = (q.question_text || '').trim().toLowerCase().substring(0, 60);
+    const questionText = (q.question_text || '').trim().toLowerCase().substring(0, 80);
     const correctAnswer = (q.correct_answer || '').trim();
     return `${questionText}#${correctAnswer}`;
   });
@@ -241,7 +247,7 @@ const filterDuplicateQuestions = (questions: ExamQuestion[]): ExamQuestion[] => 
   
   questions.forEach(question => {
     // Create a consistent fingerprint for comparison
-    const questionText = (question.question_text || '').trim().toLowerCase().substring(0, 60);
+    const questionText = (question.question_text || '').trim().toLowerCase().substring(0, 80);
     const correctAnswer = (question.correct_answer || '').trim();
     const fingerprint = `${questionText}#${correctAnswer}`;
     

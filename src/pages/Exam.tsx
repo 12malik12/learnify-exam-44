@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -5,7 +6,7 @@ import { subjects } from "@/utils/subjects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Check, ClipboardList, Clock, BarChart, ChevronLeft, ChevronRight, Brain, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { ArrowRight, Check, ClipboardList, Clock, BarChart, ChevronLeft, ChevronRight, Brain, Sparkles, Wifi, WifiOff, AlertCircle } from "lucide-react";
 import ExamQuestion from "@/components/Exam/ExamQuestion";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantDialog from "@/components/AIAssistant/AIAssistantDialog";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { generateUniqueQuestions, ExamQuestion as ExamQuestionType } from "@/services/questionBankService";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 
 const EXAM_DURATION = 60; // minutes
 
@@ -43,6 +45,7 @@ const Exam = () => {
   const [questionSource, setQuestionSource] = useState<'ai'>('ai');
   
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const { isOnline, wasOffline } = useNetworkStatus();
 
@@ -68,6 +71,7 @@ const Exam = () => {
     }
     
     setLoading(true);
+    setGenerationError(null);
     
     try {
       const newExamId = Date.now().toString();
@@ -104,6 +108,9 @@ const Exam = () => {
       
     } catch (error) {
       console.error("Error generating questions:", error);
+      
+      // Store the error for display
+      setGenerationError(error instanceof Error ? error.message : "Failed to generate AI questions");
       
       // Show a detailed error message to the user
       toast({
@@ -168,6 +175,11 @@ const Exam = () => {
     setExamCompleted(true);
   };
   
+  // Reset error when changing subject
+  useEffect(() => {
+    setGenerationError(null);
+  }, [selectedSubject, questionCount, unitObjective]);
+  
   const currentQuestion = examQuestions[currentQuestionIndex];
   
   return (
@@ -219,6 +231,15 @@ const Exam = () => {
                   <Alert className="mt-4 max-w-[700px]">
                     <AlertDescription>
                       Your connection has been restored. You can now generate AI questions.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {generationError && isOnline && (
+                  <Alert variant="destructive" className="mt-4 max-w-[700px]">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    <AlertDescription>
+                      {generationError}
                     </AlertDescription>
                   </Alert>
                 )}
