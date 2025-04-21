@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -5,7 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY') || '';
+// Directly hardcoding the provided Groq API key here for immediate fix
+// NOTE: For production, always store this securely in environment variables or Supabase secrets
+const GROQ_API_KEY = "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";
 
 // Log API key status (without revealing the key)
 console.log(`GROQ_API_KEY status: ${GROQ_API_KEY ? 'Present (length: ' + GROQ_API_KEY.length + ')' : 'Missing or empty'}`);
@@ -256,13 +259,11 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
-    // Check if API key is set
     if (!GROQ_API_KEY) {
       console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
       throw new Error("API key is not configured. Ask the administrator to set up GROQ_API_KEY.");
     }
     
-    // Try models in sequence until one works
     let result = null;
     let lastError = null;
     
@@ -323,19 +324,16 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             console.error(`Error during attempt ${attempt + 1} with model ${model}:`, attemptError);
             lastError = attemptError;
             
-            // Only retry on rate limits or temporary issues
             if (attemptError.message && attemptError.message.includes("429")) {
               const waitTime = Math.pow(2, attempt) * 1000;
               await new Promise(resolve => setTimeout(resolve, waitTime));
               continue;
             }
             
-            // Otherwise try the next model
-            break;
+            break; // break the attempt loop to try next model
           }
         }
         
-        // If we got a successful result, break out of the model loop
         if (result) break;
       } catch (modelError) {
         console.error(`Error with model ${model}:`, modelError);
@@ -347,51 +345,37 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       throw lastError || new Error("All Groq models failed to generate content");
     }
     
-    // Process based on mode
     if (mode === "chat") {
-      // For chat mode, return the content directly
       return { response: result.trim() };
     } else {
-      // For question mode, extract JSON from the response
       console.log("Extracting question data from result:", result.substring(0, 200) + "...");
       
-      // First try to find a valid JSON structure in the response
       const extractValidJSON = (text: string) => {
         try {
-          // Try to find a JSON object with the expected question fields
           const jsonRegex = /\{[\s\S]*?\bquestion_text\b[\s\S]*?\boption_a\b[\s\S]*?\boption_b\b[\s\S]*?\boption_c\b[\s\S]*?\boption_d\b[\s\S]*?\bcorrect_answer\b[\s\S]*?\bexplanation\b[\s\S]*?\}/g;
           const matches = text.match(jsonRegex);
           
           if (matches && matches.length > 0) {
-            console.log(`Found ${matches.length} potential JSON matches`);
-            
-            // Try each match until we find a valid JSON
             for (const match of matches) {
               try {
                 return JSON.parse(match);
               } catch (err) {
-                console.log(`JSON parse failed for match: ${match.substring(0, 50)}...`);
-                // Continue to next match
               }
             }
           }
           
-          // Try to find JSON between triple backticks
           const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
           const codeBlockMatch = text.match(codeBlockRegex);
           if (codeBlockMatch && codeBlockMatch[1]) {
             try {
               return JSON.parse(codeBlockMatch[1]);
             } catch (err) {
-              console.log(`Failed to parse JSON from code block`);
             }
           }
           
-          // Try the whole text as JSON (some models return just the JSON)
           try {
             return JSON.parse(text);
           } catch (err) {
-            console.log(`Failed to parse entire response as JSON`);
           }
           
           return null;
@@ -401,33 +385,23 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         }
       };
       
-      // Try to extract valid JSON from the response
       const questionData = extractValidJSON(result);
       
       if (questionData && questionData.question_text) {
-        console.log("Successfully extracted JSON question data");
-        
-        // Normalize the correct answer to be uppercase single letter
         questionData.correct_answer = questionData.correct_answer.trim().charAt(0).toUpperCase();
-        
-        // Validate correct answer is one of A, B, C, D
         if (!['A', 'B', 'C', 'D'].includes(questionData.correct_answer)) {
           questionData.correct_answer = 'A';
         }
         
-        // Add additional fields
         questionData.id = crypto.randomUUID();
         questionData.subject = subject;
-        questionData.difficulty_level = 3; // Always hard difficulty
+        questionData.difficulty_level = 3;
         questionData.unit_objective = unitObjective || "";
         questionData.created_at = new Date().toISOString();
         
         console.log("Successfully created question:", questionData);
         return questionData;
       } else {
-        console.error("Failed to extract valid JSON question data, attempting to parse manually");
-        
-        // If JSON extraction failed, try to parse the data manually
         const extractField = (field: string, defaultValue: string = "") => {
           const patterns = [
             new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i'),
@@ -446,7 +420,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             }
           }
           
-          // Try to find the field in sections of text
           const sectionPatterns = [
             new RegExp(`${field}[:\\s]*(.*?)(?=option_|correct_|explanation|$)`, 'is'),
             new RegExp(`${field}[.:\\s]*(.*?)(?=\\n\\n|$)`, 'is'),
@@ -455,7 +428,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           for (const pattern of sectionPatterns) {
             const match = result.match(pattern);
             if (match && match[1] && match[1].trim()) {
-              // Clean up the extracted text
               return match[1].trim().replace(/^[:"'\s]+|[:"'\s,]+$/g, '');
             }
           }
@@ -463,7 +435,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           return defaultValue;
         };
         
-        // Extract question parts from the text
         const manuallyExtractedData = {
           question_text: extractField("question_text", `Question about ${subject}`),
           option_a: extractField("option_a", "First option"),
@@ -479,7 +450,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           created_at: new Date().toISOString()
         };
         
-        // Check if we extracted reasonable data
         const isReasonable = 
           manuallyExtractedData.question_text.length > 20 &&
           manuallyExtractedData.option_a.length > 5 &&
@@ -488,9 +458,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           manuallyExtractedData.option_d.length > 5;
         
         if (isReasonable) {
-          console.log("Successfully created question through manual extraction:", manuallyExtractedData);
-          
-          // Normalize the correct answer
           manuallyExtractedData.correct_answer = manuallyExtractedData.correct_answer.trim().charAt(0).toUpperCase();
           if (!['A', 'B', 'C', 'D'].includes(manuallyExtractedData.correct_answer)) {
             manuallyExtractedData.correct_answer = 'A';
@@ -506,7 +473,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
   } catch (error) {
     console.error("Error generating content:", error);
     
-    // Provide detailed error message for logs
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`AI question generation failed: ${errorMessage}`);
     
@@ -529,7 +495,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
 function createFallbackQuestion(subject: string, unitObjective?: string, questionIndex: number = 0) {
   console.log(`Creating advanced fallback question for ${subject}, index: ${questionIndex}`);
   
-  // Advanced subject-specific template questions focused on challenging concepts
   const templates: Record<string, any[]> = {
     "Mathematics": [
       {
@@ -562,7 +527,6 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     ]
   };
   
-  // Get template based on subject or use a generic one
   const subjectTemplates = templates[subject] || [{
     question_text: `A challenging question about ${subject}${unitObjective ? ` related to ${unitObjective}` : ''}`,
     option_a: "Option A - This would be a plausible but incorrect answer",
@@ -573,24 +537,21 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
     explanation: "This is a fallback question created when AI generation failed. The correct answer would be B because of specific concepts and principles related to the topic."
   }];
   
-  // Use the questionIndex to try to get a different template each time
   const template = subjectTemplates[questionIndex % subjectTemplates.length];
 
-  // Add metadata
   return {
     ...template,
     id: crypto.randomUUID(),
     subject: subject,
-    difficulty_level: 3, // Hard difficulty
+    difficulty_level: 3,
     unit_objective: unitObjective || "",
     created_at: new Date().toISOString(),
-    isAIGenerated: false // Mark clearly that this is a fallback question
+    isAIGenerated: false
   };
 }
 
 // Function to check if a question aligns with a learning objective
 function isQuestionAlignedWithObjective(question: any, objective: string): boolean {
-  // Convert to lowercase for comparison
   const objectiveLower = objective.toLowerCase();
   const questionTextLower = question.question_text.toLowerCase();
   const optionsText = [
@@ -601,24 +562,20 @@ function isQuestionAlignedWithObjective(question: any, objective: string): boole
   ].join(' ').toLowerCase();
   const explanationLower = question.explanation.toLowerCase();
   
-  // Extract meaningful keywords from the objective (words longer than 3 characters)
   const objectiveKeywords = objectiveLower.split(/\s+/)
     .filter(word => word.length > 3) 
-    .map(word => word.replace(/[^\w]/g, '')); // Remove non-word characters
+    .map(word => word.replace(/[^\w]/g, ''));
   
-  // Check if any keywords from the objective appear in the question or options or explanation
   const keywordInQuestion = objectiveKeywords.some(keyword => 
     questionTextLower.includes(keyword) || 
     optionsText.includes(keyword) ||
     explanationLower.includes(keyword)
   );
   
-  // Calculate similarity scores
   const questionSimilarity = similarityScore(questionTextLower, objectiveLower);
   const optionsSimilarity = similarityScore(optionsText, objectiveLower);
   const explanationSimilarity = similarityScore(explanationLower, objectiveLower);
   
-  // Determine alignment based on keyword presence and similarity
   const isAligned = 
     keywordInQuestion || 
     questionSimilarity > 0.2 || 
@@ -632,7 +589,6 @@ function isQuestionAlignedWithObjective(question: any, objective: string): boole
 
 // Text similarity helper function
 function similarityScore(text1: string, text2: string): number {
-  // Tokenize into words, remove short words and punctuation
   const words1 = new Set(text1.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^\w]/g, '')));
   const words2 = new Set(text2.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^\w]/g, '')));
   
@@ -643,12 +599,10 @@ function similarityScore(text1: string, text2: string): number {
     if (words2.has(word)) commonWords++;
   }
   
-  // Return ratio of common words to total unique words
   return commonWords / (words1.size + words2.size - commonWords);
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -666,15 +620,14 @@ serve(async (req) => {
       context = ""
     } = requestData;
 
-    // Handle chat mode
     if (mode === "chat") {
       console.log(`Generating chat response for subject: ${subject}, query: ${query}`);
       
       const result = await generateQuestion(
         subject || "",
-        query, // Use query as the input for chat
-        "advanced", // Challenge level doesn't matter for chat
-        "chat", // Specify chat mode
+        query, 
+        "advanced", 
+        "chat", 
         0
       );
       
@@ -684,7 +637,6 @@ serve(async (req) => {
       );
     }
 
-    // Handle question generation mode
     if (!subject) {
       return new Response(
         JSON.stringify({ error: 'Subject is required' }),
@@ -692,15 +644,13 @@ serve(async (req) => {
       );
     }
 
-    const questionCount = Math.min(count || 1, 10); // Limit to max 10 questions per request
+    const questionCount = Math.min(count || 1, 10);
     
     console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
 
-    // First check if API key is configured
     if (!GROQ_API_KEY) {
       console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
       
-      // Create fallback questions
       const fallbackQuestions = [];
       for (let i = 0; i < questionCount; i++) {
         fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
@@ -716,30 +666,24 @@ serve(async (req) => {
       );
     }
 
-    // Generate multiple questions in parallel
     const questionPromises = [];
     for (let i = 0; i < questionCount; i++) {
-      // Use a function to create a closure for the index
       const generateWithRetry = async (index: number) => {
-        // Add a small delay to stagger requests to avoid rate limits
         await new Promise(r => setTimeout(r, index * 1000));
         
-        // Try up to 3 times per question
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            // Add attempt number to ensure different prompts for each retry
             const question = await generateQuestion(
               subject, 
               unitObjective, 
               challengeLevel, 
               "question", 
-              index * 100 + attempt // Multiply by 100 to ensure wide variety
+              index * 100 + attempt 
             );
             
-            // Verify we got a proper question and not a duplicate
             if (question && question.question_text && 
                 question.question_text.length > 20 && 
-                !question.question_text.includes("fallback")) {
+                !question.question_text.toLowerCase().includes("fallback")) {
               return {
                 ...question,
                 isAIGenerated: true
@@ -748,12 +692,10 @@ serve(async (req) => {
             
             console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
             
-            // Wait before retrying to avoid rate limits
             await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
           } catch (err) {
             console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
             
-            // If this is the last attempt, return the error information
             if (attempt === 2) {
               return {
                 ...createFallbackQuestion(subject, unitObjective, index),
@@ -762,12 +704,10 @@ serve(async (req) => {
               };
             }
             
-            // Wait before retrying with exponential backoff
             await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
           }
         }
         
-        // If all attempts failed, return a fallback with index to ensure variety
         return {
           ...createFallbackQuestion(subject, unitObjective, index),
           isAIGenerated: false
@@ -781,25 +721,20 @@ serve(async (req) => {
     let usedFallback = false;
     let errorDetails = "";
 
-    // Filter out any duplicates based on question text
     const seen = new Set();
     const uniqueQuestions = generatedQuestions.filter(q => {
       if (!q) return false;
       
-      // Check if this question has an error and record it
       if (q.error && !errorDetails) {
         errorDetails = q.error;
       }
       
-      // Track if we're using any fallback questions
       if (q.isAIGenerated === false) {
         usedFallback = true;
       }
       
-      // Remove error field from final output
       delete q.error;
       
-      // Use first 40 chars of question as a fingerprint
       const fingerprint = q.question_text.substring(0, 40).toLowerCase();
       if (seen.has(fingerprint)) return false;
       
@@ -807,7 +742,6 @@ serve(async (req) => {
       return true;
     });
     
-    // If we filtered out too many, add some different fallbacks
     if (uniqueQuestions.length < questionCount) {
       const additionalNeeded = questionCount - uniqueQuestions.length;
       for (let i = 0; i < additionalNeeded; i++) {
@@ -815,7 +749,7 @@ serve(async (req) => {
           ...createFallbackQuestion(
             subject, 
             unitObjective, 
-            uniqueQuestions.length + i + 50 // Use a different offset
+            uniqueQuestions.length + i + 50 
           ),
           isAIGenerated: false
         };
@@ -824,19 +758,15 @@ serve(async (req) => {
       }
     }
 
-    // Calculate how many AI-generated questions we actually have
     const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated === true).length;
     const totalFallbackCount = uniqueQuestions.filter(q => q.isAIGenerated === false).length;
     
-    // Clean up by removing the isAIGenerated field from output
     uniqueQuestions.forEach(q => {
       delete q.isAIGenerated;
     });
 
-    // Determine source based on AI vs fallback ratio
     const source = aiGeneratedCount > 0 ? 'ai' : 'fallback';
     
-    // Prepare response with detailed information
     return new Response(
       JSON.stringify({ 
         questions: uniqueQuestions.slice(0, questionCount),
@@ -853,7 +783,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in ai-generate-questions function:", error);
     
-    // Generate fallback questions when an error occurs
     try {
       const { subject, count = 1, unitObjective } = await req.json();
       
@@ -889,3 +818,4 @@ serve(async (req) => {
     }
   }
 });
+
