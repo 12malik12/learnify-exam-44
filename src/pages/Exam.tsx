@@ -73,12 +73,22 @@ const Exam = () => {
       const newExamId = Date.now().toString();
       setExamId(newExamId);
       
+      toast({
+        title: "Generating Questions",
+        description: "AI is crafting challenging questions for you...",
+      });
+      
       const result = await generateUniqueQuestions(
         questionCount,
         selectedSubjectObj?.name || "",
         unitObjective.trim() || undefined,
         newExamId
       );
+      
+      // Verify we have questions before proceeding
+      if (!result.questions || result.questions.length === 0) {
+        throw new Error("No questions were generated. Please try again.");
+      }
       
       setExamQuestions(result.questions);
       setQuestionSource(result.source);
@@ -94,10 +104,21 @@ const Exam = () => {
       
     } catch (error) {
       console.error("Error generating questions:", error);
+      
+      // Show a detailed error message to the user
       toast({
         title: "AI Question Generation Failed",
         description: error instanceof Error ? error.message : "Failed to generate AI questions. Please try again.",
         variant: "destructive",
+      });
+      
+      // Show additional debugging info in the console
+      console.debug("Details for error:", {
+        subject: selectedSubjectObj?.name,
+        questionCount,
+        unitObjective: unitObjective.trim() || "undefined",
+        online: isOnline,
+        errorObj: error
       });
     } finally {
       setLoading(false);

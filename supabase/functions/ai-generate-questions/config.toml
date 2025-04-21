@@ -1,2 +1,16 @@
 
 project_id = "toigsarjwwediuelpxvi"
+runtime = "nodejs"
+version = 1
+max_execution_time = 20
+
+# Retry policy
+[http]
+max_retries = 3
+retry_backoff_exponent = 2
+max_retry_delay = 10
+
+# Cache settings for the function
+[cache]
+cache_control = "max-age=600, must-revalidate"
+
