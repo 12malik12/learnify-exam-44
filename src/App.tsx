@@ -106,7 +106,7 @@ const NetworkStatusBanner = () => {
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
-  // We're removing the call to seedInitialQuestions since that function doesn't exist
+  // Note: seedInitialQuestions function call was removed
   
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;

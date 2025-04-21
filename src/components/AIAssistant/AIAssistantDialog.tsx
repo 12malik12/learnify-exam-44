@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLanguage } from "@/context/LanguageContext";
@@ -69,7 +68,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
         }
       ]);
       
-      // Test the API when we come back online
       testAIConnection();
     } else if (!isOnline && messages.length > 1) {
       setMessages(prev => [
@@ -82,22 +80,28 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     }
   }, [isOnline, wasOffline, messages.length]);
   
-  // Check if the AI service is working properly
   const testAIConnection = async () => {
     if (!isOnline) {
       setApiStatus("failing");
+      console.log("AI connection test failed: Device is offline");
       return;
     }
     
     try {
       console.log("Testing AI connection...");
+      setApiStatus("untested"); // Reset to untested while we're running the test
+      
+      // Add a timestamp to prevent caching
+      const timestamp = Date.now();
       const testResult = await supabase.functions.invoke("ai-generate-questions", {
         body: {
           subject: "Mathematics",
           count: 1,
           mode: "question",
           forceFallback: false,
-          forceAI: true
+          forceAI: true,
+          testCall: true,
+          timestamp
         }
       });
       
@@ -109,16 +113,41 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
         return;
       }
       
-      if (testResult.data?.questions && testResult.data.questions.length > 0) {
-        if (testResult.data.source === 'ai') {
-          console.log("AI connection test passed - AI source confirmed");
-          setApiStatus("working");
-        } else {
-          console.warn("AI connection test yielded non-AI questions");
-          setApiStatus("failing");
-        }
-      } else {
+      // Detailed validation of the response
+      if (!testResult.data) {
+        console.error("AI test returned no data");
+        setApiStatus("failing");
+        return;
+      }
+      
+      if (!testResult.data.questions || testResult.data.questions.length === 0) {
         console.error("AI test returned no questions");
+        setApiStatus("failing");
+        return;
+      }
+      
+      const question = testResult.data.questions[0];
+      
+      // Validate the question format
+      const isValidFormat = 
+        question.question_text && 
+        question.option_a && 
+        question.option_b && 
+        question.option_c && 
+        question.option_d && 
+        question.correct_answer;
+        
+      if (!isValidFormat) {
+        console.error("AI test returned a malformed question:", question);
+        setApiStatus("failing");
+        return;
+      }
+      
+      if (testResult.data.source === 'ai') {
+        console.log("AI connection test passed - AI source confirmed");
+        setApiStatus("working");
+      } else {
+        console.warn("AI connection test yielded non-AI questions");
         setApiStatus("failing");
       }
     } catch (error) {
@@ -127,7 +156,6 @@ const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps) => {
     }
   };
   
-  // Run the API test when the component mounts if online
   useEffect(() => {
     if (isOnline && open && apiStatus === "untested") {
       testAIConnection();
