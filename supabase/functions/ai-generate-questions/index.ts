@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -112,7 +111,7 @@ const contextTemplates = [
   "In a research project studying {phenomenon},"
 ];
 
-// Enhanced challenging question generation prompt
+// Enhanced challenging question generation prompt with much stronger uniqueness controls
 function generateChallengingQuestionPrompt(subject: string, unitObjective?: string, questionIndex: number = 0) {
   const subjectGuide = subjectPromptGuides[subject as keyof typeof subjectPromptGuides] || '';
   
@@ -124,32 +123,47 @@ function generateChallengingQuestionPrompt(subject: string, unitObjective?: stri
     // Use random unit objectives from our mapped content
     const units = Object.keys(learningObjectives[subject]);
     if (units.length > 0) {
-      const randomUnit = units[Math.floor(Math.random() * units.length)];
+      // Add more randomization - pick different units for different question indices
+      const randomUnit = units[(questionIndex + units.length) % units.length];
       const objectives = learningObjectives[subject][randomUnit];
       if (objectives && objectives.length > 0) {
-        const randomObjective = objectives[Math.floor(Math.random() * objectives.length)];
+        // Add more randomization - pick different objectives for different question indices
+        const randomObjective = objectives[(questionIndex + objectives.length) % objectives.length];
         objectiveContent = `focusing on this learning objective from ${randomUnit}: "${randomObjective}". The question must directly assess this objective.`;
       }
     }
   }
   
-  // Add variety based on question index to prevent repetitive questions
-  const questionType = questionTypes[questionIndex % questionTypes.length]
-    .replace("{concept}", unitObjective || subject);
+  // Add a stronger uniqueness requirement to the prompt to prevent repetitive questions
+  // Add much more varied topics and concepts based on question index
+  const uniquenessRequirements = [
+    `Create a completely UNIQUE and ORIGINAL question unlike any other - question index #${questionIndex}`,
+    `Design this question to be distinctly different from all others in the set - variation #${questionIndex}`,
+    `This question MUST use a completely different scenario and context than others - uniqueness index #${questionIndex}`,
+    `Make this question stand apart from others by using a novel approach - distinctiveness factor #${questionIndex}`,
+    `Generate a question that is fundamentally different in structure and content - differentiation point #${questionIndex}`
+  ];
   
-  // Add varied contexts
-  const contextTemplate = contextTemplates[Math.floor(Math.random() * contextTemplates.length)]
-    .replace("{subject}", subject)
-    .replace("{product}", getRandomProductForSubject(subject))
-    .replace("{phenomenon}", getRandomPhenomenonForSubject(subject));
+  // Use different concepts for each question to enhance uniqueness
+  const conceptVariations = [
+    `advanced ${subject} concepts related to ${getRandomConceptForSubject(subject, questionIndex)}`,
+    `challenging problems involving ${getRandomConceptForSubject(subject, questionIndex + 10)}`,
+    `critical thinking about ${getRandomConceptForSubject(subject, questionIndex + 20)}`,
+    `application-oriented scenarios for ${getRandomConceptForSubject(subject, questionIndex + 30)}`,
+    `analysis-level problems concerning ${getRandomConceptForSubject(subject, questionIndex + 40)}`
+  ];
   
-  // Add a unique seed to force different questions
-  const randomSeed = Math.floor(Math.random() * 10000);
+  // Pick based on question index to ensure variety
+  const uniquenessRequirement = uniquenessRequirements[questionIndex % uniquenessRequirements.length];
+  const conceptVariation = conceptVariations[questionIndex % conceptVariations.length];
+  
+  // Add a unique seed value that changes with each question
+  const randomSeed = Math.floor(Math.random() * 10000) + questionIndex * 1000;
   
   return `
-${questionType}
+${uniquenessRequirement}
 
-${contextTemplate}
+Generate an original challenging question about ${conceptVariation}.
 
 ${subjectGuide}
 
@@ -163,10 +177,10 @@ IMPORTANT QUESTION REQUIREMENTS:
 5. Ensure the question has one definitively correct answer
 6. Make distractors (wrong options) plausible and based on common misconceptions
 7. Ensure the correct answer isn't obvious
-8. Make this question DIFFERENT from previous questions in structure, wording, and approach
+8. Make this question TOTALLY DIFFERENT from any other questions in structure, wording, approach, and concepts tested
 9. Use unique contexts and examples not commonly found in textbooks
-10. DO NOT create a question that looks like other questions - create something original
-11. Use this random seed to ensure uniqueness: ${randomSeed}
+10. DO NOT create a question that resembles any other - create something entirely original
+11. Use this question-specific unique ID to ensure diversity: QUID-${randomSeed}-${questionIndex}
 
 Format the response exactly like this JSON without any additional text:
 {
@@ -181,35 +195,61 @@ Format the response exactly like this JSON without any additional text:
 `;
 }
 
-// Helper functions to add diversity to prompts
-function getRandomProductForSubject(subject: string): string {
-  const productsBySubject: Record<string, string[]> = {
-    'Mathematics': ['statistical software', 'financial instruments', 'engineering tools', 'cryptographic systems'],
-    'Chemistry': ['pharmaceuticals', 'polymers', 'catalysts', 'specialty chemicals'],
-    'Physics': ['optical instruments', 'aerospace components', 'electrical devices', 'quantum computers'],
-    'Biology': ['vaccines', 'genetic tests', 'biomedical devices', 'agricultural products'],
-    'History': ['historical documentation', 'museum exhibits', 'archaeological artifacts', 'educational materials'],
-    'Geography': ['mapping software', 'climate models', 'urban planning tools', 'resource management systems'],
-    'Civics': ['policy documents', 'governance frameworks', 'legal interpretations', 'ethical guidelines']
+// Helper function to get diverse concepts for each subject to ensure question variety
+function getRandomConceptForSubject(subject: string, seed: number = 0): string {
+  const conceptsBySubject: Record<string, string[]> = {
+    'Mathematics': [
+      'algebraic proofs', 'complex number operations', 'statistical inference', 
+      'geometric transformations', 'calculus optimization', 'sequences and series',
+      'probability distributions', 'vector spaces', 'differential equations',
+      'number theory', 'graph theory', 'mathematical modeling', 'set theory'
+    ],
+    'Physics': [
+      'projectile motion', 'fluid dynamics', 'electromagnetic induction', 
+      'quantum phenomena', 'thermodynamic cycles', 'wave interference',
+      'gravitational fields', 'nuclear reactions', 'circuit analysis',
+      'optics', 'relative motion', 'energy transformations', 'magnetic fields'
+    ],
+    'Chemistry': [
+      'equilibrium reactions', 'organic synthesis', 'kinetic theory', 
+      'molecular structure', 'acid-base titrations', 'redox reactions',
+      'intermolecular forces', 'chemical energetics', 'reaction mechanisms',
+      'electrochemistry', 'coordination compounds', 'isomerism', 'periodic trends'
+    ],
+    'Biology': [
+      'gene regulation', 'ecosystem dynamics', 'cellular respiration', 
+      'evolutionary mechanisms', 'physiological systems', 'protein synthesis',
+      'immune responses', 'hormonal control', 'plant physiology',
+      'neural transmission', 'biodiversity', 'inheritance patterns', 'homeostasis'
+    ],
+    'History': [
+      'political revolutions', 'economic systems', 'cultural movements', 
+      'diplomatic relations', 'social reforms', 'technological innovations',
+      'imperial expansion', 'religious conflicts', 'intellectual thought',
+      'migration patterns', 'warfare tactics', 'environmental history', 'gender roles'
+    ],
+    'Geography': [
+      'geomorphological processes', 'climate systems', 'population dynamics', 
+      'urban development', 'resource management', 'agricultural patterns',
+      'industrialization', 'transportation networks', 'cultural landscapes',
+      'economic geography', 'political boundaries', 'environmental challenges', 'migration'
+    ],
+    'Civics': [
+      'constitutional principles', 'judicial systems', 'electoral processes', 
+      'civil liberties', 'government structures', 'public policy',
+      'international relations', 'civic participation', 'legal frameworks',
+      'human rights', 'federal systems', 'political ideologies', 'media influence'
+    ]
   };
   
-  const products = productsBySubject[subject] || ['specialized products'];
-  return products[Math.floor(Math.random() * products.length)];
-}
-
-function getRandomPhenomenonForSubject(subject: string): string {
-  const phenomenaBySubject: Record<string, string[]> = {
-    'Mathematics': ['exponential growth', 'statistical distributions', 'optimization problems', 'chaotic systems'],
-    'Chemistry': ['catalytic reactions', 'polymer degradation', 'acid-base equilibria', 'redox processes'],
-    'Physics': ['quantum entanglement', 'relativistic effects', 'electromagnetic interactions', 'thermodynamic processes'],
-    'Biology': ['cellular signaling', 'ecological succession', 'genetic drift', 'immune responses'],
-    'History': ['cultural diffusion', 'technological revolutions', 'political transformations', 'social movements'],
-    'Geography': ['climate patterns', 'urbanization', 'resource depletion', 'migration flows'],
-    'Civics': ['democratic participation', 'policy implementation', 'civil disobedience', 'institutional reform']
-  };
+  // Default concepts if subject not found
+  const defaultConcepts = ['fundamental principles', 'critical analysis', 'applied scenarios', 'theoretical models'];
   
-  const phenomena = phenomenaBySubject[subject] || ['complex phenomena'];
-  return phenomena[Math.floor(Math.random() * phenomena.length)];
+  // Get concepts list for the subject, or use defaults
+  const concepts = conceptsBySubject[subject] || defaultConcepts;
+  
+  // Use the seed to ensure different concepts for different question indices
+  return concepts[(seed + concepts.length) % concepts.length];
 }
 
 // Chat response generation prompt
@@ -245,7 +285,7 @@ const GROQ_MODELS = [
   "mixtral-8x7b-32768", // Good for longer context
 ];
 
-// Function to generate a question using Groq API
+// Function to generate a question using Groq API with enhanced uniqueness guarantees
 async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0) {
   try {
     console.log(`Generating ${mode} for subject: ${subject}, objective: ${unitObjective || 'general'}, challenge level: ${challengeLevel}, question index: ${questionIndex}`);
@@ -255,7 +295,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       // Handle chat mode
       prompt = generateChatResponsePrompt(subject, unitObjective || "");
     } else {
-      // Handle question generation mode
+      // Handle question generation mode with enhanced uniqueness
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
@@ -267,6 +307,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     let result = null;
     let lastError = null;
     
+    // Try different models with retry logic
     for (const model of GROQ_MODELS) {
       try {
         console.log(`Attempting generation with Groq model: ${model}`);
@@ -274,6 +315,11 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         // Make up to 3 attempts with exponential backoff
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
+            // Add more randomization to each API call
+            const temperature = 0.7 + (questionIndex * 0.05) % 0.3; // Vary between 0.7 and 1.0
+            const maxTokens = 1024 + (questionIndex * 100) % 500; // Vary between 1024 and 1524
+            const topP = 0.9 + (questionIndex * 0.02) % 0.1; // Vary between 0.9 and 1.0
+            
             const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: {
@@ -283,12 +329,12 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
               body: JSON.stringify({
                 model: model,
                 messages: [
-                  { role: "system", content: "You are a high-quality educational question generator that creates challenging questions in JSON format." },
+                  { role: "system", content: `You are a high-quality educational question generator that creates challenging and UNIQUE questions in JSON format. Question index: ${questionIndex}` },
                   { role: "user", content: prompt }
                 ],
-                temperature: 0.7,
-                max_tokens: 1024,
-                top_p: 0.9
+                temperature: temperature,
+                max_tokens: maxTokens,
+                top_p: topP
               })
             });
             
@@ -393,7 +439,8 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           questionData.correct_answer = 'A';
         }
         
-        questionData.id = crypto.randomUUID();
+        // Add more entropy to the question ID to ensure uniqueness
+        questionData.id = `${crypto.randomUUID()}-${questionIndex}-${Date.now() % 10000}`;
         questionData.subject = subject;
         questionData.difficulty_level = 3;
         questionData.unit_objective = unitObjective || "";
@@ -435,6 +482,9 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           return defaultValue;
         };
         
+        // Add more entropy to the question ID to ensure uniqueness
+        const uniqueId = `${crypto.randomUUID()}-${questionIndex}-${Date.now() % 10000}`;
+        
         const manuallyExtractedData = {
           question_text: extractField("question_text", `Question about ${subject}`),
           option_a: extractField("option_a", "First option"),
@@ -443,7 +493,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           option_d: extractField("option_d", "Fourth option"),
           correct_answer: extractField("correct_answer", "A"),
           explanation: extractField("explanation", "Explanation not provided"),
-          id: crypto.randomUUID(),
+          id: uniqueId,
           subject: subject,
           difficulty_level: 3,
           unit_objective: unitObjective || "",
@@ -617,8 +667,30 @@ serve(async (req) => {
       instructionType = "challenging",
       mode = "question",
       query = "",
-      context = ""
+      context = "",
+      testCall = false
     } = requestData;
+
+    // Handle test calls quickly for connectivity tests
+    if (testCall === true) {
+      console.log("Processing test call for connection verification");
+      const testQuestion = await generateQuestion(
+        "Mathematics", 
+        "Testing connection", 
+        "basic", 
+        "question", 
+        0
+      );
+      
+      return new Response(
+        JSON.stringify({ 
+          questions: [testQuestion],
+          source: 'ai',
+          status: 'test_success'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (mode === "chat") {
       console.log(`Generating chat response for subject: ${subject}, query: ${query}`);
@@ -666,19 +738,23 @@ serve(async (req) => {
       );
     }
 
+    // Use parallel generation with sufficient gaps between questions
     const questionPromises = [];
     for (let i = 0; i < questionCount; i++) {
       const generateWithRetry = async (index: number) => {
-        await new Promise(r => setTimeout(r, index * 1000));
+        // Stagger API calls to reduce likelihood of very similar prompts being processed at the same time
+        await new Promise(r => setTimeout(r, index * 500)); 
         
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
+            // Add more entropy to each generation attempt
+            const seedMultiplier = attempt * 1000 + Date.now() % 1000;
             const question = await generateQuestion(
               subject, 
               unitObjective, 
               challengeLevel, 
               "question", 
-              index * 100 + attempt 
+              index + seedMultiplier
             );
             
             if (question && question.question_text && 
@@ -721,6 +797,7 @@ serve(async (req) => {
     let usedFallback = false;
     let errorDetails = "";
 
+    // Enhanced duplicate detection to catch near-identical questions
     const seen = new Set();
     const uniqueQuestions = generatedQuestions.filter(q => {
       if (!q) return false;
@@ -735,24 +812,43 @@ serve(async (req) => {
       
       delete q.error;
       
-      const fingerprint = q.question_text.substring(0, 40).toLowerCase();
-      if (seen.has(fingerprint)) return false;
+      // Create a more robust fingerprint that catches near-identical questions
+      // Look at first 50 chars of question and first 20 chars of each option
+      const fingerprint = [
+        q.question_text.substring(0, 50).toLowerCase(),
+        q.option_a.substring(0, 20).toLowerCase(),
+        q.option_b.substring(0, 20).toLowerCase()
+      ].join('|');
+      
+      if (seen.has(fingerprint)) {
+        console.log(`Detected duplicate question with fingerprint: ${fingerprint.substring(0, 30)}...`);
+        return false;
+      }
       
       seen.add(fingerprint);
       return true;
     });
     
+    // If we don't have enough unique questions, generate fallbacks with extra entropy
     if (uniqueQuestions.length < questionCount) {
+      console.log(`Only have ${uniqueQuestions.length} unique questions out of ${questionCount} requested. Adding fallbacks...`);
       const additionalNeeded = questionCount - uniqueQuestions.length;
+      
       for (let i = 0; i < additionalNeeded; i++) {
+        // Add timestamp and extra randomness to ensure each fallback is different
+        const randomOffset = Math.floor(Math.random() * 10000);
         const fallback = {
           ...createFallbackQuestion(
             subject, 
             unitObjective, 
-            uniqueQuestions.length + i + 50 
+            uniqueQuestions.length + i + 50 + randomOffset
           ),
           isAIGenerated: false
         };
+        
+        // Add unique timestamp to question text to prevent duplicates
+        fallback.question_text = `[Q${i+1}] ` + fallback.question_text;
+        
         uniqueQuestions.push(fallback);
         usedFallback = true;
       }
@@ -766,6 +862,8 @@ serve(async (req) => {
     });
 
     const source = aiGeneratedCount > 0 ? 'ai' : 'fallback';
+    
+    console.log(`Successfully generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback)`);
     
     return new Response(
       JSON.stringify({ 
@@ -818,4 +916,3 @@ serve(async (req) => {
     }
   }
 });
-
