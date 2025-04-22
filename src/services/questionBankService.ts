@@ -116,7 +116,8 @@ export const generateUniqueQuestions = async (
           randomSeed: randomSeed,
           attempt: attempt,
           uniqueRequestId: uniqueRequestId,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          disableDuplicateCheck: true // Add a flag to disable duplicate checking
         }
       });
 
@@ -142,7 +143,7 @@ export const generateUniqueQuestions = async (
         continue;
       }
 
-      // Inspect the format of each question for validity
+      // Inspect the format of each question for validity without checking for duplicates
       const validQuestions = result.data.questions.filter(q => {
         return q.question_text && q.option_a && q.option_b && 
                q.option_c && q.option_d && q.correct_answer;
@@ -158,29 +159,9 @@ export const generateUniqueQuestions = async (
         continue;
       }
       
-      // Check for duplicates
+      // Skipping duplicate check as requested
       let questions = result.data.questions;
-      const hasDupes = hasDuplicateQuestions(questions);
       
-      if (hasDupes) {
-        console.log(`Found duplicate questions in attempt ${attempt}, filtering them`);
-        questions = filterDuplicateQuestions(questions);
-        
-        // If after filtering, we still have enough questions, we're good to go
-        if (questions.length >= Math.max(count * 0.6, 2)) { // Accept if we have at least 60% of requested count or at least 2
-          console.log(`Filtered to ${questions.length} unique questions out of ${count} requested - proceeding with these`);
-          result.data.questions = questions;
-        } else {
-          console.log(`Not enough unique questions after filtering (${questions.length}/${count}). Trying again...`);
-          lastError = new Error(`AI service generated too many duplicate questions (${questions.length}/${count} unique)`);
-          
-          // Wait before retrying
-          const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-      }
-
       // Success! Ensure each question has a unique ID
       result.data.questions = result.data.questions.map((q, index) => ({
         ...q,
@@ -227,42 +208,17 @@ export const generateUniqueQuestions = async (
 };
 
 /**
- * Improved duplicate question detection with better fingerprinting
+ * Duplicate question detection (disabled)
  */
 const hasDuplicateQuestions = (questions: ExamQuestion[]): boolean => {
-  // Create a more sophisticated fingerprint by combining multiple features
-  const questionFingerprints = questions.map(q => {
-    // Use a combination of question text and correct answer to identify uniqueness
-    // Strip whitespace and normalize case for more accurate comparison
-    const questionText = (q.question_text || '').trim().toLowerCase().substring(0, 80);
-    const correctAnswer = (q.correct_answer || '').trim();
-    const optionA = (q.option_a || '').trim().toLowerCase().substring(0, 30);
-    return `${questionText}#${optionA}#${correctAnswer}`;
-  });
-  
-  const uniqueFingerprints = new Set(questionFingerprints);
-  return uniqueFingerprints.size < questionFingerprints.length;
+  // Always return false to disable duplicate checking
+  return false;
 };
 
 /**
- * Enhanced duplicate question filtering with more robust fingerprinting
+ * Duplicate question filtering (disabled)
  */
 const filterDuplicateQuestions = (questions: ExamQuestion[]): ExamQuestion[] => {
-  const uniqueQuestions: ExamQuestion[] = [];
-  const fingerprintSet = new Set<string>();
-  
-  questions.forEach(question => {
-    // Create a more robust fingerprint for comparison
-    const questionText = (question.question_text || '').trim().toLowerCase().substring(0, 80);
-    const correctAnswer = (question.correct_answer || '').trim();
-    const optionA = (question.option_a || '').trim().toLowerCase().substring(0, 30);
-    const fingerprint = `${questionText}#${optionA}#${correctAnswer}`;
-    
-    if (!fingerprintSet.has(fingerprint)) {
-      fingerprintSet.add(fingerprint);
-      uniqueQuestions.push(question);
-    }
-  });
-  
-  return uniqueQuestions;
+  // Return all questions without filtering
+  return questions;
 };
