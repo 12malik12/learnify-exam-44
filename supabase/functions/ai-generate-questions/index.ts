@@ -278,11 +278,10 @@ Your response should demonstrate deep expertise in the subject while remaining a
 `;
 }
 
-// Groq API models
+// Groq API models (restrict strictly to Groq models)
 const GROQ_MODELS = [
-  "llama3-70b-8192", // Most capable
-  "llama3-8b-8192",  // Faster response
-  "mixtral-8x7b-32768", // Good for longer context
+  "llama3-70b-8192", // Most capable Groq model
+  "llama3-8b-8192",  // Faster response Groq model
 ];
 
 // Function to generate a question using Groq API with enhanced uniqueness guarantees
@@ -299,6 +298,9 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
+    // Load GROQ_API_KEY from Supabase secrets, never hardcoded
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+
     if (!GROQ_API_KEY) {
       console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
       throw new Error("API key is not configured. Ask the administrator to set up GROQ_API_KEY.");
@@ -307,12 +309,11 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     let result = null;
     let lastError = null;
     
-    // Try different models with retry logic
+    // Try Groq models only with retry logic (restricted to Groq exclusively)
     for (const model of GROQ_MODELS) {
       try {
         console.log(`Attempting generation with Groq model: ${model}`);
         
-        // Make up to 3 attempts with exponential backoff
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
             // Add more randomization to each API call
@@ -350,7 +351,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
                 continue;
               }
               
-              // Try next model for other errors
               throw new Error(`Groq API error (${response.status}): ${errorText}`);
             }
             
@@ -376,7 +376,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
               continue;
             }
             
-            break; // break the attempt loop to try next model
+            break; // Try next model
           }
         }
         
