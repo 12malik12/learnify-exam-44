@@ -69,7 +69,8 @@ export const trackQuestionUsage = (examId: string, questionIds: string[]): void 
 };
 
 /**
- * Generates questions using Groq AI service with robust error handling and retries
+ * Generates questions using Groq AI service directly (through your Supabase edge function)
+ * No duplicate checking or filtering is performed anymore.
  */
 export const generateUniqueQuestions = async (
   count: number,
@@ -142,59 +143,23 @@ export const generateUniqueQuestions = async (
         continue;
       }
 
-      // Inspect the format of each question for validity
-      const validQuestions = result.data.questions.filter(q => {
-        return q.question_text && q.option_a && q.option_b && 
-               q.option_c && q.option_d && q.correct_answer;
-      });
-
-      if (validQuestions.length === 0) {
-        console.error(`AI generated ${result.data.questions.length} questions but none were valid (attempt ${attempt})`);
-        lastError = new Error("The AI service generated malformed questions");
-        
-        // Wait before retrying
-        const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
-      
-      // Check for duplicates
+      // Remove duplicate question checking; just use what is returned!
       let questions = result.data.questions;
-      const hasDupes = hasDuplicateQuestions(questions);
-      
-      if (hasDupes) {
-        console.log(`Found duplicate questions in attempt ${attempt}, filtering them`);
-        questions = filterDuplicateQuestions(questions);
-        
-        // If after filtering, we still have enough questions, we're good to go
-        if (questions.length >= Math.max(count * 0.6, 2)) { // Accept if we have at least 60% of requested count or at least 2
-          console.log(`Filtered to ${questions.length} unique questions out of ${count} requested - proceeding with these`);
-          result.data.questions = questions;
-        } else {
-          console.log(`Not enough unique questions after filtering (${questions.length}/${count}). Trying again...`);
-          lastError = new Error(`AI service generated too many duplicate questions (${questions.length}/${count} unique)`);
-          
-          // Wait before retrying
-          const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-      }
 
-      // Success! Ensure each question has a unique ID
-      result.data.questions = result.data.questions.map((q, index) => ({
+      // Success! Ensure each question has a unique ID (if missing)
+      questions = questions.map((q: ExamQuestion, index: number) => ({
         ...q,
         id: q.id || `generated-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`
       }));
 
       // Store the questions for history
-      storeQuestions(result.data.questions);
-      trackQuestionUsage(examId, result.data.questions.map(q => q.id));
+      storeQuestions(questions);
+      trackQuestionUsage(examId, questions.map(q => q.id));
       
-      console.log(`Successfully generated ${result.data.questions.length} questions after ${attempt} attempts`);
+      console.log(`Successfully generated ${questions.length} questions after ${attempt} attempts`);
       
       return {
-        questions: result.data.questions,
+        questions,
         source: 'ai',
         warning: result.data.error
       };
@@ -226,43 +191,5 @@ export const generateUniqueQuestions = async (
   throw new Error(finalError);
 };
 
-/**
- * Improved duplicate question detection with better fingerprinting
- */
-const hasDuplicateQuestions = (questions: ExamQuestion[]): boolean => {
-  // Create a more sophisticated fingerprint by combining multiple features
-  const questionFingerprints = questions.map(q => {
-    // Use a combination of question text and correct answer to identify uniqueness
-    // Strip whitespace and normalize case for more accurate comparison
-    const questionText = (q.question_text || '').trim().toLowerCase().substring(0, 80);
-    const correctAnswer = (q.correct_answer || '').trim();
-    const optionA = (q.option_a || '').trim().toLowerCase().substring(0, 30);
-    return `${questionText}#${optionA}#${correctAnswer}`;
-  });
-  
-  const uniqueFingerprints = new Set(questionFingerprints);
-  return uniqueFingerprints.size < questionFingerprints.length;
-};
+// No more duplicate question checking here.
 
-/**
- * Enhanced duplicate question filtering with more robust fingerprinting
- */
-const filterDuplicateQuestions = (questions: ExamQuestion[]): ExamQuestion[] => {
-  const uniqueQuestions: ExamQuestion[] = [];
-  const fingerprintSet = new Set<string>();
-  
-  questions.forEach(question => {
-    // Create a more robust fingerprint for comparison
-    const questionText = (question.question_text || '').trim().toLowerCase().substring(0, 80);
-    const correctAnswer = (question.correct_answer || '').trim();
-    const optionA = (question.option_a || '').trim().toLowerCase().substring(0, 30);
-    const fingerprint = `${questionText}#${optionA}#${correctAnswer}`;
-    
-    if (!fingerprintSet.has(fingerprint)) {
-      fingerprintSet.add(fingerprint);
-      uniqueQuestions.push(question);
-    }
-  });
-  
-  return uniqueQuestions;
-};
