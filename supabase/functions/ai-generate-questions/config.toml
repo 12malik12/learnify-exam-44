@@ -2,13 +2,13 @@
 project_id = "toigsarjwwediuelpxvi"
 runtime = "nodejs"
 version = 1
-max_execution_time = 90  # Increased from 60 to 90 seconds to handle more complex generation
+max_execution_time = 120  # Increased to 120 seconds (2 minutes) to handle more complex generation
 
 # Retry policy
 [http]
-max_retries = 5  # Increased from 3 to 5
+max_retries = 8  # Increased to 8 retries
 retry_backoff_exponent = 2
-max_retry_delay = 15   # Increased from 10 to 15 seconds
+max_retry_delay = 20   # Increased to 20 seconds
 
 # Cache settings for the function - disabled for unique question generation
 [cache]

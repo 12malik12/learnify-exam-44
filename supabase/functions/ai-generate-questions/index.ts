@@ -668,7 +668,8 @@ serve(async (req) => {
       mode = "question",
       query = "",
       context = "",
-      testCall = false
+      testCall = false,
+      disableDuplicateCheck = false
     } = requestData;
 
     // Handle test calls quickly for connectivity tests
@@ -797,40 +798,63 @@ serve(async (req) => {
     let usedFallback = false;
     let errorDetails = "";
 
-    // Enhanced duplicate detection to catch near-identical questions
-    const seen = new Set();
-    const uniqueQuestions = generatedQuestions.filter(q => {
-      if (!q) return false;
-      
-      if (q.error && !errorDetails) {
-        errorDetails = q.error;
-      }
-      
-      if (q.isAIGenerated === false) {
-        usedFallback = true;
-      }
-      
-      delete q.error;
-      
-      // Create a more robust fingerprint that catches near-identical questions
-      // Look at first 50 chars of question and first 20 chars of each option
-      const fingerprint = [
-        q.question_text.substring(0, 50).toLowerCase(),
-        q.option_a.substring(0, 20).toLowerCase(),
-        q.option_b.substring(0, 20).toLowerCase()
-      ].join('|');
-      
-      if (seen.has(fingerprint)) {
-        console.log(`Detected duplicate question with fingerprint: ${fingerprint.substring(0, 30)}...`);
-        return false;
-      }
-      
-      seen.add(fingerprint);
-      return true;
-    });
+    // Skip duplicate detection if disabled
+    let uniqueQuestions = generatedQuestions;
     
-    // If we don't have enough unique questions, generate fallbacks with extra entropy
-    if (uniqueQuestions.length < questionCount) {
+    if (!disableDuplicateCheck) {
+      // Only perform duplicate detection if not disabled
+      const seen = new Set();
+      uniqueQuestions = generatedQuestions.filter(q => {
+        if (!q) return false;
+        
+        if (q.error && !errorDetails) {
+          errorDetails = q.error;
+        }
+        
+        if (q.isAIGenerated === false) {
+          usedFallback = true;
+        }
+        
+        delete q.error;
+        
+        // Create a more robust fingerprint that catches near-identical questions
+        // Look at first 50 chars of question and first 20 chars of each option
+        const fingerprint = [
+          q.question_text.substring(0, 50).toLowerCase(),
+          q.option_a.substring(0, 20).toLowerCase(),
+          q.option_b.substring(0, 20).toLowerCase()
+        ].join('|');
+        
+        if (seen.has(fingerprint)) {
+          console.log(`Detected duplicate question with fingerprint: ${fingerprint.substring(0, 30)}...`);
+          return false;
+        }
+        
+        seen.add(fingerprint);
+        return true;
+      });
+    } else {
+      console.log("Duplicate checking disabled - returning all questions");
+      
+      // Process generated questions but don't filter duplicates
+      uniqueQuestions = generatedQuestions.filter(q => {
+        if (!q) return false;
+        
+        if (q.error && !errorDetails) {
+          errorDetails = q.error;
+        }
+        
+        if (q.isAIGenerated === false) {
+          usedFallback = true;
+        }
+        
+        delete q.error;
+        return true;
+      });
+    }
+    
+    // If we don't have enough unique questions and duplicate checking is enabled, generate fallbacks with extra entropy
+    if (uniqueQuestions.length < questionCount && !disableDuplicateCheck) {
       console.log(`Only have ${uniqueQuestions.length} unique questions out of ${questionCount} requested. Adding fallbacks...`);
       const additionalNeeded = questionCount - uniqueQuestions.length;
       
@@ -872,7 +896,8 @@ serve(async (req) => {
         stats: {
           aiGenerated: aiGeneratedCount,
           fallbackUsed: totalFallbackCount,
-          totalRequested: questionCount
+          totalRequested: questionCount,
+          duplicateCheckDisabled: disableDuplicateCheck
         },
         error: errorDetails || undefined
       }),
