@@ -5,19 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Directly hardcoding the provided Groq API key here for immediate fix
-// NOTE: For production, always store this securely in environment variables or Supabase secrets
-const GROQ_API_KEY = "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";
+// Retrieve the GROQ_API_KEY from Supabase secrets using Deno.env
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
 
-// Log API key status (without revealing the key)
-console.log(`GROQ_API_KEY status: ${GROQ_API_KEY ? 'Present (length: ' + GROQ_API_KEY.length + ')' : 'Missing or empty'}`);
+console.log(`GROQ_API_KEY status: ${GROQ_API_KEY ? 'Present (from secret, length: ' + GROQ_API_KEY.length + ')' : 'Missing or empty'}`);
 
 if (!GROQ_API_KEY) {
-  console.error(`⚠️ GROQ_API_KEY is not set! Set this secret in the Supabase dashboard:
-  1. Go to your Supabase project dashboard
-  2. Navigate to Settings -> API -> Edge Functions
-  3. Add GROQ_API_KEY with your key from https://console.groq.com/keys
-  `);
+  console.error(`⚠️ GROQ_API_KEY is not set!
+Set this secret using the Supabase CLI or in the dashboard:
+1. Go to your Supabase project dashboard.
+2. Navigate to 'Secrets' under 'Edge Functions'.
+3. Add GROQ_API_KEY with your Groq API key from https://console.groq.com/keys .
+Or, with the CLI: supabase secrets set GROQ_API_KEY=your_actual_key_here
+`);
 }
 
 // Subject-specific instructions to guide the AI in generating better quality questions
