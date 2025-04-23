@@ -1,7 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { OpenAI } from "https://deno.land/x/openai@v1.3.0/mod.ts";
+
+// Import the latest OpenAI client for Deno
+import { OpenAI } from "https://deno.land/x/openai@v4.20.1/mod.ts";
 
 const apiKey = Deno.env.get("OPENAI_API_KEY");
 
@@ -10,7 +12,9 @@ if (!apiKey) {
   Deno.exit(1);
 }
 
-const openai = new OpenAI(apiKey);
+const openai = new OpenAI({
+  apiKey: apiKey,
+});
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -38,7 +42,7 @@ serve(async (req) => {
 
       const chatCompletion = await openai.chat.completions.create({
         messages: [{ role: "user", content: prompt }],
-        model: "gpt-4",
+        model: "gpt-4o-mini",
         response_format: { type: "json_object" },
       });
 
