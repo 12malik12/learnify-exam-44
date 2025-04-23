@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,6 +17,7 @@ import AIAssistant from "./pages/AIAssistant";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/use-network-status";
+import SubjectResources from "./pages/SubjectResources";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -149,6 +149,8 @@ const App = () => {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/subjects" element={<Subjects />} />
+                <Route path="/subjects/:subjectId" element={<Subjects />} />
+                <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
                 <Route path="/exam" element={<Exam />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/performance" element={<Performance />} />
