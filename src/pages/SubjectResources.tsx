@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Upload, FileDown, File, Trash2 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { subjects } from "@/utils/subjects";
@@ -19,12 +20,14 @@ interface ResourceFile {
   file_name: string | null;
   file_type: string | null;
   created_at: string | null;
+  user_id: string | null;
 }
 
 const SubjectResources = () => {
   const { subjectId } = useParams<{ subjectId: string }>();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [resources, setResources] = useState<ResourceFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +75,11 @@ const SubjectResources = () => {
       toast.error(t("subjects.file_upload.no_file"));
       return;
     }
+    
+    if (!user) {
+      toast.error(t("auth.must_be_logged_in"));
+      return;
+    }
 
     setUploading(true);
 
@@ -87,6 +95,7 @@ const SubjectResources = () => {
           upsert: false,
           metadata: {
             subject_id: subjectId,
+            user_id: user.id
           }
         });
 
@@ -103,6 +112,7 @@ const SubjectResources = () => {
         .from('resources')
         .insert({
           subject_id: subjectId,
+          user_id: user.id,
           title: file.name,
           file_url: publicUrl,
           file_type: file.type,
@@ -141,6 +151,39 @@ const SubjectResources = () => {
     link.click();
     document.body.removeChild(link);
   };
+  
+  const handleDelete = async (resourceId: string, fileName: string | null) => {
+    if (!user) {
+      toast.error(t("auth.must_be_logged_in"));
+      return;
+    }
+    
+    try {
+      // First delete file from storage
+      if (fileName) {
+        const { error: storageError } = await supabase.storage
+          .from('subject-files')
+          .remove([fileName]);
+          
+        if (storageError) throw storageError;
+      }
+      
+      // Then delete record from database
+      const { error: dbError } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', resourceId)
+        .eq('user_id', user.id);
+        
+      if (dbError) throw dbError;
+      
+      toast.success(t("subjects.file_delete_success"));
+      fetchResources();
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      toast.error(t("subjects.file_delete_error"));
+    }
+  };
 
   const getFileTypeIcon = (fileType: string | null) => {
     if (!fileType) return <File className="size-6" />;
@@ -154,6 +197,10 @@ const SubjectResources = () => {
     } else {
       return <File className="size-6" />;
     }
+  };
+
+  const isOwner = (resourceUserId: string | null): boolean => {
+    return user?.id === resourceUserId;
   };
 
   return (
@@ -262,6 +309,16 @@ const SubjectResources = () => {
                           <FileDown className="size-4 mr-2" />
                           {t("subjects.download")}
                         </Button>
+                        
+                        {isOwner(resource.user_id) && (
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            onClick={() => handleDelete(resource.id, resource.file_name)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
