@@ -69,7 +69,7 @@ const Subjects = () => {
                         
                       </div>
                     </div>
-                    <h3 className="mt-2 text-lg font-semibold">
+                    <h3 className="mt-2 font-semibold text-4xl text-center">
                       {language === "en" ? subject.name : subject.nameAm || subject.name}
                     </h3>
                   </div>
