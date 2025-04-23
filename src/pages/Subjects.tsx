@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Search, BookOpen, ChevronRight } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { SubjectFileUpload } from "@/components/Subjects/SubjectFileUpload";
 
 const Subjects = () => {
   const navigate = useNavigate();
@@ -105,14 +106,19 @@ const Subjects = () => {
                       {subject.description}
                     </p>
                     
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {subject.numLessons} {t("subjects.lessons")}
-                      </span>
-                      <div className="flex items-center text-primary">
-                        <span>{t("subjects.studyNow")}</span>
-                        <ChevronRight className="size-4 ml-1" />
+                    <div className="flex flex-col space-y-2 px-4 pb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {subject.numLessons} {t("subjects.lessons")}
+                        </span>
+                        <div className="flex items-center text-primary">
+                          <span>{t("subjects.studyNow")}</span>
+                          <ChevronRight className="size-4 ml-1" />
+                        </div>
                       </div>
+                      
+                      {/* File Upload Component */}
+                      <SubjectFileUpload subjectId={subject.id} />
                     </div>
                   </div>
                 </Card>
