@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Layout/Navbar";
@@ -76,9 +75,11 @@ const Subjects = () => {
                 <Card
                   key={subject.id}
                   className="cursor-pointer hover:shadow-md hover:border-primary/20 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
-                  onClick={() => handleSubjectClick(subject.id)}
                 >
-                  <div className={`${subject.color} p-4 -mx-5 -mt-5 mb-4`}>
+                  <div 
+                    className={`${subject.color} p-4 -mx-5 -mt-5 mb-4`}
+                    onClick={() => handleSubjectClick(subject.id)}
+                  >
                     <div className="flex justify-between items-start">
                       <span className="text-4xl">{subject.icon}</span>
                       <div className="flex flex-col items-end">
@@ -98,20 +99,25 @@ const Subjects = () => {
                         </div>
                       </div>
                     </div>
-                    <h3 className="mt-2 text-lg font-semibold">{language === "en" ? subject.name : subject.nameAm || subject.name}</h3>
+                    <h3 className="mt-2 text-lg font-semibold">
+                      {language === "en" ? subject.name : subject.nameAm || subject.name}
+                    </h3>
                   </div>
                   
-                  <div>
+                  <div className="p-4">
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                       {subject.description}
                     </p>
                     
-                    <div className="flex flex-col space-y-2 px-4 pb-4">
+                    <div className="space-y-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
                           {subject.numLessons} {t("subjects.lessons")}
                         </span>
-                        <div className="flex items-center text-primary">
+                        <div 
+                          className="flex items-center text-primary hover:underline"
+                          onClick={() => handleSubjectClick(subject.id)}
+                        >
                           <span>{t("subjects.studyNow")}</span>
                           <ChevronRight className="size-4 ml-1" />
                         </div>

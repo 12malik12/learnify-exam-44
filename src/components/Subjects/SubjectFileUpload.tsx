@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, File } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -49,7 +49,7 @@ export const SubjectFileUpload: React.FC<SubjectFileUploadProps> = ({ subjectId 
         .from('subject-files')
         .getPublicUrl(filePath);
 
-      // Optionally, save file metadata to resources table
+      // Save file metadata to resources table
       const { error: resourceError } = await supabase
         .from('resources')
         .insert({
@@ -79,32 +79,28 @@ export const SubjectFileUpload: React.FC<SubjectFileUploadProps> = ({ subjectId 
   };
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center gap-2 p-2 bg-secondary/20 rounded-md">
       <input 
         type="file" 
-        id="file-upload"
+        id={`file-upload-${subjectId}`}
         onChange={handleFileChange} 
         className="hidden"
       />
       <label 
-        htmlFor="file-upload" 
-        className="cursor-pointer bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-sm hover:bg-secondary/80"
+        htmlFor={`file-upload-${subjectId}`} 
+        className="cursor-pointer inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-3 py-1.5 rounded-md text-sm hover:bg-secondary/80"
       >
-        {t('subjects.file_upload.choose_file')}
+        <File className="size-4" />
+        {file ? file.name : t('subjects.file_upload.browse')}
       </label>
-      {file && (
-        <span className="text-sm text-muted-foreground truncate max-w-[150px]">
-          {file.name}
-        </span>
-      )}
       <Button 
         variant="outline" 
         size="sm" 
         onClick={handleUpload} 
         disabled={!file}
-        className="flex items-center gap-2"
+        className="ml-auto"
       >
-        <Upload className="size-4" />
+        <Upload className="size-4 mr-2" />
         {t('subjects.file_upload.upload')}
       </Button>
     </div>
