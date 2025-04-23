@@ -1,17 +1,20 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Book, User, Home, Notebook } from "lucide-react";
+import { Menu, X, Book, User, Home, Notebook, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { t } = useLanguage();
+  const { signOut, user } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -33,6 +36,16 @@ const Navbar = () => {
   useEffect(() => {
     closeMenu();
   }, [location.pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast.success(t("auth.signout_success"));
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error(t("auth.signout_error"));
+    }
+  };
 
   // Simplified navigation items
   const navItems = [
@@ -79,6 +92,19 @@ const Navbar = () => {
               {item.name}
             </Link>
           ))}
+          
+          {user && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-red-500 hover:bg-red-500/10"
+            >
+              <LogOut className="size-4" />
+              {t("auth.signout")}
+            </Button>
+          )}
+          
           <LanguageSwitcher />
         </nav>
 
@@ -134,6 +160,17 @@ const Navbar = () => {
                     {item.name}
                   </Link>
                 ))}
+                
+                {user && (
+                  <Button
+                    variant="ghost"
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 mt-2 text-red-500 hover:bg-red-500/10 justify-start font-medium px-4 py-3 rounded-lg"
+                  >
+                    <LogOut className="size-4" />
+                    {t("auth.signout")}
+                  </Button>
+                )}
               </nav>
             </div>
           </div>

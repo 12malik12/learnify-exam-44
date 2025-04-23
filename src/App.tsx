@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,9 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Subjects from "./pages/Subjects";
+import Auth from "./pages/Auth";
 import Exam from "./pages/Exam";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -18,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import SubjectResources from "./pages/SubjectResources";
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -138,29 +142,37 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <LanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <BackButtonHandler />
-              <NetworkStatusBanner />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/subjects" element={<Subjects />} />
-                <Route path="/subjects/:subjectId" element={<Subjects />} />
-                <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
-                <Route path="/exam" element={<Exam />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/performance" element={<Performance />} />
-                <Route path="/ai-assistant" element={<AIAssistant />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </LanguageProvider>
-      </AppProvider>
+      <AuthProvider>
+        <AppProvider>
+          <LanguageProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <BackButtonHandler />
+                <NetworkStatusBanner />
+                <Routes>
+                  {/* Public route */}
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Protected routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/subjects" element={<Subjects />} />
+                    <Route path="/subjects/:subjectId" element={<Subjects />} />
+                    <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
+                    <Route path="/exam" element={<Exam />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/performance" element={<Performance />} />
+                    <Route path="/ai-assistant" element={<AIAssistant />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </LanguageProvider>
+        </AppProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
