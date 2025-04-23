@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -141,6 +142,8 @@ const Exam = () => {
   const handleNextQuestion = () => {
     if (currentQuestionIndex < examQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      handleFinishExam();
     }
   };
   
@@ -170,7 +173,6 @@ const Exam = () => {
     }
     
     setExamCompleted(true);
-    setCurrentQuestionIndex(0); // Reset to first question for review
   };
   
   // Reset error when changing subject
@@ -400,14 +402,7 @@ const Exam = () => {
                     <ChevronLeft className="mr-2 size-4" /> Previous
                   </Button>
                   
-                  {examCompleted ? (
-                    <Button 
-                      onClick={handleNextQuestion}
-                      disabled={currentQuestionIndex === examQuestions.length - 1}
-                    >
-                      Next <ChevronRight className="ml-2 size-4" />
-                    </Button>
-                  ) : (
+                  {!examCompleted ? (
                     <Button 
                       onClick={handleNextQuestion}
                       disabled={!answers[currentQuestion?.id]}
@@ -417,6 +412,13 @@ const Exam = () => {
                       ) : (
                         <>Finish Exam <Check className="ml-2 size-4" /></>
                       )}
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={() => setExamStarted(false)}
+                      variant="default"
+                    >
+                      Back to Exams
                     </Button>
                   )}
                 </div>
