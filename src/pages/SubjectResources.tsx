@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { subjects } from "@/utils/subjects";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SubjectTests } from "@/components/Subjects/SubjectTests";
 
 interface ResourceFile {
   id: string;
@@ -33,7 +34,6 @@ const SubjectResources = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // Find the subject details
   const subject = subjects.find(s => s.id === subjectId);
   
   if (!subject) {
@@ -107,7 +107,6 @@ const SubjectResources = () => {
         .from('subject-files')
         .getPublicUrl(filePath);
 
-      // Save file metadata to resources table
       const { error: resourceError } = await supabase
         .from('resources')
         .insert({
@@ -127,11 +126,9 @@ const SubjectResources = () => {
       toast.success(t("subjects.file_upload.success"));
       setFile(null);
       
-      // Clear file input
       const input = document.getElementById('file-upload') as HTMLInputElement;
       if (input) input.value = '';
 
-      // Refresh resources list
       fetchResources();
 
     } catch (error) {
@@ -143,7 +140,6 @@ const SubjectResources = () => {
   };
 
   const handleDownload = (fileUrl: string, fileName: string) => {
-    // Create a temporary anchor element and trigger download
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = fileName || 'download';
@@ -159,7 +155,6 @@ const SubjectResources = () => {
     }
     
     try {
-      // First delete file from storage
       if (fileName) {
         const { error: storageError } = await supabase.storage
           .from('subject-files')
@@ -168,7 +163,6 @@ const SubjectResources = () => {
         if (storageError) throw storageError;
       }
       
-      // Then delete record from database
       const { error: dbError } = await supabase
         .from('resources')
         .delete()
@@ -236,97 +230,105 @@ const SubjectResources = () => {
           </div>
         </section>
 
-        {/* Upload Section */}
-        <section className="py-8">
-          <div className="container px-4 md:px-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("subjects.file_upload.title")}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <input 
-                    type="file" 
-                    id="file-upload"
-                    onChange={handleFileChange} 
-                    className="hidden"
-                  />
-                  <label 
-                    htmlFor="file-upload" 
-                    className="cursor-pointer inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80"
-                  >
-                    <File className="size-4" />
-                    {file ? file.name : t("subjects.file_upload.browse")}
-                  </label>
-                  <Button 
-                    onClick={handleUpload} 
-                    disabled={!file || uploading}
-                    className="inline-flex items-center gap-2"
-                  >
-                    <Upload className="size-4" />
-                    {uploading ? t("subjects.file_upload.uploading") : t("subjects.file_upload.upload")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
+        <div className="container px-4 md:px-6 py-8">
+          <Tabs defaultValue="resources" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="resources">{t("subjects.resources")}</TabsTrigger>
+              <TabsTrigger value="tests">{t("subjects.tests.title")}</TabsTrigger>
+            </TabsList>
 
-        {/* Resources List Section */}
-        <section className="py-8">
-          <div className="container px-4 md:px-6">
-            <h2 className="text-2xl font-bold mb-6">{t("subjects.resources_list")}</h2>
-            
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : resources.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                <p>{t("subjects.no_resources")}</p>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {resources.map((resource) => (
-                  <Card key={resource.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getFileTypeIcon(resource.file_type)}
-                        <div>
-                          <h3 className="font-medium">{resource.title}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {resource.created_at ? new Date(resource.created_at).toLocaleDateString() : ''}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDownload(resource.file_url, resource.title)}
-                        >
-                          <FileDown className="size-4 mr-2" />
-                          {t("subjects.download")}
-                        </Button>
-                        
-                        {isOwner(resource.user_id) && (
-                          <Button 
-                            variant="destructive" 
-                            size="sm" 
-                            onClick={() => handleDelete(resource.id, resource.file_name)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        )}
-                      </div>
+            <TabsContent value="resources">
+              <section className="space-y-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("subjects.file_upload.title")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <input 
+                        type="file" 
+                        id="file-upload"
+                        onChange={handleFileChange} 
+                        className="hidden"
+                      />
+                      <label 
+                        htmlFor="file-upload" 
+                        className="cursor-pointer inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80"
+                      >
+                        <File className="size-4" />
+                        {file ? file.name : t("subjects.file_upload.browse")}
+                      </label>
+                      <Button 
+                        onClick={handleUpload} 
+                        disabled={!file || uploading}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Upload className="size-4" />
+                        {uploading ? t("subjects.file_upload.uploading") : t("subjects.file_upload.upload")}
+                      </Button>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <h2 className="text-2xl font-bold mb-6">{t("subjects.resources_list")}</h2>
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                    </div>
+                  ) : resources.length === 0 ? (
+                    <Card className="p-8 text-center text-muted-foreground">
+                      <p>{t("subjects.no_resources")}</p>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-4">
+                      {resources.map((resource) => (
+                        <Card key={resource.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                          <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {getFileTypeIcon(resource.file_type)}
+                              <div>
+                                <h3 className="font-medium">{resource.title}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {resource.created_at ? new Date(resource.created_at).toLocaleDateString() : ''}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleDownload(resource.file_url, resource.title)}
+                              >
+                                <FileDown className="size-4 mr-2" />
+                                {t("subjects.download")}
+                              </Button>
+                              
+                              {isOwner(resource.user_id) && (
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  onClick={() => handleDelete(resource.id, resource.file_name)}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="tests">
+              <SubjectTests />
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
       
       <Footer />
