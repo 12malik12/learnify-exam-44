@@ -148,12 +148,12 @@ const SubjectResources = () => {
     document.body.removeChild(link);
   };
   
-  const handleDelete = async (resourceId: string, fileName: string | null) => {
+  const handleDeleteResource = async (resourceId: string, fileName: string | null) => {
     if (!user) {
       toast.error(t("auth.must_be_logged_in"));
       return;
     }
-    
+
     try {
       if (fileName) {
         const { error: storageError } = await supabase.storage
@@ -166,9 +166,8 @@ const SubjectResources = () => {
       const { error: dbError } = await supabase
         .from('resources')
         .delete()
-        .eq('id', resourceId)
-        .eq('user_id', user.id);
-        
+        .eq('id', resourceId);
+
       if (dbError) throw dbError;
       
       toast.success(t("subjects.file_delete_success"));
@@ -309,7 +308,7 @@ const SubjectResources = () => {
                                 <Button 
                                   variant="destructive" 
                                   size="sm" 
-                                  onClick={() => handleDelete(resource.id, resource.file_name)}
+                                  onClick={() => handleDeleteResource(resource.id, resource.file_name)}
                                 >
                                   <Trash2 className="size-4" />
                                 </Button>
