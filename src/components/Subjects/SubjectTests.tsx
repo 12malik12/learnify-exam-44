@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, File } from 'lucide-react';
+import { Upload, FileText, File, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+
 interface SubjectTest {
   id: string;
   name: string;
@@ -16,12 +17,14 @@ interface SubjectTest {
   year: number;
   created_at: string;
 }
+
 interface TestFile {
   id: string;
   file_name: string;
   file_type: 'questions' | 'answers';
   file_url: string;
 }
+
 export const SubjectTests = () => {
   const {
     subjectId
@@ -41,9 +44,11 @@ export const SubjectTests = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedTest, setSelectedTest] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     fetchTests();
   }, [subjectId]);
+
   const fetchTests = async () => {
     try {
       const {
@@ -61,6 +66,7 @@ export const SubjectTests = () => {
       setLoading(false);
     }
   };
+
   const handleCreateTest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -88,6 +94,7 @@ export const SubjectTests = () => {
       setIsCreating(false);
     }
   };
+
   const handleFileUpload = async (testId: string, fileType: 'questions' | 'answers', file: File) => {
     if (!user) return;
     try {
@@ -120,6 +127,26 @@ export const SubjectTests = () => {
       toast.error(t('subjects.tests.file_upload_error'));
     }
   };
+
+  const handleDeleteTest = async (testId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('subject_tests')
+        .delete()
+        .eq('id', testId);
+
+      if (error) throw error;
+      
+      toast.success(t('subjects.tests.delete_success'));
+      fetchTests();
+    } catch (error) {
+      console.error('Error deleting test:', error);
+      toast.error(t('subjects.tests.delete_error'));
+    }
+  };
+
   return <div className="space-y-6">
       <Card>
         <CardHeader>
@@ -154,6 +181,13 @@ export const SubjectTests = () => {
                   </p>
                   {test.description && <p className="text-sm text-muted-foreground mt-1">{test.description}</p>}
                 </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => handleDeleteTest(test.id)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
               </div>
 
               <div className="flex flex-wrap gap-2">
