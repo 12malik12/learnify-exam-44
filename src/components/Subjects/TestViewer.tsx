@@ -21,16 +21,17 @@ interface Question {
   question_number: number;
 }
 
-// Define the shape of options from database as a simple interface
-interface OptionsType {
-  a: string;
-  b: string;
-  c: string;
-  d: string;
+// Simple type for database question object
+interface DatabaseQuestion {
+  id: string;
+  question_text: string;
+  options: Record<string, any>;
+  correct_answer: string;
+  explanation: string | null;
+  question_number: string | number;
 }
 
 export const TestViewer = () => {
-  // Use the correct approach for useParams - no generic type parameter
   const params = useParams();
   const testId = params.testId;
   const { user } = useAuth();
@@ -57,33 +58,22 @@ export const TestViewer = () => {
 
       if (error) throw error;
       
-      // Transform data to match our Question interface
       if (data && data.length > 0) {
-        const formattedQuestions: Question[] = data.map(q => {
-          // Ensure options is treated as a simple object
-          let options: OptionsType = { a: '', b: '', c: '', d: '' };
-          
-          // Simplify options handling to avoid deep type inference
-          if (q.options && typeof q.options === 'object') {
-            const opts = q.options as any;
-            options = {
-              a: opts.a?.toString() || '',
-              b: opts.b?.toString() || '',
-              c: opts.c?.toString() || '',
-              d: opts.d?.toString() || ''
-            };
-          }
+        // Transform database questions into our Question interface format
+        const formattedQuestions = data.map((q: DatabaseQuestion) => {
+          // Extract options using type assertions to avoid deep inference
+          const options = q.options as Record<string, any> || {};
           
           return {
             id: q.id,
             question_text: q.question_text,
-            option_a: options.a,
-            option_b: options.b,
-            option_c: options.c,
-            option_d: options.d,
+            option_a: String(options.a || ''),
+            option_b: String(options.b || ''),
+            option_c: String(options.c || ''),
+            option_d: String(options.d || ''),
             correct_answer: q.correct_answer || '',
-            explanation: q.explanation || null,
-            question_number: parseInt(q.question_number) || 0
+            explanation: q.explanation,
+            question_number: Number(q.question_number) || 0
           };
         });
         
