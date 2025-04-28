@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,9 +29,15 @@ interface OptionsType {
   d: string;
 }
 
+// Define explicit type for URL parameters
+interface TestParams {
+  testId?: string;
+  subjectId?: string;
+}
+
 export const TestViewer = () => {
-  // Fix: Type parameterization explicitly without using generics that can cause deep inference
-  const params = useParams();
+  // Explicitly type the params to avoid deep type inference
+  const params = useParams<TestParams>();
   const testId = params.testId;
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -64,8 +71,8 @@ export const TestViewer = () => {
           
           // Handle different possible formats of options
           if (q.options && typeof q.options === 'object') {
-            // Type the options safely without complex type inference
-            const opts = q.options as Record<string, any>;
+            // Use a simple any type casting to avoid complex inference
+            const opts = q.options as any;
             options = {
               a: typeof opts.a === 'string' ? opts.a : '',
               b: typeof opts.b === 'string' ? opts.b : '',
