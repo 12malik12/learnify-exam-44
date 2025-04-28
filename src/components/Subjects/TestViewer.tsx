@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ExamQuestion from '@/components/Exam/ExamQuestion';
+import { Json } from '@/integrations/supabase/types';
 
 // Define the Question interface to match our database structure
 interface Question {
@@ -17,15 +18,23 @@ interface Question {
   option_c: string;
   option_d: string;
   correct_answer: string;
-  explanation: string;
+  explanation: string | null;
   question_number: number;
+}
+
+// Define the shape of options from database
+interface OptionsType {
+  a: string;
+  b: string;
+  c: string;
+  d: string;
 }
 
 export const TestViewer = () => {
   const { testId } = useParams<{ testId: string }>();
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [userAnswers, setUserAnswers] = useState<{ [key: string]: string }>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -46,27 +55,30 @@ export const TestViewer = () => {
       // Transform data to match our Question interface
       if (data && data.length > 0) {
         const formattedQuestions: Question[] = data.map(q => {
-          // Get options from the JSON in Supabase or use defaults
-          let options = { a: '', b: '', c: '', d: '' };
-          try {
-            if (typeof q.options === 'string') {
-              options = JSON.parse(q.options);
-            } else if (q.options && typeof q.options === 'object') {
-              options = q.options;
-            }
-          } catch (e) {
-            console.error('Error parsing options:', e);
+          // Ensure options is treated as an object with required properties
+          let options: OptionsType = { a: '', b: '', c: '', d: '' };
+          
+          // Handle different possible formats of options
+          if (typeof q.options === 'object' && q.options !== null) {
+            // Extract known properties or use defaults
+            const opts = q.options as Record<string, Json>;
+            options = {
+              a: typeof opts.a === 'string' ? opts.a : '',
+              b: typeof opts.b === 'string' ? opts.b : '',
+              c: typeof opts.c === 'string' ? opts.c : '',
+              d: typeof opts.d === 'string' ? opts.d : ''
+            };
           }
           
           return {
             id: q.id,
             question_text: q.question_text,
-            option_a: options.a || '',
-            option_b: options.b || '',
-            option_c: options.c || '',
-            option_d: options.d || '',
+            option_a: options.a,
+            option_b: options.b,
+            option_c: options.c,
+            option_d: options.d,
             correct_answer: q.correct_answer || '',
-            explanation: q.explanation || '',
+            explanation: q.explanation || null,
             question_number: parseInt(q.question_number) || 0
           };
         });
@@ -98,6 +110,8 @@ export const TestViewer = () => {
 
     try {
       // Create user responses for analytics
+      // Note: This is commented out because the user_responses table doesn't exist yet
+      /*
       const responses = Object.entries(userAnswers).map(([questionId, selectedAnswer]) => {
         const question = questions.find(q => q.id === questionId);
         return {
@@ -108,11 +122,6 @@ export const TestViewer = () => {
         };
       });
 
-      // We need to check if the user_responses table exists before inserting
-      // For now, we'll just set the results to show without storing responses
-      // This will be fixed when we add the user_responses table to our schema
-      
-      /*
       const { error } = await supabase
         .from('user_responses')
         .insert(responses);
