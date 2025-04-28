@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ExamQuestion from '@/components/Exam/ExamQuestion';
-import { Json } from '@/integrations/supabase/types';
 
 // Define the Question interface to match our database structure
 interface Question {
@@ -22,7 +20,7 @@ interface Question {
   question_number: number;
 }
 
-// Define the shape of options from database
+// Define the shape of options from database as a simple interface
 interface OptionsType {
   a: string;
   b: string;
@@ -31,8 +29,8 @@ interface OptionsType {
 }
 
 export const TestViewer = () => {
-  // Fix: Use `as` type assertion with a specific type to avoid recursive type inference
-  const params = useParams() as { testId: string };
+  // Fix: Type parameterization explicitly without using generics that can cause deep inference
+  const params = useParams();
   const testId = params.testId;
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -61,13 +59,13 @@ export const TestViewer = () => {
       // Transform data to match our Question interface
       if (data && data.length > 0) {
         const formattedQuestions: Question[] = data.map(q => {
-          // Ensure options is treated as an object with required properties
+          // Ensure options is treated as a simple object
           let options: OptionsType = { a: '', b: '', c: '', d: '' };
           
           // Handle different possible formats of options
-          if (typeof q.options === 'object' && q.options !== null) {
-            // Extract known properties or use defaults
-            const opts = q.options as Record<string, Json>;
+          if (q.options && typeof q.options === 'object') {
+            // Type the options safely without complex type inference
+            const opts = q.options as Record<string, any>;
             options = {
               a: typeof opts.a === 'string' ? opts.a : '',
               b: typeof opts.b === 'string' ? opts.b : '',
