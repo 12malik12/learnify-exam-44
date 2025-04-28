@@ -29,15 +29,9 @@ interface OptionsType {
   d: string;
 }
 
-// Define explicit type for URL parameters
-interface TestParams {
-  testId?: string;
-  subjectId?: string;
-}
-
 export const TestViewer = () => {
-  // Explicitly type the params to avoid deep type inference
-  const params = useParams<TestParams>();
+  // Use the correct approach for useParams - no generic type parameter
+  const params = useParams();
   const testId = params.testId;
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -69,15 +63,14 @@ export const TestViewer = () => {
           // Ensure options is treated as a simple object
           let options: OptionsType = { a: '', b: '', c: '', d: '' };
           
-          // Handle different possible formats of options
+          // Simplify options handling to avoid deep type inference
           if (q.options && typeof q.options === 'object') {
-            // Use a simple any type casting to avoid complex inference
             const opts = q.options as any;
             options = {
-              a: typeof opts.a === 'string' ? opts.a : '',
-              b: typeof opts.b === 'string' ? opts.b : '',
-              c: typeof opts.c === 'string' ? opts.c : '',
-              d: typeof opts.d === 'string' ? opts.d : ''
+              a: opts.a?.toString() || '',
+              b: opts.b?.toString() || '',
+              c: opts.c?.toString() || '',
+              d: opts.d?.toString() || ''
             };
           }
           
