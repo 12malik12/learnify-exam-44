@@ -1,0 +1,136 @@
+
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { ExamQuestion } from '@/components/Exam/ExamQuestion';
+
+interface Question {
+  id: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: string;
+  explanation: string;
+  question_number: number;
+}
+
+export const TestViewer = () => {
+  const { testId } = useParams<{ testId: string }>();
+  const { user } = useAuth();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [userAnswers, setUserAnswers] = useState<{ [key: string]: string }>({});
+  const [showResults, setShowResults] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [testId]);
+
+  const fetchQuestions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('test_id', testId)
+        .order('question_number');
+
+      if (error) throw error;
+      setQuestions(data || []);
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      toast.error('Failed to load questions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionId: string, answer: string) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: answer
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error('Please login to submit answers');
+      return;
+    }
+
+    try {
+      const responses = Object.entries(userAnswers).map(([questionId, selectedAnswer]) => {
+        const question = questions.find(q => q.id === questionId);
+        return {
+          user_id: user.id,
+          question_id: questionId,
+          selected_answer: selectedAnswer,
+          is_correct: question?.correct_answer === selectedAnswer
+        };
+      });
+
+      const { error } = await supabase
+        .from('user_responses')
+        .insert(responses);
+
+      if (error) throw error;
+      setShowResults(true);
+      toast.success('Test submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting answers:', error);
+      toast.error('Failed to submit answers');
+    }
+  };
+
+  if (loading) {
+    return <div>Loading questions...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {questions.map((question, index) => (
+        <ExamQuestion
+          key={question.id}
+          question={question}
+          selectedAnswer={userAnswers[question.id] || null}
+          onSelectAnswer={(answer) => handleAnswerSelect(question.id, answer)}
+          showCorrectAnswer={showResults}
+          questionNumber={index + 1}
+        />
+      ))}
+      
+      {!showResults && (
+        <Button 
+          onClick={handleSubmit}
+          disabled={Object.keys(userAnswers).length !== questions.length}
+          className="w-full mt-4"
+        >
+          Submit Test
+        </Button>
+      )}
+
+      {showResults && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg">
+              Score: {
+                Object.entries(userAnswers).filter(([questionId]) => {
+                  const question = questions.find(q => q.id === questionId);
+                  return question?.correct_answer === userAnswers[questionId];
+                }).length
+              } / {questions.length}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
