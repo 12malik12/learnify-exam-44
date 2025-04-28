@@ -55,6 +55,7 @@ export const TestViewer = () => {
     if (!testId) return;
 
     try {
+      // Use explicit type assertion for the data returned from Supabase
       const { data, error } = await supabase
         .from('questions')
         .select('*')
@@ -65,7 +66,8 @@ export const TestViewer = () => {
       
       if (data && data.length > 0) {
         // Transform database questions into our Question interface format
-        const formattedQuestions = data.map((q: DatabaseQuestionRow) => {
+        // Use type assertion to avoid deep type instantiation
+        const formattedQuestions = (data as any[]).map((q) => {
           // Safely handle options which might be a JSON object or string
           let optionsObj: Record<string, string> = {};
           
