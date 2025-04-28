@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,33 +21,29 @@ import { Wifi, WifiOff } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import SubjectResources from "./pages/SubjectResources";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import { TestViewer } from "./components/Subjects/TestViewer";
 
-// Custom error handler function
 const errorHandler = (error: Error) => {
   console.error('Query error:', error);
 };
 
-// Configure the query client to handle offline mode and improve retries
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error: any) => {
-        // Don't retry network errors when offline
         if (error?.message?.includes('network') && !navigator.onLine) {
           return false;
         }
-        return failureCount < 3;  // Increase max retries
+        return failureCount < 3;
       },
-      // Cache data for longer when offline
-      staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000, // 5 min online, 1 hour offline
-      gcTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000, // 10 min online, 24 hours offline
-      // Handle failure through meta configuration
+      staleTime: navigator.onLine ? 5 * 60 * 1000 : 60 * 60 * 1000,
+      gcTime: navigator.onLine ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000,
       meta: {
         errorHandler: errorHandler
       }
     },
     mutations: {
-      retry: 2,  // Add retries for mutations 
+      retry: 2,
       onError: (error) => {
         console.error('Mutation error:', error);
       }
@@ -116,12 +111,10 @@ const NetworkStatusBanner = () => {
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
-  // Note: Now we check if network is online during initialization
   useEffect(() => {
     const handleOnlineStatus = () => {
       console.log(`Network status changed: ${navigator.onLine ? 'Online' : 'Offline'}`);
       
-      // Force query client to refetch when coming back online
       if (navigator.onLine) {
         queryClient.invalidateQueries();
       }
@@ -152,15 +145,13 @@ const App = () => {
                 <BackButtonHandler />
                 <NetworkStatusBanner />
                 <Routes>
-                  {/* Public route */}
                   <Route path="/auth" element={<Auth />} />
-                  
-                  {/* Protected routes */}
                   <Route element={<ProtectedRoute />}>
                     <Route path="/" element={<Index />} />
                     <Route path="/subjects" element={<Subjects />} />
                     <Route path="/subjects/:subjectId" element={<Subjects />} />
                     <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
+                    <Route path="/subjects/:subjectId/tests/:testId" element={<TestViewer />} />
                     <Route path="/exam" element={<Exam />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/performance" element={<Performance />} />
