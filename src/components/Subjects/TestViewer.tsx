@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ExamQuestion from '@/components/Exam/ExamQuestion';
+import { Json } from '@/integrations/supabase/types';
 
 // Define the Question interface to match our database structure
 interface Question {
@@ -21,14 +22,18 @@ interface Question {
   question_number: number;
 }
 
-// Simple type for database question object
-interface DatabaseQuestion {
+// Define the shape of data received from the database
+interface DatabaseQuestionRow {
   id: string;
   question_text: string;
-  options: Record<string, any>;
+  options: Json;
   correct_answer: string;
   explanation: string | null;
-  question_number: string | number;
+  question_number: string;
+  created_at?: string;
+  updated_at?: string;
+  difficulty?: string;
+  tags?: string[] | null;
 }
 
 export const TestViewer = () => {
@@ -60,17 +65,21 @@ export const TestViewer = () => {
       
       if (data && data.length > 0) {
         // Transform database questions into our Question interface format
-        const formattedQuestions = data.map((q: DatabaseQuestion) => {
-          // Extract options using type assertions to avoid deep inference
-          const options = q.options as Record<string, any> || {};
+        const formattedQuestions = data.map((q: DatabaseQuestionRow) => {
+          // Safely handle options which might be a JSON object or string
+          let optionsObj: Record<string, string> = {};
+          
+          if (typeof q.options === 'object' && q.options !== null) {
+            optionsObj = q.options as Record<string, string>;
+          }
           
           return {
             id: q.id,
             question_text: q.question_text,
-            option_a: String(options.a || ''),
-            option_b: String(options.b || ''),
-            option_c: String(options.c || ''),
-            option_d: String(options.d || ''),
+            option_a: String(optionsObj.a || ''),
+            option_b: String(optionsObj.b || ''),
+            option_c: String(optionsObj.c || ''),
+            option_d: String(optionsObj.d || ''),
             correct_answer: q.correct_answer || '',
             explanation: q.explanation,
             question_number: Number(q.question_number) || 0
