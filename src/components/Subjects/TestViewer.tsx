@@ -30,13 +30,8 @@ interface OptionsType {
   d: string;
 }
 
-// Define route params interface explicitly
-interface TestParams {
-  testId: string;
-}
-
 export const TestViewer = () => {
-  const { testId } = useParams<TestParams>() as TestParams;
+  const { testId } = useParams<{testId: string}>();
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
@@ -44,10 +39,14 @@ export const TestViewer = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchQuestions();
+    if (testId) {
+      fetchQuestions();
+    }
   }, [testId]);
 
   const fetchQuestions = async () => {
+    if (!testId) return;
+
     try {
       const { data, error } = await supabase
         .from('questions')
