@@ -31,7 +31,9 @@ interface OptionsType {
 }
 
 export const TestViewer = () => {
-  const { testId } = useParams<{testId: string}>();
+  // Fix: Use a simple object type annotation instead of a generic parameter
+  const params = useParams();
+  const testId = params.testId;
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
