@@ -31,8 +31,8 @@ interface OptionsType {
 }
 
 export const TestViewer = () => {
-  // Fix: Use a simple object type annotation instead of a generic parameter
-  const params = useParams();
+  // Fix: Use `as` type assertion with a specific type to avoid recursive type inference
+  const params = useParams() as { testId: string };
   const testId = params.testId;
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
