@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -101,29 +101,25 @@ export const SubjectTests = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${testId}_${fileType}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('subject-files')
-        .upload(filePath, file);
-      
+      const {
+        error: uploadError
+      } = await supabase.storage.from('subject-files').upload(filePath, file);
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('subject-files')
-        .getPublicUrl(filePath);
-
-      const { error: fileError } = await supabase
-        .from('test_files')
-        .insert({
-          test_id: testId,
-          file_type: fileType,
-          file_name: file.name,
-          file_url: publicUrl,
-          user_id: user.id
-        });
-
+      const {
+        data: {
+          publicUrl
+        }
+      } = supabase.storage.from('subject-files').getPublicUrl(filePath);
+      const {
+        error: fileError
+      } = await supabase.from('test_files').insert({
+        test_id: testId,
+        file_type: fileType,
+        file_name: file.name,
+        file_url: publicUrl,
+        user_id: user.id
+      });
       if (fileError) throw fileError;
-
       toast.success(t('subjects.tests.file_upload_success'));
       fetchTests();
     } catch (error) {
@@ -151,8 +147,7 @@ export const SubjectTests = () => {
     }
   };
 
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>{t('subjects.tests.create_title')}</CardTitle>
@@ -176,8 +171,7 @@ export const SubjectTests = () => {
       </Card>
 
       <div className="grid gap-4">
-        {tests.map(test => (
-          <Card key={test.id} className="overflow-hidden">
+        {tests.map(test => <Card key={test.id} className="overflow-hidden">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -198,65 +192,35 @@ export const SubjectTests = () => {
 
               <div className="flex flex-wrap gap-2">
                 <div className="flex-1 min-w-[200px]">
-                  <input
-                    type="file"
-                    id={`questions-${test.id}`}
-                    className="hidden"
-                    onChange={e => {
-                      if (e.target.files?.[0]) {
-                        handleFileUpload(test.id, 'questions', e.target.files[0]);
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor={`questions-${test.id}`}
-                    className="flex items-center gap-2 justify-center w-full p-2 border rounded-md cursor-pointer hover:bg-secondary/50"
-                  >
+                  <input type="file" id={`questions-${test.id}`} className="hidden" onChange={e => {
+                if (e.target.files?.[0]) {
+                  handleFileUpload(test.id, 'questions', e.target.files[0]);
+                }
+              }} />
+                  <label htmlFor={`questions-${test.id}`} className="flex items-center gap-2 justify-center w-full p-2 border rounded-md cursor-pointer hover:bg-secondary/50">
                     <FileText className="size-4" />
                     {t('subjects.tests.upload_questions')}
                   </label>
                 </div>
 
                 <div className="flex-1 min-w-[200px]">
-                  <input
-                    type="file"
-                    id={`answers-${test.id}`}
-                    className="hidden"
-                    onChange={e => {
-                      if (e.target.files?.[0]) {
-                        handleFileUpload(test.id, 'answers', e.target.files[0]);
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor={`answers-${test.id}`}
-                    className="flex items-center gap-2 justify-center w-full p-2 border rounded-md cursor-pointer hover:bg-secondary/50"
-                  >
+                  <input type="file" id={`answers-${test.id}`} className="hidden" onChange={e => {
+                if (e.target.files?.[0]) {
+                  handleFileUpload(test.id, 'answers', e.target.files[0]);
+                }
+              }} />
+                  <label htmlFor={`answers-${test.id}`} className="flex items-center gap-2 justify-center w-full p-2 border rounded-md cursor-pointer hover:bg-secondary/50">
                     <File className="size-4" />
                     {t('subjects.tests.upload_answers')}
                   </label>
                 </div>
-
-                <div className="flex-1 min-w-[200px]">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    asChild
-                  >
-                    <Link to={`/subjects/${subjectId}/tests/${test.id}`}>
-                      Take Test
-                    </Link>
-                  </Button>
-                </div>
               </div>
             </div>
-          </Card>
-        ))}
+          </Card>)}
 
         {!loading && tests.length === 0 && <Card className="p-8 text-center text-muted-foreground">
-          <p>{t('subjects.tests.no_tests')}</p>
-        </Card>}
+            <p>{t('subjects.tests.no_tests')}</p>
+          </Card>}
       </div>
-    </div>
-  );
+    </div>;
 };
