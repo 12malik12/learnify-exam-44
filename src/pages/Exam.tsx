@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -90,6 +91,7 @@ const Exam = () => {
         description: "AI is crafting challenging questions for you...",
       });
       
+      // Pass the requested question count - the service will handle generating as many as possible
       const result = await generateUniqueQuestions(
         questionCount,
         selectedSubjectObj?.name || "",
@@ -109,10 +111,18 @@ const Exam = () => {
       setAnswers({});
       setExamCompleted(false);
       
-      toast({
-        title: `Exam Ready - AI-Generated Questions`,
-        description: `${result.questions.length} challenging questions have been prepared for you by our AI. Good luck!`
-      });
+      // Show warning if fewer questions were generated than requested
+      if (result.warning) {
+        toast({
+          title: `Exam Ready - ${result.questions.length} AI-Generated Questions`,
+          description: result.warning,
+        });
+      } else {
+        toast({
+          title: `Exam Ready - AI-Generated Questions`,
+          description: `${result.questions.length} challenging questions have been prepared for you by our AI. Good luck!`
+        });
+      }
       
     } catch (error) {
       console.error("Error generating questions:", error);

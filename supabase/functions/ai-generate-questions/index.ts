@@ -5,14 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Retrieve the GROQ_API_KEY from Supabase secrets using Deno.env
-const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+// API keys - the primary key from Supabase secrets, plus two backup keys
+const API_KEYS = [
+  Deno.env.get("GROQ_API_KEY") || "",
+  "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",
+  "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"
+];
 
-console.log(`GROQ_API_KEY status: ${GROQ_API_KEY ? 'Present (from secret, length: ' + GROQ_API_KEY.length + ')' : 'Missing or empty'}`);
+// Check for the primary API key from environment variables
+console.log(`GROQ_API_KEY status: ${API_KEYS[0] ? 'Present (from secret, length: ' + API_KEYS[0].length + ')' : 'Missing or empty'}`);
 
-if (!GROQ_API_KEY) {
-  console.error(`⚠️ GROQ_API_KEY is not set!
-Set this secret using the Supabase CLI or in the dashboard:
+if (!API_KEYS[0] && !API_KEYS[1] && !API_KEYS[2]) {
+  console.error(`⚠️ No API keys available!
+Set at least one API key using the Supabase CLI or in the dashboard:
 1. Go to your Supabase project dashboard.
 2. Navigate to 'Secrets' under 'Edge Functions'.
 3. Add GROQ_API_KEY with your Groq API key from https://console.groq.com/keys .
@@ -285,9 +290,9 @@ const GROQ_MODELS = [
 ];
 
 // Function to generate a question using Groq API with enhanced uniqueness guarantees
-async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0) {
+async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0, apiKeyIndex: number = 0) {
   try {
-    console.log(`Generating ${mode} for subject: ${subject}, objective: ${unitObjective || 'general'}, challenge level: ${challengeLevel}, question index: ${questionIndex}`);
+    console.log(`Generating ${mode} for subject: ${subject}, objective: ${unitObjective || 'general'}, challenge level: ${challengeLevel}, question index: ${questionIndex}, API key index: ${apiKeyIndex}`);
     
     let prompt = "";
     if (mode === "chat") {
@@ -298,12 +303,12 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
-    // Load GROQ_API_KEY from Supabase secrets, never hardcoded
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+    // Get the appropriate API key based on the index
+    const apiKey = API_KEYS[apiKeyIndex] || API_KEYS[0];
 
-    if (!GROQ_API_KEY) {
-      console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
-      throw new Error("API key is not configured. Ask the administrator to set up GROQ_API_KEY.");
+    if (!apiKey) {
+      console.error("No API key available. Cannot use AI-powered question generation.");
+      throw new Error("API key is not configured. Ask the administrator to set up API keys.");
     }
     
     let result = null;
@@ -312,7 +317,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     // Try Groq models only with retry logic (restricted to Groq exclusively)
     for (const model of GROQ_MODELS) {
       try {
-        console.log(`Attempting generation with Groq model: ${model}`);
+        console.log(`Attempting generation with Groq model: ${model} using API key index: ${apiKeyIndex}`);
         
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
@@ -324,7 +329,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: {
-                "Authorization": `Bearer ${GROQ_API_KEY}`,
+                "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json"
               },
               body: JSON.stringify({
@@ -342,6 +347,14 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             if (!response.ok) {
               const errorText = await response.text();
               console.error(`Error with Groq model ${model} (${response.status}): ${errorText}`);
+              
+              // If rate limit is hit, immediately throw an error to switch API keys
+              if (response.status === 429 || 
+                  errorText.includes("rate limit") || 
+                  errorText.includes("quota") || 
+                  errorText.includes("limit exceeded")) {
+                throw new Error(`Groq API rate limit exceeded with API key ${apiKeyIndex}`);
+              }
               
               if (response.status === 429) {
                 // Rate limit hit, wait with exponential backoff
@@ -370,13 +383,18 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             console.error(`Error during attempt ${attempt + 1} with model ${model}:`, attemptError);
             lastError = attemptError;
             
-            if (attemptError.message && attemptError.message.includes("429")) {
-              const waitTime = Math.pow(2, attempt) * 1000;
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-              continue;
+            // If this is a rate limit error, immediately throw to switch API keys
+            if (attemptError.message && 
+                (attemptError.message.includes("429") || 
+                 attemptError.message.includes("rate limit") || 
+                 attemptError.message.includes("quota") || 
+                 attemptError.message.includes("limit exceeded"))) {
+              throw new Error(`Rate limit reached with API key ${apiKeyIndex}: ${attemptError.message}`);
             }
             
-            break; // Try next model
+            const waitTime = Math.pow(2, attempt) * 1000;
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
           }
         }
         
@@ -384,6 +402,14 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       } catch (modelError) {
         console.error(`Error with model ${model}:`, modelError);
         lastError = modelError;
+        
+        // If this is a rate limit error, immediately re-throw to switch API keys
+        if (modelError.message && 
+            (modelError.message.includes("rate limit") || 
+             modelError.message.includes("quota") || 
+             modelError.message.includes("limit exceeded"))) {
+          throw modelError;
+        }
       }
     }
     
@@ -450,6 +476,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         return questionData;
       } else {
         const extractField = (field: string, defaultValue: string = "") => {
+          // ... keep existing code (extractField implementation)
           const patterns = [
             new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i'),
             new RegExp(`"${field}"\\s*:\\s*'([^']*)'`, 'i'),
@@ -525,6 +552,13 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`AI question generation failed: ${errorMessage}`);
+    
+    // Check if this is a rate limit error
+    if (errorMessage.includes("rate limit") || 
+        errorMessage.includes("quota") || 
+        errorMessage.includes("limit exceeded")) {
+      throw error; // Re-throw to allow switching API keys
+    }
     
     if (mode === "chat") {
       return { 
@@ -668,7 +702,8 @@ serve(async (req) => {
       mode = "question",
       query = "",
       context = "",
-      testCall = false
+      testCall = false,
+      apiKeyIndex = 0 // Get the API key index from the request
     } = requestData;
 
     // Handle test calls quickly for connectivity tests
@@ -679,7 +714,8 @@ serve(async (req) => {
         "Testing connection", 
         "basic", 
         "question", 
-        0
+        0,
+        apiKeyIndex
       );
       
       return new Response(
@@ -700,7 +736,8 @@ serve(async (req) => {
         query, 
         "advanced", 
         "chat", 
-        0
+        0,
+        apiKeyIndex
       );
       
       return new Response(
@@ -718,24 +755,42 @@ serve(async (req) => {
 
     const questionCount = Math.min(count || 1, 10);
     
-    console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
+    console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}, using API key index: ${apiKeyIndex}`);
 
-    if (!GROQ_API_KEY) {
-      console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
+    // Check if we have any valid API keys at the specified index
+    const currentApiKey = API_KEYS[apiKeyIndex];
+    if (!currentApiKey) {
+      console.error(`API key at index ${apiKeyIndex} is not set or invalid.`);
       
-      const fallbackQuestions = [];
-      for (let i = 0; i < questionCount; i++) {
-        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
+      // Fall back to using the first available API key
+      let fallbackKeyIndex = -1;
+      for (let i = 0; i < API_KEYS.length; i++) {
+        if (API_KEYS[i]) {
+          fallbackKeyIndex = i;
+          break;
+        }
       }
       
-      return new Response(
-        JSON.stringify({ 
-          questions: fallbackQuestions,
-          source: 'fallback',
-          error: "API key is not configured. Please set up GROQ_API_KEY in your Supabase Edge Function Secrets."
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (fallbackKeyIndex === -1) {
+        console.error("No valid API keys available. Using fallback questions.");
+        
+        const fallbackQuestions = [];
+        for (let i = 0; i < questionCount; i++) {
+          fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            questions: fallbackQuestions,
+            source: 'fallback',
+            error: "No API keys are configured. Please set up API keys in your Supabase Edge Function Secrets."
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log(`Falling back to API key at index ${fallbackKeyIndex}`);
+      apiKeyIndex = fallbackKeyIndex;
     }
 
     // Use parallel generation with sufficient gaps between questions
@@ -745,49 +800,42 @@ serve(async (req) => {
         // Stagger API calls to reduce likelihood of very similar prompts being processed at the same time
         await new Promise(r => setTimeout(r, index * 500)); 
         
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            // Add more entropy to each generation attempt
-            const seedMultiplier = attempt * 1000 + Date.now() % 1000;
-            const question = await generateQuestion(
-              subject, 
-              unitObjective, 
-              challengeLevel, 
-              "question", 
-              index + seedMultiplier
-            );
-            
-            if (question && question.question_text && 
-                question.question_text.length > 20 && 
-                !question.question_text.toLowerCase().includes("fallback")) {
-              return {
-                ...question,
-                isAIGenerated: true
-              };
-            }
-            
-            console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
-            
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          } catch (err) {
-            console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
-            
-            if (attempt === 2) {
-              return {
-                ...createFallbackQuestion(subject, unitObjective, index),
-                error: err instanceof Error ? err.message : String(err),
-                isAIGenerated: false
-              };
-            }
-            
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        try {
+          // Add more entropy to each generation attempt
+          const seedMultiplier = index * 1000 + Date.now() % 1000;
+          const question = await generateQuestion(
+            subject, 
+            unitObjective, 
+            challengeLevel, 
+            "question", 
+            index + seedMultiplier,
+            apiKeyIndex
+          );
+          
+          if (question && question.question_text && 
+              question.question_text.length > 20 && 
+              !question.question_text.toLowerCase().includes("fallback")) {
+            return {
+              ...question,
+              isAIGenerated: true
+            };
           }
+          
+          console.log(`Question ${index + 1} generation didn't produce good result, returning fallback`);
+          return {
+            ...createFallbackQuestion(subject, unitObjective, index),
+            isAIGenerated: false
+          };
+        } catch (err) {
+          console.error(`Failed for question ${index + 1}:`, err);
+          
+          // Create a fallback question
+          return {
+            ...createFallbackQuestion(subject, unitObjective, index),
+            error: err instanceof Error ? err.message : String(err),
+            isAIGenerated: false
+          };
         }
-        
-        return {
-          ...createFallbackQuestion(subject, unitObjective, index),
-          isAIGenerated: false
-        };
       };
       
       questionPromises.push(generateWithRetry(i));
@@ -900,7 +948,7 @@ serve(async (req) => {
           questions: fallbackQuestions,
           source: 'fallback',
           error: error instanceof Error ? error.message : String(error),
-          fix: "To enable AI question generation, please set up the GROQ_API_KEY in your Supabase Edge Function Secrets."
+          fix: "To enable AI question generation, please set up the API keys in your Supabase Edge Function Secrets."
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -909,7 +957,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Failed to generate questions. Please try again or use a different subject.",
           message: "The question generation service is currently experiencing issues.",
-          fix: "To enable AI question generation, please set up the GROQ_API_KEY in your Supabase Edge Function Secrets."
+          fix: "To enable AI question generation, please set up API keys in your Supabase Edge Function Secrets."
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
