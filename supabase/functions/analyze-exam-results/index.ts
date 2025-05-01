@@ -37,25 +37,50 @@ Correct Answer: ${question.correct_answer}
       `;
     }).join("\n\n");
     
-    // Construct the prompt for GROQ
+    // Calculate basic stats for more personalized prompt
+    const totalQuestions = examData.length;
+    let correctCount = 0;
+    examData.forEach(q => {
+      if (q.student_answer === q.correct_answer) correctCount++;
+    });
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    
+    // Enhanced prompt for GROQ with more specific instructions for personalization
     const prompt = `
-Analyze the student's performance on this multiple-choice exam.
+Analyze this student's performance on a multiple-choice exam where they scored ${score}% (${correctCount} correct out of ${totalQuestions} questions).
 
-Each item includes the question, answer choices, student's answer, and correct answer.
+Each question includes the full text, answer choices, the student's selected answer, and the correct answer.
 
-Based on this data:
-- Identify the student's weak areas and the concepts they struggle with
-- Suggest specific topics or subtopics to review
-- Recommend helpful materials, resources, or study tips
+Based on this data, provide a detailed and personalized analysis with these sections:
+
+1. Performance Summary (Around 200 words)
+   - Summarize the student's performance with specific details about score, strong areas, and weak areas
+   - Use a warm, encouraging, and personalized tone like a real tutor
+   - Mention 1-2 specific concepts they clearly understand well
+   - Point out patterns in their incorrect answers (if any)
+
+2. Identified Knowledge Gaps (Around 200 words)
+   - Name the precise topics or concepts they struggled with based on incorrect answers
+   - For each weak area, explain exactly why it might be challenging for them
+   - Link these weak areas to specific questions they missed
+   - Use a constructive, not critical, tone
+
+3. Concepts to Review (Around 200 words)
+   - List 3-5 specific subtopics they should review based on their performance
+   - Explain each concept briefly and why it's important to understand
+   - For each concept, mention how it connects to other important topics
+
+4. Recommended Study Strategy (Around 200 words)
+   - Suggest 3-5 actionable, concrete study activities for their specific weak areas
+   - Recommend specific learning techniques tailored to their performance patterns
+   - Include estimated time commitments for each activity
+   - Use a motivating, encouraging tone that emphasizes growth
+   - End with a positive, personalized note of encouragement
 
 Here is the exam result data:
 ${formattedExamData}
 
-Please provide a structured analysis with these sections:
-1. Performance Summary (including a rough percentage score)
-2. Identified Knowledge Gaps
-3. Concepts to Review 
-4. Recommended Study Strategy
+Important: Be specific, detailed, and personal in your analysis. Mention actual topics and concepts from the questions. Write as a supportive, knowledgeable tutor who is genuinely interested in helping the student improve.
 `;
 
     if (!GROQ_API_KEY) {
@@ -75,11 +100,11 @@ Please provide a structured analysis with these sections:
       body: JSON.stringify({
         model: "llama3-70b-8192",
         messages: [
-          { role: "system", content: "You are an educational analyst specialized in identifying knowledge gaps and providing targeted learning recommendations." },
+          { role: "system", content: "You are an educational expert with years of experience analyzing student performance and providing insightful, personalized feedback. You excel at identifying specific knowledge gaps and creating tailored learning plans. Your feedback is always specific, actionable, encouraging, and personalized—never generic or templated." },
           { role: "user", content: prompt }
         ],
-        temperature: 0.2,
-        max_tokens: 1500
+        temperature: 0.3,
+        max_tokens: 2000
       })
     });
     
@@ -100,7 +125,9 @@ Please provide a structured analysis with these sections:
         analysis,
         examStats: {
           totalQuestions: examData.length,
-          answeredQuestions: examData.filter(q => q.student_answer).length
+          answeredQuestions: examData.filter(q => q.student_answer).length,
+          correctAnswers: correctCount,
+          score: score
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
