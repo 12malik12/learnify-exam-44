@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Lightbulb, BookOpen, Book, Brain, BarChart, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface ExamQuestion {
   id: string;
@@ -95,7 +96,13 @@ const ExamAnalysis = ({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Exam Analysis</h2>
-        <Badge variant={score >= 70 ? "success" : score >= 50 ? "warning" : "destructive"} className="px-3 py-1 text-base">
+        <Badge 
+          variant={score < 50 ? "destructive" : "default"} 
+          className={cn("px-3 py-1 text-base", 
+            score >= 70 && "bg-green-500 hover:bg-green-600",
+            score >= 50 && score < 70 && "bg-amber-500 hover:bg-amber-600"
+          )}
+        >
           Score: {score}%
         </Badge>
       </div>
