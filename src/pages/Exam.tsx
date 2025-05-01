@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -6,8 +5,12 @@ import { subjects } from "@/utils/subjects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Check, ClipboardList, Clock, BarChart, ChevronLeft, ChevronRight, Brain, Sparkles, Wifi, WifiOff, AlertCircle } from "lucide-react";
+import { 
+  ArrowRight, Check, ClipboardList, Clock, BarChart, ChevronLeft, 
+  ChevronRight, Brain, Sparkles, Wifi, WifiOff, AlertCircle 
+} from "lucide-react";
 import ExamQuestion from "@/components/Exam/ExamQuestion";
+import ExamAnalysis from "@/components/Exam/ExamAnalysis";
 import AIAssistantButton from "@/components/AIAssistant/AIAssistantButton";
 import AIAssistantDialog from "@/components/AIAssistant/AIAssistantDialog";
 import { useAppContext } from "@/context/AppContext";
@@ -24,6 +27,7 @@ import { generateUniqueQuestions, ExamQuestion as ExamQuestionType } from "@/ser
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const EXAM_DURATION = 60; // minutes
 
@@ -46,6 +50,10 @@ const Exam = () => {
   
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisData, setAnalysisData] = useState<string | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const { isOnline, wasOffline } = useNetworkStatus();
 
@@ -153,7 +161,7 @@ const Exam = () => {
     }
   };
   
-  const handleFinishExam = () => {
+  const handleFinishExam = async () => {
     let correctCount = 0;
     examQuestions.forEach(question => {
       if (answers[question.id] === question.correct_answer) {
@@ -172,7 +180,88 @@ const Exam = () => {
       addExamResult(selectedSubject, score, examQuestions.length);
     }
     
+    // Set exam as completed
     setExamCompleted(true);
+    
+    // Check if we should generate analysis
+    if (isOnline && examQuestions.length > 0) {
+      await generateExamAnalysis();
+    }
+  };
+  
+  // New function to generate exam analysis using GROQ
+  const generateExamAnalysis = async () => {
+    if (!isOnline) {
+      toast({
+        title: "Internet Connection Required",
+        description: "Analysis requires an internet connection.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAnalysisLoading(true);
+    setShowAnalysis(true);
+    
+    try {
+      // Prepare the questions with student answers
+      const questionsWithAnswers = examQuestions.map(q => ({
+        ...q,
+        student_answer: answers[q.id] || null
+      }));
+      
+      toast({
+        title: "Analyzing Exam Results",
+        description: "AI is analyzing your performance...",
+      });
+      
+      // Call the edge function to analyze the results
+      const { data, error } = await supabase.functions.invoke('analyze-exam-results', {
+        body: { examData: questionsWithAnswers }
+      });
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      if (data && data.success && data.analysis) {
+        setAnalysisData(data.analysis);
+        
+        toast({
+          title: "Analysis Complete",
+          description: "Your personalized learning recommendations are ready.",
+        });
+      } else {
+        throw new Error("Failed to generate analysis");
+      }
+    } catch (error) {
+      console.error("Error generating analysis:", error);
+      
+      toast({
+        title: "Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to analyze exam results",
+        variant: "destructive",
+      });
+      
+      setAnalysisData(null);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+  
+  const handleStartNewExam = () => {
+    // Reset all exam-related state
+    setExamStarted(false);
+    setExamQuestions([]);
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setExamCompleted(false);
+    setShowAnalysis(false);
+    setAnalysisData(null);
+  };
+  
+  const handleReviewQuestions = () => {
+    setShowAnalysis(false);
   };
   
   // Reset error when changing subject
@@ -382,7 +471,16 @@ const Exam = () => {
                   </div>
                 </div>
                 
-                {currentQuestion && (
+                {examCompleted && showAnalysis ? (
+                  <ExamAnalysis 
+                    examQuestions={examQuestions}
+                    studentAnswers={answers}
+                    analysis={analysisData}
+                    isLoading={analysisLoading}
+                    onReviewQuestions={handleReviewQuestions}
+                    onNewExam={handleStartNewExam}
+                  />
+                ) : currentQuestion ? (
                   <ExamQuestion
                     question={currentQuestion}
                     selectedAnswer={answers[currentQuestion.id] || null}
@@ -391,37 +489,39 @@ const Exam = () => {
                     questionNumber={currentQuestionIndex + 1}
                     source={questionSource}
                   />
-                )}
+                ) : null}
                 
-                <div className="flex justify-between">
-                  <Button 
-                    variant="outline" 
-                    onClick={handlePrevQuestion}
-                    disabled={currentQuestionIndex === 0}
-                  >
-                    <ChevronLeft className="mr-2 size-4" /> Previous
-                  </Button>
-                  
-                  {!examCompleted ? (
+                {!showAnalysis && (
+                  <div className="flex justify-between">
                     <Button 
-                      onClick={handleNextQuestion}
-                      disabled={!answers[currentQuestion?.id]}
+                      variant="outline" 
+                      onClick={handlePrevQuestion}
+                      disabled={currentQuestionIndex === 0}
                     >
-                      {currentQuestionIndex < examQuestions.length - 1 ? (
-                        <>Next <ChevronRight className="ml-2 size-4" /></>
-                      ) : (
-                        <>Finish Exam <Check className="ml-2 size-4" /></>
-                      )}
+                      <ChevronLeft className="mr-2 size-4" /> Previous
                     </Button>
-                  ) : (
-                    <Button 
-                      onClick={() => setExamStarted(false)}
-                      variant="default"
-                    >
-                      Back to Exams
-                    </Button>
-                  )}
-                </div>
+                    
+                    {!examCompleted ? (
+                      <Button 
+                        onClick={handleNextQuestion}
+                        disabled={!answers[currentQuestion?.id]}
+                      >
+                        {currentQuestionIndex < examQuestions.length - 1 ? (
+                          <>Next <ChevronRight className="ml-2 size-4" /></>
+                        ) : (
+                          <>Finish Exam <Check className="ml-2 size-4" /></>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleStartNewExam}
+                        variant="default"
+                      >
+                        Back to Exams
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </section>
