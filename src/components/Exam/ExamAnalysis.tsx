@@ -104,6 +104,27 @@ const ExamAnalysis = ({
     if (score >= 50) return "fair";
     return "needs improvement";
   };
+  
+  // Generate missed topics from incorrect questions
+  const getMissedTopics = () => {
+    if (incorrectQuestions.length === 0) return "None";
+    
+    // Extract keywords from incorrect questions
+    const keywords: string[] = [];
+    incorrectQuestions.forEach(q => {
+      // Simple extraction of keywords based on question text
+      const text = q.question_text.toLowerCase();
+      if (text.includes("equation")) keywords.push("Equations");
+      if (text.includes("formula")) keywords.push("Formulas");
+      if (text.includes("graph")) keywords.push("Graphical Analysis");
+      if (text.includes("calculate")) keywords.push("Calculations");
+      if (text.includes("theory")) keywords.push("Theoretical Concepts");
+      if (text.includes("application")) keywords.push("Practical Applications");
+    });
+    
+    // Deduplicate
+    return [...new Set(keywords)].join(", ") || "Various topics";
+  };
 
   return (
     <div className="space-y-6">
@@ -168,30 +189,25 @@ const ExamAnalysis = ({
                       <span className="font-medium text-lg capitalize">{getPerformanceDescriptor()}</span>
                     </div>
                     <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Accuracy Rate</span>
+                      <span className="text-sm text-muted-foreground">Time Efficiency</span>
                       <span className="font-medium text-lg">
-                        {correctAnswers} of {totalQuestions} ({score}%)
+                        {correctAnswers > totalQuestions * 0.7 ? "Efficient" : "Review Needed"}
                       </span>
                     </div>
                     <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Questions Answered</span>
-                      <span className="font-medium text-lg">
-                        {Object.keys(studentAnswers).length} of {totalQuestions}
-                      </span>
+                      <span className="text-sm text-muted-foreground">Questions Correct</span>
+                      <span className="font-medium text-lg">{correctAnswers} of {totalQuestions} ({score}%)</span>
                     </div>
                     <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Areas for Improvement</span>
-                      <span className="font-medium text-lg">
-                        {incorrectQuestions.length > 0 ? `${incorrectQuestions.length} topics identified` : "None! Great job"}
-                      </span>
+                      <span className="text-sm text-muted-foreground">Missed Topics</span>
+                      <span className="font-medium text-lg">{getMissedTopics()}</span>
                     </div>
                   </div>
                   
-                  <div className="mt-6">
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Analysis</h4>
                     <div className="whitespace-pre-line text-muted-foreground">
-                      {analysisContent.summary ? (
-                        analysisContent.summary.replace(/Performance Summary[:\-]*/i, '').trim()
-                      ) : (
+                      {analysisContent.summary || (
                         <p>
                           Your score of {score}% ({correctAnswers} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material.
                           {score >= 70 ? 
@@ -215,26 +231,36 @@ const ExamAnalysis = ({
               </CardHeader>
               <CardContent className="space-y-4">
                 {incorrectQuestions.length > 0 ? (
-                  <div className="rounded-md bg-amber-50 border border-amber-200 p-3 mb-3">
-                    <h4 className="font-medium text-amber-900 mb-1">Areas for Improvement</h4>
-                    <p className="text-sm text-amber-800">
-                      You had difficulty with {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}.
-                      Focus your review on these specific topics to improve your understanding.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-md bg-green-50 border border-green-200 p-3 mb-3">
-                    <h4 className="font-medium text-green-900 mb-1">Outstanding Performance</h4>
-                    <p className="text-sm text-green-800">
-                      Excellent work! You've answered all questions correctly. Consider exploring more advanced topics to further challenge yourself.
-                    </p>
-                  </div>
-                )}
+                  <>
+                    <div className="rounded-md bg-amber-50 border border-amber-200 p-3 mb-3">
+                      <h4 className="font-medium text-amber-900 mb-1">Questions Requiring Attention</h4>
+                      <p className="text-sm text-amber-800">
+                        You had difficulty with {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}.
+                        Focus your review on these specific areas to improve your understanding.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {incorrectQuestions.slice(0, 3).map((question, idx) => (
+                        <div key={question.id} className="border rounded-md p-3">
+                          <p className="font-medium mb-1">Topic {idx + 1}: Question {idx + 1} of the exam</p>
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{question.question_text}</p>
+                          <div className="flex flex-wrap gap-2 text-sm">
+                            <Badge variant="outline" className="text-red-600 border-red-300">
+                              Your answer: {question.student_answer}
+                            </Badge>
+                            <Badge variant="outline" className="text-green-600 border-green-300">
+                              Correct: {question.correct_answer}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
                 
                 <div className="mt-4 whitespace-pre-line">
-                  {analysisContent.weakAreas ? (
-                    analysisContent.weakAreas.replace(/Identified Knowledge Gaps[:\-]*/i, '').trim()
-                  ) : (
+                  {analysisContent.weakAreas || (
                     incorrectQuestions.length > 0 ? (
                       <p>Based on your answers, you should focus on improving your understanding of the concepts related to the questions you missed.</p>
                     ) : (
@@ -264,9 +290,7 @@ const ExamAnalysis = ({
                 ) : null}
                 
                 <div className="whitespace-pre-line">
-                  {analysisContent.conceptsToReview ? (
-                    analysisContent.conceptsToReview.replace(/Concepts to Review[:\-]*/i, '').trim()
-                  ) : (
+                  {analysisContent.conceptsToReview || (
                     incorrectQuestions.length > 0 ? (
                       <div className="space-y-4">
                         <p>Based on your exam performance, consider reviewing these key concepts:</p>
@@ -300,14 +324,12 @@ const ExamAnalysis = ({
                   <p className="text-sm text-green-800">
                     {score >= 70 
                       ? "You're doing well! These recommendations will help you achieve mastery." 
-                      : "With focused study using these strategies, you'll see improvement quickly."}
+                      : "Don't worry! With focused study using these strategies, you'll see improvement quickly."}
                   </p>
                 </div>
                 
                 <div className="whitespace-pre-line">
-                  {analysisContent.studyTips ? (
-                    analysisContent.studyTips.replace(/Recommended Study Strategy[:\-]*/i, '').trim()
-                  ) : (
+                  {analysisContent.studyTips || (
                     <div className="space-y-4">
                       <p>Based on your performance, here are personalized study recommendations:</p>
                       
@@ -340,7 +362,7 @@ const ExamAnalysis = ({
                         </div>
                       </div>
                       
-                      <p className="text-sm italic mt-4">
+                      <p className="text-sm italic">
                         Remember: Regular, focused practice is more effective than cramming. Schedule short, frequent study sessions for best results!
                       </p>
                     </div>
