@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, BookOpen, Book, Brain, BarChart, CheckCircle, XCircle } from "lucide-react";
+import { Lightbulb, BookOpen, Book, Brain, BarChart, CheckCircle, XCircle, Calendar, Target, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -57,40 +57,98 @@ const ExamAnalysis = ({
     if (!analysis) return {
       summary: "",
       weakAreas: "",
-      conceptsToReview: "",
-      studyTips: ""
+      studyPlan: "",
+      motivation: ""
     };
     
+    // Try to find sections by common headings in the analysis
     const sections = analysis.split(/\n\s*\n/);
+    const fullText = analysis.toLowerCase();
     
-    // Try to extract sections by looking for headers
-    let summary = "", weakAreas = "", conceptsToReview = "", studyTips = "";
+    let summary = "", weakAreas = "", studyPlan = "", motivation = "";
     
-    for (const section of sections) {
-      const lowerSection = section.toLowerCase();
-      
-      if (lowerSection.includes("performance summary") || lowerSection.includes("summary")) {
-        summary = section;
-      } else if (lowerSection.includes("knowledge gap") || lowerSection.includes("weak area") || lowerSection.includes("identified")) {
-        weakAreas = section;
-      } else if (lowerSection.includes("concept") && lowerSection.includes("review")) {
-        conceptsToReview = section;
-      } else if (lowerSection.includes("study") || lowerSection.includes("recommend") || lowerSection.includes("strategy")) {
-        studyTips = section;
+    // First try to find sections by standard headings
+    if (fullText.includes("performance summary") || fullText.includes("exam insights")) {
+      // Find the performance summary section
+      const summaryStart = analysis.search(/performance summary|exam insights/i);
+      if (summaryStart !== -1) {
+        const nextSectionStart = analysis.substring(summaryStart + 20).search(/areas to strengthen|personalized study|study plan|motivational|conclusion/i);
+        if (nextSectionStart !== -1) {
+          summary = analysis.substring(summaryStart, summaryStart + 20 + nextSectionStart).trim();
+        }
       }
     }
     
-    // If we couldn't find sections by headers, divide it roughly
-    if (!summary && !weakAreas && !conceptsToReview && !studyTips && sections.length >= 3) {
-      summary = sections[0];
-      weakAreas = sections[1];
-      conceptsToReview = sections[2];
-      if (sections.length > 3) {
-        studyTips = sections[3];
+    if (fullText.includes("areas to strengthen") || fullText.includes("weak areas") || fullText.includes("improvement areas")) {
+      // Find the weak areas section
+      const weakAreasStart = analysis.search(/areas to strengthen|weak areas|improvement areas/i);
+      if (weakAreasStart !== -1) {
+        const nextSectionStart = analysis.substring(weakAreasStart + 20).search(/personalized study|study plan|motivational|conclusion/i);
+        if (nextSectionStart !== -1) {
+          weakAreas = analysis.substring(weakAreasStart, weakAreasStart + 20 + nextSectionStart).trim();
+        }
       }
     }
     
-    return { summary, weakAreas, conceptsToReview, studyTips };
+    if (fullText.includes("personalized study plan") || fullText.includes("study plan") || fullText.includes("recommended study")) {
+      // Find the study plan section
+      const studyPlanStart = analysis.search(/personalized study plan|study plan|recommended study/i);
+      if (studyPlanStart !== -1) {
+        const nextSectionStart = analysis.substring(studyPlanStart + 20).search(/motivational|conclusion|final thoughts/i);
+        if (nextSectionStart !== -1) {
+          studyPlan = analysis.substring(studyPlanStart, studyPlanStart + 20 + nextSectionStart).trim();
+        } else {
+          // If no next section found, take until the end or next 800 chars max
+          studyPlan = analysis.substring(studyPlanStart).trim();
+        }
+      }
+    }
+    
+    if (fullText.includes("motivational") || fullText.includes("next steps") || fullText.includes("conclusion")) {
+      // Find the motivational closing
+      const motivationStart = analysis.search(/motivational|next steps|conclusion|final thoughts/i);
+      if (motivationStart !== -1) {
+        motivation = analysis.substring(motivationStart).trim();
+      }
+    }
+    
+    // If we couldn't extract sections properly, fall back to a simpler approach
+    if (!summary && !weakAreas && !studyPlan && sections.length >= 3) {
+      const sectionCount = sections.length;
+      // Simple approach: divide into quarters if we have enough sections
+      if (sectionCount >= 4) {
+        const quarterSize = Math.floor(sectionCount / 4);
+        summary = sections.slice(0, quarterSize).join("\n\n");
+        weakAreas = sections.slice(quarterSize, quarterSize * 2).join("\n\n");
+        studyPlan = sections.slice(quarterSize * 2, quarterSize * 3).join("\n\n");
+        motivation = sections.slice(quarterSize * 3).join("\n\n");
+      } else {
+        // With fewer sections, just divide roughly
+        summary = sections[0];
+        weakAreas = sections.length > 1 ? sections[1] : "";
+        studyPlan = sections.length > 2 ? sections[2] : "";
+        motivation = sections.length > 3 ? sections[3] : "";
+      }
+    }
+    
+    // For any missing sections, provide some generic content based on score
+    if (!summary) {
+      summary = `Performance Summary\n\nYou scored ${score}% on this exam, answering ${correctAnswers} out of ${totalQuestions} questions correctly. This shows ${score >= 70 ? "good" : "some"} understanding of the material.`;
+    }
+    
+    if (!weakAreas && incorrectQuestions.length > 0) {
+      weakAreas = "Areas to Strengthen\n\nFocus on improving your understanding of the topics related to the questions you missed in this exam.";
+    }
+    
+    if (!studyPlan) {
+      studyPlan = "Personalized Study Plan\n\nReview the concepts from the questions you missed. Practice similar problems to reinforce your understanding. Consider seeking additional resources or help for difficult topics.";
+    }
+    
+    if (!motivation) {
+      motivation = "Keep going! With targeted study and practice, you can improve your understanding and performance on future exams.";
+    }
+    
+    return { summary, weakAreas, studyPlan, motivation };
   };
   
   const analysisContent = parseAnalysis();
@@ -103,27 +161,6 @@ const ExamAnalysis = ({
     if (score >= 60) return "satisfactory";
     if (score >= 50) return "fair";
     return "needs improvement";
-  };
-  
-  // Generate missed topics from incorrect questions
-  const getMissedTopics = () => {
-    if (incorrectQuestions.length === 0) return "None";
-    
-    // Extract keywords from incorrect questions
-    const keywords: string[] = [];
-    incorrectQuestions.forEach(q => {
-      // Simple extraction of keywords based on question text
-      const text = q.question_text.toLowerCase();
-      if (text.includes("equation")) keywords.push("Equations");
-      if (text.includes("formula")) keywords.push("Formulas");
-      if (text.includes("graph")) keywords.push("Graphical Analysis");
-      if (text.includes("calculate")) keywords.push("Calculations");
-      if (text.includes("theory")) keywords.push("Theoretical Concepts");
-      if (text.includes("application")) keywords.push("Practical Applications");
-    });
-    
-    // Deduplicate
-    return [...new Set(keywords)].join(", ") || "Various topics";
   };
 
   return (
@@ -161,16 +198,16 @@ const ExamAnalysis = ({
         <Tabs defaultValue="summary" className="w-full">
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="summary" className="flex items-center gap-1">
-              <BarChart className="size-4" /> Summary
+              <Award className="size-4" /> Performance
             </TabsTrigger>
             <TabsTrigger value="weakAreas" className="flex items-center gap-1">
-              <XCircle className="size-4" /> Weak Areas
+              <Target className="size-4" /> Improvement
             </TabsTrigger>
-            <TabsTrigger value="concepts" className="flex items-center gap-1">
-              <Book className="size-4" /> Concepts
+            <TabsTrigger value="studyPlan" className="flex items-center gap-1">
+              <Calendar className="size-4" /> Study Plan
             </TabsTrigger>
-            <TabsTrigger value="studyTips" className="flex items-center gap-1">
-              <Lightbulb className="size-4" /> Study Tips
+            <TabsTrigger value="motivation" className="flex items-center gap-1">
+              <Lightbulb className="size-4" /> Next Steps
             </TabsTrigger>
           </TabsList>
           
@@ -178,45 +215,32 @@ const ExamAnalysis = ({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart className="size-5" /> Performance Summary
+                  <Award className="size-5" /> Performance Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-                    <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Performance Level</span>
-                      <span className="font-medium text-lg capitalize">{getPerformanceDescriptor()}</span>
-                    </div>
-                    <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Time Efficiency</span>
-                      <span className="font-medium text-lg">
-                        {correctAnswers > totalQuestions * 0.7 ? "Efficient" : "Review Needed"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Questions Correct</span>
-                      <span className="font-medium text-lg">{correctAnswers} of {totalQuestions} ({score}%)</span>
-                    </div>
-                    <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                      <span className="text-sm text-muted-foreground">Missed Topics</span>
-                      <span className="font-medium text-lg">{getMissedTopics()}</span>
-                    </div>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="flex flex-col bg-muted/40 rounded-lg p-3">
+                    <span className="text-sm text-muted-foreground">Performance Level</span>
+                    <span className="font-medium text-lg capitalize">{getPerformanceDescriptor()}</span>
                   </div>
-                  
-                  <div className="mt-4">
-                    <h4 className="font-medium mb-2">Analysis</h4>
-                    <div className="whitespace-pre-line text-muted-foreground">
-                      {analysisContent.summary || (
-                        <p>
-                          Your score of {score}% ({correctAnswers} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material.
-                          {score >= 70 ? 
-                            " You have demonstrated solid knowledge in most areas covered by this exam. Focus on the few topics you missed to achieve mastery." : 
-                            " With additional focused study on the concepts identified in this analysis, you can significantly improve your understanding and performance."}
-                        </p>
-                      )}
-                    </div>
+                  <div className="flex flex-col bg-muted/40 rounded-lg p-3">
+                    <span className="text-sm text-muted-foreground">Questions</span>
+                    <span className="font-medium text-lg">{correctAnswers} correct of {totalQuestions} total</span>
                   </div>
+                </div>
+                
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  {analysisContent.summary ? (
+                    <div className="whitespace-pre-line" dangerouslySetInnerHTML={{ __html: analysisContent.summary.replace(/performance summary/i, "").replace(/^#+\s*/g, "") }} />
+                  ) : (
+                    <p>
+                      Your score of {score}% ({correctAnswers} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material.
+                      {score >= 70 ? 
+                        " You have demonstrated solid knowledge in most areas covered by this exam. Focus on the few topics you missed to achieve mastery." : 
+                        " With additional focused study on the concepts identified in this analysis, you can significantly improve your understanding and performance."}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -226,41 +250,24 @@ const ExamAnalysis = ({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <XCircle className="size-5" /> Knowledge Gaps Identified
+                  <Target className="size-5" /> Areas to Strengthen
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 {incorrectQuestions.length > 0 ? (
-                  <>
-                    <div className="rounded-md bg-amber-50 border border-amber-200 p-3 mb-3">
-                      <h4 className="font-medium text-amber-900 mb-1">Questions Requiring Attention</h4>
-                      <p className="text-sm text-amber-800">
-                        You had difficulty with {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}.
-                        Focus your review on these specific areas to improve your understanding.
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      {incorrectQuestions.slice(0, 3).map((question, idx) => (
-                        <div key={question.id} className="border rounded-md p-3">
-                          <p className="font-medium mb-1">Topic {idx + 1}: Question {idx + 1} of the exam</p>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{question.question_text}</p>
-                          <div className="flex flex-wrap gap-2 text-sm">
-                            <Badge variant="outline" className="text-red-600 border-red-300">
-                              Your answer: {question.student_answer}
-                            </Badge>
-                            <Badge variant="outline" className="text-green-600 border-green-300">
-                              Correct: {question.correct_answer}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
+                  <div className="rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-3 mb-4">
+                    <h4 className="font-medium text-amber-900 dark:text-amber-200 mb-1">Focus on these areas</h4>
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      You missed {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}.
+                      The analysis below identifies specific topics to focus on.
+                    </p>
+                  </div>
                 ) : null}
                 
-                <div className="mt-4 whitespace-pre-line">
-                  {analysisContent.weakAreas || (
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  {analysisContent.weakAreas ? (
+                    <div className="whitespace-pre-line" dangerouslySetInnerHTML={{ __html: analysisContent.weakAreas.replace(/areas to strengthen|weak areas|improvement areas/i, "").replace(/^#+\s*/g, "") }} />
+                  ) : (
                     incorrectQuestions.length > 0 ? (
                       <p>Based on your answers, you should focus on improving your understanding of the concepts related to the questions you missed.</p>
                     ) : (
@@ -272,99 +279,101 @@ const ExamAnalysis = ({
             </Card>
           </TabsContent>
           
-          <TabsContent value="concepts" className="mt-0">
+          <TabsContent value="studyPlan" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Book className="size-5" /> Concepts to Review
+                  <Calendar className="size-5" /> Personalized Study Plan
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {incorrectQuestions.length > 0 ? (
-                  <div className="rounded-md bg-blue-50 border border-blue-200 p-3 mb-3">
-                    <h4 className="font-medium text-blue-900 mb-1">Focus Areas</h4>
-                    <p className="text-sm text-blue-800">
-                      These are specific concepts from the exam that would benefit from additional review.
+              <CardContent>
+                {incorrectQuestions.length > 0 && (
+                  <div className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-3 mb-4">
+                    <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-1">Your 7-Day Study Plan</h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      Follow this personalized plan to improve your understanding of the topics you struggled with.
                     </p>
                   </div>
-                ) : null}
+                )}
                 
-                <div className="whitespace-pre-line">
-                  {analysisContent.conceptsToReview || (
-                    incorrectQuestions.length > 0 ? (
-                      <div className="space-y-4">
-                        <p>Based on your exam performance, consider reviewing these key concepts:</p>
-                        <ul className="list-disc pl-5 space-y-2">
-                          {incorrectQuestions.slice(0, 3).map((q, idx) => (
-                            <li key={idx}>
-                              <span className="font-medium">Concept {idx + 1}:</span> {q.question_text.split(".")[0]}...
-                            </li>
-                          ))}
-                        </ul>
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  {analysisContent.studyPlan ? (
+                    <div className="whitespace-pre-line" dangerouslySetInnerHTML={{ __html: analysisContent.studyPlan.replace(/personalized study plan|study plan|recommended study/i, "").replace(/^#+\s*/g, "") }} />
+                  ) : (
+                    <div className="space-y-4">
+                      <p>Based on your exam performance, here's a personalized study plan:</p>
+                      
+                      <div className="space-y-3">
+                        <div className="border rounded-md p-3">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <BookOpen className="size-4" /> Step 1: Review Concepts
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Spend 1-2 days reviewing the fundamental concepts related to the questions you missed.
+                            Take detailed notes and create a summary of key formulas, definitions, and examples.
+                          </p>
+                        </div>
+                        
+                        <div className="border rounded-md p-3">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <Brain className="size-4" /> Step 2: Practice Problems
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Dedicate 2-3 days to solving practice problems related to your weak areas.
+                            Start with simpler problems and gradually increase difficulty. Analyze mistakes carefully.
+                          </p>
+                        </div>
+                        
+                        <div className="border rounded-md p-3">
+                          <h4 className="font-medium flex items-center gap-2">
+                            <CheckCircle className="size-4" /> Step 3: Self-Assessment
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Take a practice quiz on the topics you've studied to measure your improvement.
+                            Identify any remaining gaps in your understanding and revisit those areas.
+                          </p>
+                        </div>
                       </div>
-                    ) : (
-                      <p>You've shown mastery of the concepts covered in this exam. To further deepen your understanding, you might explore more advanced topics in this subject area.</p>
-                    )
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
           
-          <TabsContent value="studyTips" className="mt-0">
+          <TabsContent value="motivation" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="size-5" /> Recommended Study Strategy
+                  <Lightbulb className="size-5" /> Next Steps & Motivation
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-md bg-green-50 border border-green-200 p-3 mb-3">
-                  <h4 className="font-medium text-green-900 mb-1">Personalized Learning Path</h4>
-                  <p className="text-sm text-green-800">
-                    {score >= 70 
-                      ? "You're doing well! These recommendations will help you achieve mastery." 
-                      : "Don't worry! With focused study using these strategies, you'll see improvement quickly."}
+              <CardContent>
+                <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 p-3 mb-4">
+                  <h4 className="font-medium text-green-900 dark:text-green-200 mb-1">You've got this!</h4>
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    Remember that every study session brings you closer to mastery.
                   </p>
                 </div>
                 
-                <div className="whitespace-pre-line">
-                  {analysisContent.studyTips || (
-                    <div className="space-y-4">
-                      <p>Based on your performance, here are personalized study recommendations:</p>
-                      
-                      <div className="space-y-3">
-                        <div className="border rounded-md p-3">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <BookOpen className="size-4" /> Active Recall Practice
-                          </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Spend 20-30 minutes daily testing yourself on key concepts. Create flashcards for terms and formulas you struggled with in this exam.
-                          </p>
-                        </div>
-                        
-                        <div className="border rounded-md p-3">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <Brain className="size-4" /> Concept Mapping
-                          </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Draw connections between related concepts to strengthen your understanding of the bigger picture. This helps identify patterns across topics.
-                          </p>
-                        </div>
-                        
-                        <div className="border rounded-md p-3">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <CheckCircle className="size-4" /> Practice Problems
-                          </h4>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Complete at least 5 practice problems for each concept you missed on this exam. Focus on understanding the process rather than just getting the right answer.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <p className="text-sm italic">
-                        Remember: Regular, focused practice is more effective than cramming. Schedule short, frequent study sessions for best results!
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  {analysisContent.motivation ? (
+                    <div className="whitespace-pre-line" dangerouslySetInnerHTML={{ __html: analysisContent.motivation.replace(/motivational|next steps|conclusion|final thoughts/i, "").replace(/^#+\s*/g, "") }} />
+                  ) : (
+                    <div>
+                      <p className="text-lg font-medium mb-2">You're on the right track!</p>
+                      <p>
+                        Remember that learning is a journey with ups and downs. By following your personalized study plan and focusing on your areas for improvement, you'll see significant progress.
                       </p>
+                      <p className="mt-2">
+                        Set aside regular study time each day, even if it's just 20-30 minutes. Consistent practice is more effective than cramming.
+                      </p>
+                      <p className="mt-2">
+                        Don't hesitate to ask for help when you need it. Whether it's from a teacher, classmate, or online resources, getting another perspective can make a big difference.
+                      </p>
+                      <blockquote className="border-l-4 border-primary pl-4 italic mt-4">
+                        "The expert in anything was once a beginner. Keep going!"
+                      </blockquote>
                     </div>
                   )}
                 </div>
