@@ -112,7 +112,7 @@ export const generateUniqueQuestions = async (
           subject: subject || "",
           count: count,
           unitObjective: unitObjective || undefined,
-          challengeLevel: "advanced",
+          challengeLevel: selectedChallenge,
           instructionType: selectedChallenge,
           randomSeed: randomSeed,
           attempt: attempt,
@@ -125,7 +125,7 @@ export const generateUniqueQuestions = async (
 
       if (result.error) {
         console.error(`Error from AI function (attempt ${attempt}):`, result.error);
-        lastError = new Error(`API error: ${result.error.message}`);
+        lastError = new Error(`API error: ${result.error.message || "Unknown error"}`);
 
         // Wait before retrying
         const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), 15000); // Exponential backoff, max 15 seconds
@@ -149,12 +149,19 @@ export const generateUniqueQuestions = async (
 
       // Show API key usage information if available
       if (result.data.stats?.apiKeysAvailable) {
-        console.log(`Question generation used ${result.data.stats.apiKeysUsed?.length || 1} API keys out of ${result.data.stats.apiKeysAvailable} available keys`);
+        const keysUsed = result.data.stats.apiKeysUsed?.length || 0;
+        const keysAvailable = result.data.stats.apiKeysAvailable || 0;
+        console.log(`Question generation used ${keysUsed} API keys out of ${keysAvailable} available keys`);
+        
+        if (keysUsed > 0 && keysAvailable > 0) {
+          const keysUsedText = result.data.stats.apiKeysUsed?.join(", ") || "primary key";
+          console.log(`Keys used: ${keysUsedText}`);
+        }
       }
 
       // If we've now reached our desired count, we can stop making further attempts
       if (finalQuestions.length >= count) {
-        console.log(`Successfully generated ${finalQuestions.length} questions`);
+        console.log(`Successfully generated ${finalQuestions.length} questions, meeting the requested count of ${count}`);
         break;
       }
 
@@ -226,6 +233,18 @@ export const generateUniqueQuestions = async (
   trackQuestionUsage(examId, questions.map(q => q.id));
 
   console.log(`Successfully generated ${questions.length} unique questions after ${maxAttempts} attempts`);
+
+  // If we have information about AI vs fallback questions, show it as a toast
+  if (questions.length > 0) {
+    const aiGenerated = questions.filter(q => q.isAIGenerated !== false).length;
+    const fallbackCount = questions.length - aiGenerated;
+    
+    if (fallbackCount > 0) {
+      toast.info(`Generated ${aiGenerated} AI questions and ${fallbackCount} fallback questions`, {
+        description: "Some questions were generated using fallback templates due to API limitations."
+      });
+    }
+  }
 
   // If we have information about API key usage, show it as a toast
   if (questions.length > 0 && questions.length < count) {
