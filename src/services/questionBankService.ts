@@ -69,8 +69,8 @@ export const trackQuestionUsage = (examId: string, questionIds: string[]): void 
 };
 
 /**
- * Generates questions using Groq AI service directly (through your Supabase edge function)
- * Restores in-app duplicate question checking.
+ * Generates questions using Groq AI service with multi-API key support
+ * Handles rate limits by automatically switching to backup API keys
  */
 export const generateUniqueQuestions = async (
   count: number,
@@ -105,6 +105,7 @@ export const generateUniqueQuestions = async (
       const selectedChallenge = challengeVariations[attempt % challengeVariations.length];
       const uniqueRequestId = `${Date.now()}-${attempt}-${randomSeed}`;
 
+      // Call the edge function with information about API key usage
       const result = await supabase.functions.invoke("ai-generate-questions", {
         body: {
           subject: subject || "",
@@ -141,7 +142,11 @@ export const generateUniqueQuestions = async (
         continue;
       }
 
-      // =========== RESTORED DUPLICATE QUESTION CHECKER HERE ================
+      // Show API key usage information if available
+      if (result.data.stats?.apiKeysAvailable) {
+        console.log(`Question generation used ${result.data.stats.apiKeysUsed || 1} API keys out of ${result.data.stats.apiKeysAvailable} available keys`);
+      }
+
       // Filter out duplicate questions by question_text and options (basic deduping)
       const unique = new Map<string, ExamQuestion>();
       for (const q of result.data.questions) {
@@ -157,7 +162,6 @@ export const generateUniqueQuestions = async (
       }
       let questions = Array.from(unique.values());
 
-      // If not enough unique, just use as many as we have (do NOT pad with old ones)
       // Ensure each question has a unique ID (if missing)
       questions = questions.map((q: ExamQuestion, index: number) => ({
         ...q,
@@ -169,6 +173,15 @@ export const generateUniqueQuestions = async (
       trackQuestionUsage(examId, questions.map(q => q.id));
 
       console.log(`Successfully generated ${questions.length} unique questions after ${attempt} attempts`);
+
+      // If we have information about API key usage, show it as a toast
+      if (result.data.stats?.apiKeysUsed && result.data.stats?.apiKeysAvailable) {
+        if (result.data.stats.apiKeysUsed > 1) {
+          toast.info(`Used ${result.data.stats.apiKeysUsed} API keys to generate your questions`, {
+            description: "Multiple API keys were needed due to rate limits"
+          });
+        }
+      }
 
       return {
         questions,
@@ -202,6 +215,3 @@ export const generateUniqueQuestions = async (
 
   throw new Error(finalError);
 };
-
-// No more duplicate question checking here.
-
