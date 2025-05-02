@@ -26,6 +26,7 @@ interface ExamQuestionProps {
     explanation?: string;
     difficulty_level?: number;
     subject?: string;
+    isAIGenerated?: boolean;
   };
   selectedAnswer: string | null;
   onSelectAnswer: (answer: string) => void;
@@ -141,6 +142,7 @@ const ExamQuestion = ({
         {source && (
           <div className="mt-3 text-xs text-muted-foreground text-right">
             Source: {source === 'ai' ? 'AI-Generated' : 'Question Bank'}
+            {question.isAIGenerated === false && ' (Fallback)'}
           </div>
         )}
       </CardContent>
