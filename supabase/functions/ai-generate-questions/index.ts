@@ -13,6 +13,7 @@ interface ApiKeyConfig {
   isAvailable: boolean;
   lastUsed: number;
   failureCount: number;
+  cooldownUntil: number; // Track when a key can be used again after rate limit
 }
 
 // Initialize API key configurations
@@ -27,7 +28,8 @@ function initializeApiKeys(): ApiKeyConfig[] {
       name: "Primary",
       isAvailable: true,
       lastUsed: 0,
-      failureCount: 0
+      failureCount: 0,
+      cooldownUntil: 0
     });
   }
   
@@ -40,12 +42,19 @@ function initializeApiKeys(): ApiKeyConfig[] {
         name: `Key-${i}`,
         isAvailable: true,
         lastUsed: 0,
-        failureCount: 0
+        failureCount: 0,
+        cooldownUntil: 0
       });
     }
   }
   
-  console.log(`Initialized ${apiKeys.length} API keys for question generation`);
+  const keyNames = apiKeys.map(k => k.name).join(", ");
+  console.log(`Initialized ${apiKeys.length} API keys for question generation: ${keyNames}`);
+  
+  if (apiKeys.length < 2) {
+    console.warn(`⚠️ Only ${apiKeys.length} API keys configured. Multiple keys are recommended for generating more than 10 questions.`);
+  }
+  
   return apiKeys;
 }
 
@@ -331,10 +340,23 @@ const GROQ_MODELS = [
 
 // Function to get the next available API key
 function getNextAvailableApiKey(): ApiKeyConfig | null {
-  // Find keys that are available
-  const availableKeys = apiKeys.filter(k => k.isAvailable);
+  const now = Date.now();
+  
+  // Find keys that are available and not on cooldown
+  const availableKeys = apiKeys.filter(k => k.isAvailable && now >= k.cooldownUntil);
   
   if (availableKeys.length === 0) {
+    console.warn("No API keys currently available - all are either marked unavailable or on cooldown");
+    
+    // Check if any keys are just on cooldown
+    const coolingDownKeys = apiKeys.filter(k => k.isAvailable && now < k.cooldownUntil);
+    if (coolingDownKeys.length > 0) {
+      // Sort by soonest available
+      coolingDownKeys.sort((a, b) => a.cooldownUntil - b.cooldownUntil);
+      const nextAvailableIn = Math.ceil((coolingDownKeys[0].cooldownUntil - now) / 1000);
+      console.log(`Next key (${coolingDownKeys[0].name}) will be available in ${nextAvailableIn} seconds`);
+    }
+    
     return null;
   }
   
@@ -347,7 +369,8 @@ function getNextAvailableApiKey(): ApiKeyConfig | null {
   });
   
   const key = availableKeys[0];
-  key.lastUsed = Date.now();
+  key.lastUsed = now;
+  console.log(`Selected API key: ${key.name}`);
   return key;
 }
 
@@ -356,8 +379,14 @@ function markApiKeyFailure(keyConfig: ApiKeyConfig, reason: string): void {
   keyConfig.failureCount += 1;
   console.log(`API key ${keyConfig.name} failure (count: ${keyConfig.failureCount}): ${reason}`);
   
-  if (keyConfig.failureCount >= 5) {
-    // Consider a key with 5+ failures as unavailable for this session
+  // If rate limited, set a cooldown period
+  if (reason.includes("429") || reason.includes("rate limit")) {
+    keyConfig.cooldownUntil = Date.now() + 120 * 1000; // 2 minutes cooldown for rate limits
+    console.log(`API key ${keyConfig.name} on cooldown until: ${new Date(keyConfig.cooldownUntil).toISOString()}`);
+  }
+  
+  if (keyConfig.failureCount >= 3) { // Reduced from 5 to 3
+    // Consider a key with 3+ failures as unavailable for this session
     keyConfig.isAvailable = false;
     console.warn(`API key ${keyConfig.name} marked as unavailable after ${keyConfig.failureCount} failures`);
   }
@@ -365,9 +394,10 @@ function markApiKeyFailure(keyConfig: ApiKeyConfig, reason: string): void {
 
 // Reset an API key's failure count after successful use
 function markApiKeySuccess(keyConfig: ApiKeyConfig): void {
-  if (keyConfig.failureCount > 0) {
+  if (keyConfig.failureCount > 0 || keyConfig.cooldownUntil > 0) {
     keyConfig.failureCount = 0;
-    console.log(`API key ${keyConfig.name} success - reset failure count`);
+    keyConfig.cooldownUntil = 0;
+    console.log(`API key ${keyConfig.name} success - reset failure count and cooldown`);
   }
 }
 
@@ -388,18 +418,21 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
     // Try all available API keys until success or exhaustion
     let result = null;
     let lastError = null;
+    let apiKeyUsed = null;
     
-    // Try with all available API keys
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Try with all available API keys - increased to 5 attempts
+    for (let attempt = 0; attempt < 5; attempt++) {
       // Get the next available API key
       const apiKeyConfig = getNextAvailableApiKey();
       
       if (!apiKeyConfig) {
-        console.error("No available API keys remaining");
-        throw new Error("All API keys are unavailable. Please try again later.");
+        console.error(`No available API keys remaining on attempt ${attempt + 1}. Waiting 2 seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        continue; // Try again after waiting
       }
       
       const GROQ_API_KEY = apiKeyConfig.key;
+      apiKeyUsed = apiKeyConfig.name;
       console.log(`Attempt ${attempt + 1} using API key ${apiKeyConfig.name}`);
       
       try {
@@ -536,6 +569,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         questionData.difficulty_level = 3;
         questionData.unit_objective = unitObjective || "";
         questionData.created_at = new Date().toISOString();
+        questionData.apiKeyUsed = apiKeyUsed; // Track which API key was used
         
         console.log("Successfully created question:", questionData);
         return questionData;
@@ -588,7 +622,8 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           subject: subject,
           difficulty_level: 3,
           unit_objective: unitObjective || "",
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          apiKeyUsed: apiKeyUsed // Track which API key was used
         };
         
         const isReasonable = 
@@ -813,7 +848,7 @@ serve(async (req) => {
       );
     }
 
-    const questionCount = Math.min(count || 1, 20); // Increased max questions from 10 to 20
+    const questionCount = Math.min(count || 1, 20); // Maximum 20 questions per request
     
     console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
 
@@ -835,89 +870,75 @@ serve(async (req) => {
       );
     }
 
-    // Use parallel generation with sufficient gaps between questions
-    const questionPromises = [];
-    for (let i = 0; i < questionCount; i++) {
-      const generateWithRetry = async (index: number) => {
-        // Stagger API calls to reduce likelihood of very similar prompts being processed at the same time
-        await new Promise(r => setTimeout(r, index * 300)); 
-        
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            // Add more entropy to each generation attempt
-            const seedMultiplier = attempt * 1000 + Date.now() % 1000 + randomSeed;
-            const question = await generateQuestion(
-              subject, 
-              unitObjective, 
-              challengeLevel, 
-              "question", 
-              index + seedMultiplier
-            );
-            
-            if (question && question.question_text && 
-                question.question_text.length > 20 && 
-                !question.question_text.toLowerCase().includes("fallback")) {
-              return {
-                ...question,
-                isAIGenerated: true,
-                questionIndex: index
-              };
-            }
-            
-            console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
-            
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          } catch (err) {
-            console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
-            
-            if (attempt === 2) {
-              return {
-                ...createFallbackQuestion(subject, unitObjective, index),
-                error: err instanceof Error ? err.message : String(err),
-                isAIGenerated: false,
-                questionIndex: index
-              };
-            }
-            
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
-          }
-        }
-        
-        return {
-          ...createFallbackQuestion(subject, unitObjective, index),
-          isAIGenerated: false,
-          questionIndex: index
-        };
-      };
-      
-      questionPromises.push(generateWithRetry(i));
-    }
-
-    let generatedQuestions = await Promise.all(questionPromises);
+    // CHANGED: Use sequential generation instead of parallel to better manage rate limits
+    const generatedQuestions = [];
+    const apiKeysUsed = new Set<string>();
     let usedFallback = false;
     let errorDetails = "";
-    let apiKeysUsed = new Set();
+
+    for (let i = 0; i < questionCount; i++) {
+      console.log(`Generating question ${i + 1}/${questionCount}`);
+      
+      try {
+        // Add more entropy to each generation attempt
+        const seedMultiplier = i * 1000 + Date.now() % 1000 + randomSeed;
+        const question = await generateQuestion(
+          subject, 
+          unitObjective, 
+          challengeLevel, 
+          "question", 
+          i + seedMultiplier
+        );
+        
+        if (question) {
+          if (question.apiKeyUsed) {
+            apiKeysUsed.add(question.apiKeyUsed);
+            // Remove this property before sending to client
+            delete question.apiKeyUsed;
+          }
+          
+          if (question.error) {
+            if (!errorDetails) errorDetails = question.error;
+            delete question.error;
+          }
+          
+          if (question.isAIGenerated === false) {
+            usedFallback = true;
+          }
+          
+          delete question.isAIGenerated;
+          delete question.questionIndex;
+          
+          generatedQuestions.push(question);
+        } else {
+          console.log(`Question ${i + 1} generation returned null, adding fallback`);
+          const fallback = createFallbackQuestion(subject, unitObjective, i);
+          generatedQuestions.push(fallback);
+          usedFallback = true;
+        }
+      } catch (error) {
+        console.error(`Error generating question ${i + 1}/${questionCount}:`, error);
+        const fallback = createFallbackQuestion(subject, unitObjective, i);
+        generatedQuestions.push(fallback);
+        usedFallback = true;
+        
+        if (!errorDetails) {
+          errorDetails = error instanceof Error ? error.message : String(error);
+        }
+      }
+      
+      // Add delay between questions to help manage rate limits - but only if there's another question to generate
+      if (i < questionCount - 1) {
+        const delay = 2000; // 2 seconds between questions
+        console.log(`Waiting ${delay}ms before generating next question`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
 
     // Enhanced duplicate detection to catch near-identical questions
     const seen = new Set();
     const uniqueQuestions = generatedQuestions.filter(q => {
       if (!q) return false;
-      
-      if (q.error && !errorDetails) {
-        errorDetails = q.error;
-      }
-      
-      if (q.isAIGenerated === false) {
-        usedFallback = true;
-      }
-      
-      if (q.apiKey) {
-        apiKeysUsed.add(q.apiKey);
-        delete q.apiKey;
-      }
-      
-      delete q.error;
-      delete q.questionIndex;
       
       // Create a more robust fingerprint that catches near-identical questions
       // Look at first 50 chars of question and first 20 chars of each option
@@ -944,14 +965,11 @@ serve(async (req) => {
       for (let i = 0; i < additionalNeeded; i++) {
         // Add timestamp and extra randomness to ensure each fallback is different
         const randomOffset = Math.floor(Math.random() * 10000);
-        const fallback = {
-          ...createFallbackQuestion(
-            subject, 
-            unitObjective, 
-            uniqueQuestions.length + i + 50 + randomOffset
-          ),
-          isAIGenerated: false
-        };
+        const fallback = createFallbackQuestion(
+          subject, 
+          unitObjective, 
+          uniqueQuestions.length + i + 50 + randomOffset
+        );
         
         // Add unique timestamp to question text to prevent duplicates
         fallback.question_text = `[Q${i+1}] ` + fallback.question_text;
@@ -961,16 +979,12 @@ serve(async (req) => {
       }
     }
 
-    const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated === true).length;
-    const totalFallbackCount = uniqueQuestions.filter(q => q.isAIGenerated === false).length;
+    const aiGeneratedCount = uniqueQuestions.length - (usedFallback ? 1 : 0);
+    const totalFallbackCount = usedFallback ? 1 : 0;
     
-    uniqueQuestions.forEach(q => {
-      delete q.isAIGenerated;
-    });
-
     const source = aiGeneratedCount > 0 ? 'ai' : 'fallback';
     
-    console.log(`Successfully generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback)`);
+    console.log(`Successfully generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback). Keys used: ${Array.from(apiKeysUsed).join(", ")}`);
     
     return new Response(
       JSON.stringify({ 
@@ -981,7 +995,7 @@ serve(async (req) => {
           fallbackUsed: totalFallbackCount,
           totalRequested: questionCount,
           apiKeysAvailable: apiKeys.length,
-          apiKeysUsed: Array.from(apiKeysUsed).length
+          apiKeysUsed: Array.from(apiKeysUsed)
         },
         error: errorDetails || undefined
       }),
