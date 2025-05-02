@@ -15,6 +15,7 @@ export interface ExamQuestion {
   subject?: string;
   created_at?: string;
   unit_objective?: string;
+  isAIGenerated?: boolean; // Added this property
 }
 
 // Local storage keys
