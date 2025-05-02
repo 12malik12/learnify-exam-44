@@ -89,6 +89,7 @@ export const generateUniqueQuestions = async (
   const baseDelay = 2000; // 2 second initial delay
 
   let lastError: Error | null = null;
+  let finalQuestions: ExamQuestion[] = [];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -142,52 +143,27 @@ export const generateUniqueQuestions = async (
         continue;
       }
 
+      // Add questions from this batch to our accumulated questions
+      const questionsFromThisAttempt = result.data.questions;
+      finalQuestions = [...finalQuestions, ...questionsFromThisAttempt];
+
       // Show API key usage information if available
       if (result.data.stats?.apiKeysAvailable) {
-        console.log(`Question generation used ${result.data.stats.apiKeysUsed || 1} API keys out of ${result.data.stats.apiKeysAvailable} available keys`);
+        console.log(`Question generation used ${result.data.stats.apiKeysUsed?.length || 1} API keys out of ${result.data.stats.apiKeysAvailable} available keys`);
       }
 
-      // Filter out duplicate questions by question_text and options (basic deduping)
-      const unique = new Map<string, ExamQuestion>();
-      for (const q of result.data.questions) {
-        const key = 
-          (q.question_text?.trim().toLowerCase() || "") + 
-          "|" + (q.option_a?.trim().toLowerCase() || "") +
-          "|" + (q.option_b?.trim().toLowerCase() || "") +
-          "|" + (q.option_c?.trim().toLowerCase() || "") +
-          "|" + (q.option_d?.trim().toLowerCase() || "");
-        if (!unique.has(key)) {
-          unique.set(key, q);
-        }
-      }
-      let questions = Array.from(unique.values());
-
-      // Ensure each question has a unique ID (if missing)
-      questions = questions.map((q: ExamQuestion, index: number) => ({
-        ...q,
-        id: q.id || `generated-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`
-      }));
-
-      // Store the questions for history
-      storeQuestions(questions);
-      trackQuestionUsage(examId, questions.map(q => q.id));
-
-      console.log(`Successfully generated ${questions.length} unique questions after ${attempt} attempts`);
-
-      // If we have information about API key usage, show it as a toast
-      if (result.data.stats?.apiKeysUsed && result.data.stats?.apiKeysAvailable) {
-        if (result.data.stats.apiKeysUsed > 1) {
-          toast.info(`Used ${result.data.stats.apiKeysUsed} API keys to generate your questions`, {
-            description: "Multiple API keys were needed due to rate limits"
-          });
-        }
+      // If we've now reached our desired count, we can stop making further attempts
+      if (finalQuestions.length >= count) {
+        console.log(`Successfully generated ${finalQuestions.length} questions`);
+        break;
       }
 
-      return {
-        questions,
-        source: 'ai',
-        warning: result.data.error
-      };
+      // If we didn't get enough questions but the attempt succeeded, try again
+      // immediately to get the remaining questions
+      if (finalQuestions.length < count) {
+        console.log(`Generated ${finalQuestions.length}/${count} questions. Requesting ${count - finalQuestions.length} more...`);
+        continue;
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
       console.error(`Attempt ${attempt}: AI question generation failed:`, errorMessage);
@@ -204,14 +180,63 @@ export const generateUniqueQuestions = async (
     }
   }
 
-  // If we get here, all attempts failed
-  console.error(`All ${maxAttempts} attempts to generate questions failed`);
-  const finalError = lastError?.message || "Failed to generate AI questions after multiple attempts";
+  // If we have at least some questions but not enough, log this but proceed
+  if (finalQuestions.length > 0 && finalQuestions.length < count) {
+    console.warn(`Could only generate ${finalQuestions.length} questions out of ${count} requested`);
+    toast.warning(`Only generated ${finalQuestions.length} out of ${count} questions. You may want to try again later for better results.`);
+  }
 
-  // Show a more user-friendly error message
-  toast.error("AI question generation failed. Please try again in a moment.", {
-    description: "Our AI service is experiencing temporary issues. We're working on it!"
-  });
+  // If we have no questions at all, that's a complete failure
+  if (finalQuestions.length === 0) {
+    console.error(`All ${maxAttempts} attempts to generate questions failed`);
+    const finalError = lastError?.message || "Failed to generate AI questions after multiple attempts";
 
-  throw new Error(finalError);
+    // Show a more user-friendly error message
+    toast.error("AI question generation failed. Please try again in a moment.", {
+      description: "Our AI service is experiencing temporary issues. We're working on it!"
+    });
+
+    throw new Error(finalError);
+  }
+
+  // Filter out duplicate questions by question_text and options (basic deduping)
+  const unique = new Map<string, ExamQuestion>();
+  for (const q of finalQuestions) {
+    const key = 
+      (q.question_text?.trim().toLowerCase() || "") + 
+      "|" + (q.option_a?.trim().toLowerCase() || "") +
+      "|" + (q.option_b?.trim().toLowerCase() || "") +
+      "|" + (q.option_c?.trim().toLowerCase() || "") +
+      "|" + (q.option_d?.trim().toLowerCase() || "");
+    if (!unique.has(key)) {
+      unique.set(key, q);
+    }
+  }
+  
+  let questions = Array.from(unique.values());
+
+  // Ensure each question has a unique ID (if missing)
+  questions = questions.map((q: ExamQuestion, index: number) => ({
+    ...q,
+    id: q.id || `generated-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`
+  }));
+
+  // Store the questions for history
+  storeQuestions(questions);
+  trackQuestionUsage(examId, questions.map(q => q.id));
+
+  console.log(`Successfully generated ${questions.length} unique questions after ${maxAttempts} attempts`);
+
+  // If we have information about API key usage, show it as a toast
+  if (questions.length > 0 && questions.length < count) {
+    toast.warning(`Only generated ${questions.length} out of the requested ${count} questions`, {
+      description: "Our AI service may be experiencing high demand. Try again later for better results."
+    });
+  }
+
+  return {
+    questions: questions.slice(0, count), // Ensure we only return up to the requested count
+    source: 'ai',
+    warning: lastError?.message
+  };
 };
