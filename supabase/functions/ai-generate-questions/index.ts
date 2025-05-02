@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -697,4 +698,221 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
         option_c: "t = 10.39 years",
         option_d: "t = 9.19 years",
         correct_answer: "C",
-        explanation: "The maximum adoption is 1,000,000. We need to find when P(t) = 0.75 × 1,000
+        explanation: "The maximum adoption is 1,000,000. We need to find when P(t) = 0.75 × 1,000,000 = 750,000. So we have: 750,000 = 1,000,000 / (1 + 999e^(-0.5t)). Simplifying: 0.75 = 1 / (1 + 999e^(-0.5t)), which gives 0.75(1 + 999e^(-0.5t)) = 1. This means 0.75 + 749.25e^(-0.5t) = 1, so 749.25e^(-0.5t) = 0.25, and e^(-0.5t) = 0.25/749.25 = 1/2997. Taking ln of both sides: -0.5t = ln(1/2997) = -ln(2997). Therefore, t = ln(2997)/0.5 ≈ 10.39 years."
+      }
+    ],
+    "Physics": [
+      {
+        question_text: "A 2.0 kg object is moving with a velocity of 4.0 m/s when it experiences a constant force of 6.0 N in the same direction as its motion for 3.0 seconds. What is the final kinetic energy of the object?",
+        option_a: "16 J",
+        option_b: "88 J",
+        option_c: "100 J",
+        option_d: "136 J",
+        correct_answer: "B",
+        explanation: "Initial velocity v₀ = 4.0 m/s, mass m = 2.0 kg, force F = 6.0 N, time t = 3.0 s. Using Newton's Second Law, the acceleration a = F/m = 6.0 N / 2.0 kg = 3.0 m/s². Final velocity v = v₀ + at = 4.0 m/s + (3.0 m/s² × 3.0 s) = 4.0 m/s + 9.0 m/s = 13.0 m/s. The final kinetic energy KE = (1/2)mv² = 0.5 × 2.0 kg × (13.0 m/s)² = 0.5 × 2.0 kg × 169 m²/s² = 169 J."
+      }
+    ],
+    "Chemistry": [
+      {
+        question_text: "Which of the following solutions has the highest pH?",
+        option_a: "0.1 M HCl",
+        option_b: "0.01 M HCl",
+        option_c: "0.1 M CH₃COOH",
+        option_d: "0.01 M NaOH",
+        correct_answer: "D",
+        explanation: "The pH is a measure of acidity, with lower values indicating higher acidity. For 0.1 M HCl (a strong acid): pH = -log(0.1) = 1. For 0.01 M HCl: pH = -log(0.01) = 2. For 0.1 M CH₃COOH (a weak acid with Ka ≈ 1.8 × 10⁻⁵): pH = -log(√(0.1 × 1.8 × 10⁻⁵)) ≈ 2.87. For 0.01 M NaOH (a strong base): pOH = -log(0.01) = 2, so pH = 14 - pOH = 12. Therefore, 0.01 M NaOH has the highest pH at 12."
+      }
+    ]
+  };
+  
+  // Default template if subject not found
+  const defaultTemplate = {
+    question_text: `A challenging ${subject} problem involves solving a complex scenario. Which approach is most efficient?`,
+    option_a: "Apply systematic analysis",
+    option_b: "Use direct computation",
+    option_c: "Implement comparative analysis",
+    option_d: "Leverage theoretical principles",
+    correct_answer: "A",
+    explanation: `When solving complex ${subject} problems, systematic analysis allows for breaking down the problem into manageable components while maintaining the integrity of the overall solution path. This approach is generally most efficient for the majority of advanced problems in this field.`
+  };
+  
+  // Choose a template from the subject or use default
+  const subjectTemplates = templates[subject] || [defaultTemplate];
+  const templateIndex = questionIndex % subjectTemplates.length;
+  const template = subjectTemplates[templateIndex];
+  
+  // Add uniqueness to the ID to avoid collisions
+  const uniqueId = `fallback-${questionIndex}-${subject}-${Date.now() % 10000}-${crypto.randomUUID()}`;
+  
+  return {
+    ...template,
+    id: uniqueId,
+    subject: subject,
+    difficulty_level: 3,
+    unit_objective: unitObjective || "",
+    created_at: new Date().toISOString(),
+    isFallback: true
+  };
+}
+
+// Handle HTTP requests in the Deno environment
+serve(async (req) => {
+  // Handle OPTIONS for CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+  
+  // Test call handler
+  if (req.method === 'GET') {
+    try {
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          message: "Groq AI Question Generator is running",
+          apiKeysConfigured: apiKeys.length,
+          availableModels: GROQ_MODELS,
+          subjects: Object.keys(subjectPromptGuides),
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+  
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  try {
+    // Parse input JSON
+    const input = await req.json();
+    const { subject = "", count = 1, unitObjective, challengeLevel = "advanced", randomSeed = Date.now() } = input;
+    
+    // Limit the count to a reasonable number
+    const questionCount = Math.min(Math.max(1, count), 30);
+    
+    console.log(`Received request for ${questionCount} questions on subject: ${subject || "general"}`);
+    
+    // Sequential generation with delays to avoid rate limits
+    const generatedQuestions = [];
+    const apiKeysUsed = new Set<string>();
+    let usedFallback = false;
+    let errorDetails = "";
+    
+    // Generate questions one by one with a small delay between requests
+    // This helps prevent hitting rate limits (Groq's limit is ~30 requests per minute)
+    for (let i = 0; i < questionCount; i++) {
+      console.log(`Generating question ${i + 1} of ${questionCount}`);
+      
+      try {
+        // Add entropy to each question's generation
+        const seedOffset = i * 1000 + randomSeed;
+        const question = await generateQuestion(
+          subject, 
+          unitObjective, 
+          challengeLevel, 
+          "question", 
+          i + seedOffset
+        );
+        
+        // Track which API key was used
+        if (question.apiKeyUsed) {
+          apiKeysUsed.add(question.apiKeyUsed);
+        }
+        
+        // Check if this is a fallback question
+        if (question.isFallback || question.isAIGenerated === false) {
+          usedFallback = true;
+          console.log(`Used fallback for question ${i + 1}`);
+        }
+        
+        // Add the question to our collection
+        generatedQuestions.push({
+          ...question,
+          isAIGenerated: !question.isFallback && question.isAIGenerated !== false,
+          questionIndex: i
+        });
+      } catch (error) {
+        console.error(`Error generating question ${i + 1}:`, error);
+        errorDetails += `Question ${i + 1}: ${error.message || "Unknown error"}. `;
+        
+        // Create a fallback question on error
+        const fallback = createFallbackQuestion(subject, unitObjective, i);
+        generatedQuestions.push({
+          ...fallback,
+          isAIGenerated: false,
+          questionIndex: i,
+          error: error.message || "Failed to generate"
+        });
+        
+        usedFallback = true;
+      }
+      
+      // Add a delay between requests to avoid rate limits (2 seconds)
+      if (i < questionCount - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    // Basic deduplication of questions by checking question_text and options
+    const uniqueQuestions = [];
+    const seenQuestionKeys = new Set();
+    
+    for (const question of generatedQuestions) {
+      // Create a key by combining question text and options
+      const questionKey = (question.question_text || "") + 
+        (question.option_a || "") + 
+        (question.option_b || "") + 
+        (question.option_c || "") + 
+        (question.option_d || "");
+      
+      // Only add unique questions
+      if (!seenQuestionKeys.has(questionKey) && question.question_text && question.question_text.length > 15) {
+        seenQuestionKeys.add(questionKey);
+        uniqueQuestions.push(question);
+      }
+    }
+    
+    // Count AI-generated vs. fallback questions
+    const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated !== false).length;
+    const totalFallbackCount = uniqueQuestions.length - aiGeneratedCount;
+    
+    console.log(`Generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback). Keys used: ${Array.from(apiKeysUsed).join(", ")}`);
+    
+    // Prepare the final response
+    return new Response(
+      JSON.stringify({
+        questions: uniqueQuestions,
+        source: apiKeys.length > 0 && aiGeneratedCount > 0 ? "ai" : "fallback",
+        stats: {
+          aiGenerated: aiGeneratedCount,
+          fallbackUsed: totalFallbackCount,
+          totalRequested: questionCount,
+          apiKeysAvailable: apiKeys.length,
+          apiKeysUsed: Array.from(apiKeysUsed)
+        },
+        warning: usedFallback ? `Some questions (${totalFallbackCount} of ${uniqueQuestions.length}) used fallback templates due to API limitations.` : undefined,
+        error: errorDetails || undefined
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+    
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || "An unknown error occurred", 
+        questions: [], 
+        source: "error" 
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
