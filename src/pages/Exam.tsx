@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
@@ -91,16 +90,12 @@ const Exam = () => {
         description: "AI is crafting challenging questions for you...",
       });
       
-      console.log(`Attempting to generate ${questionCount} questions for ${selectedSubjectObj?.name || ""}`);
-      
       const result = await generateUniqueQuestions(
         questionCount,
         selectedSubjectObj?.name || "",
         unitObjective.trim() || undefined,
         newExamId
       );
-      
-      console.log("Question generation result:", result);
       
       // Verify we have questions before proceeding
       if (!result.questions || result.questions.length === 0) {

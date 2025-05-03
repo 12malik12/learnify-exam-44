@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,71 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for multiple Groq API keys
-interface ApiKeyConfig {
-  key: string;
-  name: string;
-  isAvailable: boolean;
-  lastUsed: number;
-  failureCount: number;
-  cooldownUntil: number; // Track when a key can be used again after rate limit
-}
+// Retrieve the GROQ_API_KEY from Supabase secrets using Deno.env
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
 
-// Initialize API key configurations
-function initializeApiKeys(): ApiKeyConfig[] {
-  const apiKeys: ApiKeyConfig[] = [];
-  
-  // Add primary API key
-  const primaryKey = Deno.env.get("GROQ_API_KEY");
-  if (primaryKey) {
-    apiKeys.push({
-      key: primaryKey,
-      name: "Primary",
-      isAvailable: true,
-      lastUsed: 0,
-      failureCount: 0,
-      cooldownUntil: 0
-    });
-  }
-  
-  // Add additional API keys (GROQ_API_KEY_1, GROQ_API_KEY_2, etc.)
-  for (let i = 1; i <= 10; i++) {
-    const additionalKey = Deno.env.get(`GROQ_API_KEY_${i}`);
-    if (additionalKey) {
-      apiKeys.push({
-        key: additionalKey,
-        name: `Key-${i}`,
-        isAvailable: true,
-        lastUsed: 0,
-        failureCount: 0,
-        cooldownUntil: 0
-      });
-    }
-  }
-  
-  const keyNames = apiKeys.map(k => k.name).join(", ");
-  console.log(`Initialized ${apiKeys.length} API keys for question generation: ${keyNames}`);
-  
-  if (apiKeys.length < 2) {
-    console.warn(`⚠️ Only ${apiKeys.length} API keys configured. Multiple keys are recommended for generating more than 10 questions.`);
-  }
-  
-  return apiKeys;
-}
+console.log(`GROQ_API_KEY status: ${GROQ_API_KEY ? 'Present (from secret, length: ' + GROQ_API_KEY.length + ')' : 'Missing or empty'}`);
 
-// Get available API keys
-const apiKeys = initializeApiKeys();
-
-console.log(`API keys status: Found ${apiKeys.length} keys`);
-
-if (apiKeys.length === 0) {
-  console.error(`⚠️ No GROQ_API_KEY configured!
+if (!GROQ_API_KEY) {
+  console.error(`⚠️ GROQ_API_KEY is not set!
 Set this secret using the Supabase CLI or in the dashboard:
 1. Go to your Supabase project dashboard.
 2. Navigate to 'Secrets' under 'Edge Functions'.
 3. Add GROQ_API_KEY with your Groq API key from https://console.groq.com/keys .
 Or, with the CLI: supabase secrets set GROQ_API_KEY=your_actual_key_here
-For multiple keys, use GROQ_API_KEY_1, GROQ_API_KEY_2, etc.
 `);
 }
 
@@ -338,69 +284,6 @@ const GROQ_MODELS = [
   "llama3-8b-8192",  // Faster response Groq model
 ];
 
-// Function to get the next available API key
-function getNextAvailableApiKey(): ApiKeyConfig | null {
-  const now = Date.now();
-  
-  // Find keys that are available and not on cooldown
-  const availableKeys = apiKeys.filter(k => k.isAvailable && now >= k.cooldownUntil);
-  
-  if (availableKeys.length === 0) {
-    console.warn("No API keys currently available - all are either marked unavailable or on cooldown");
-    
-    // Check if any keys are just on cooldown
-    const coolingDownKeys = apiKeys.filter(k => k.isAvailable && now < k.cooldownUntil);
-    if (coolingDownKeys.length > 0) {
-      // Sort by soonest available
-      coolingDownKeys.sort((a, b) => a.cooldownUntil - b.cooldownUntil);
-      const nextAvailableIn = Math.ceil((coolingDownKeys[0].cooldownUntil - now) / 1000);
-      console.log(`Next key (${coolingDownKeys[0].name}) will be available in ${nextAvailableIn} seconds`);
-    }
-    
-    return null;
-  }
-  
-  // Sort by least recently used and fewest failures
-  availableKeys.sort((a, b) => {
-    if (a.failureCount !== b.failureCount) {
-      return a.failureCount - b.failureCount; // Prefer keys with fewer failures
-    }
-    return a.lastUsed - b.lastUsed; // Otherwise prefer least recently used
-  });
-  
-  const key = availableKeys[0];
-  key.lastUsed = now;
-  console.log(`Selected API key: ${key.name}`);
-  return key;
-}
-
-// Mark an API key as failed
-function markApiKeyFailure(keyConfig: ApiKeyConfig, reason: string): void {
-  keyConfig.failureCount += 1;
-  console.log(`API key ${keyConfig.name} failure (count: ${keyConfig.failureCount}): ${reason}`);
-  
-  // If rate limited, set a cooldown period
-  if (reason.includes("429") || reason.includes("rate limit")) {
-    keyConfig.cooldownUntil = Date.now() + 120 * 1000; // 2 minutes cooldown for rate limits
-    console.log(`API key ${keyConfig.name} on cooldown until: ${new Date(keyConfig.cooldownUntil).toISOString()}`);
-  }
-  
-  if (keyConfig.failureCount >= 3) { // Reduced from 5 to 3
-    // Consider a key with 3+ failures as unavailable for this session
-    keyConfig.isAvailable = false;
-    console.warn(`API key ${keyConfig.name} marked as unavailable after ${keyConfig.failureCount} failures`);
-  }
-}
-
-// Reset an API key's failure count after successful use
-function markApiKeySuccess(keyConfig: ApiKeyConfig): void {
-  if (keyConfig.failureCount > 0 || keyConfig.cooldownUntil > 0) {
-    keyConfig.failureCount = 0;
-    keyConfig.cooldownUntil = 0;
-    console.log(`API key ${keyConfig.name} success - reset failure count and cooldown`);
-  }
-}
-
 // Function to generate a question using Groq API with enhanced uniqueness guarantees
 async function generateQuestion(subject: string, unitObjective?: string, challengeLevel: string = "advanced", mode: string = "question", questionIndex: number = 0) {
   try {
@@ -415,32 +298,24 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
       prompt = generateChallengingQuestionPrompt(subject, unitObjective, questionIndex);
     }
     
-    // Try all available API keys until success or exhaustion
+    // Load GROQ_API_KEY from Supabase secrets, never hardcoded
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+
+    if (!GROQ_API_KEY) {
+      console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
+      throw new Error("API key is not configured. Ask the administrator to set up GROQ_API_KEY.");
+    }
+    
     let result = null;
     let lastError = null;
-    let apiKeyUsed = null;
     
-    // Try with all available API keys - increased to 5 attempts
-    for (let attempt = 0; attempt < 5; attempt++) {
-      // Get the next available API key
-      const apiKeyConfig = getNextAvailableApiKey();
-      
-      if (!apiKeyConfig) {
-        console.error(`No available API keys remaining on attempt ${attempt + 1}. Waiting 2 seconds before retry...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        continue; // Try again after waiting
-      }
-      
-      const GROQ_API_KEY = apiKeyConfig.key;
-      apiKeyUsed = apiKeyConfig.name;
-      console.log(`Attempt ${attempt + 1} using API key ${apiKeyConfig.name}`);
-      
+    // Try Groq models only with retry logic (restricted to Groq exclusively)
+    for (const model of GROQ_MODELS) {
       try {
-        // Try Groq models only with retry logic (restricted to Groq exclusively)
-        for (const model of GROQ_MODELS) {
+        console.log(`Attempting generation with Groq model: ${model}`);
+        
+        for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            console.log(`Attempting generation with Groq model: ${model}`);
-            
             // Add more randomization to each API call
             const temperature = 0.7 + (questionIndex * 0.05) % 0.3; // Vary between 0.7 and 1.0
             const maxTokens = 1024 + (questionIndex * 100) % 500; // Vary between 1024 and 1524
@@ -469,9 +344,11 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
               console.error(`Error with Groq model ${model} (${response.status}): ${errorText}`);
               
               if (response.status === 429) {
-                // Rate limit hit - mark this key as failed and try another key
-                markApiKeyFailure(apiKeyConfig, `Rate limit (429) when using ${model}`);
-                break; // Skip remaining models for this key and try another key
+                // Rate limit hit, wait with exponential backoff
+                const waitTime = Math.pow(2, attempt) * 1000;
+                console.log(`Rate limit hit. Waiting ${waitTime}ms before retry...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
               }
               
               throw new Error(`Groq API error (${response.status}): ${errorText}`);
@@ -486,33 +363,32 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
             
             const content = responseData.choices[0].message.content;
             
-            // Success - mark this key as successful
-            markApiKeySuccess(apiKeyConfig);
-            
-            // Process the content
+            // Success, process the content
             result = content;
             break;
-          } catch (modelError) {
-            console.error(`Error with model ${model}:`, modelError);
-            lastError = modelError;
+          } catch (attemptError) {
+            console.error(`Error during attempt ${attempt + 1} with model ${model}:`, attemptError);
+            lastError = attemptError;
             
-            if (modelError.message && modelError.message.includes("429")) {
-              markApiKeyFailure(apiKeyConfig, `Rate limit error with model ${model}`);
-              break; // Skip remaining models for this key
+            if (attemptError.message && attemptError.message.includes("429")) {
+              const waitTime = Math.pow(2, attempt) * 1000;
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+              continue;
             }
+            
+            break; // Try next model
           }
         }
         
-        if (result) break; // If we got a result, break out of the API key loop
-      } catch (keyError) {
-        console.error(`Error with API key ${apiKeyConfig.name}:`, keyError);
-        markApiKeyFailure(apiKeyConfig, keyError.message || "Unknown error");
-        lastError = keyError;
+        if (result) break;
+      } catch (modelError) {
+        console.error(`Error with model ${model}:`, modelError);
+        lastError = modelError;
       }
     }
     
     if (!result) {
-      throw lastError || new Error("All API keys and models failed to generate content");
+      throw lastError || new Error("All Groq models failed to generate content");
     }
     
     if (mode === "chat") {
@@ -569,7 +445,6 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
         questionData.difficulty_level = 3;
         questionData.unit_objective = unitObjective || "";
         questionData.created_at = new Date().toISOString();
-        questionData.apiKeyUsed = apiKeyUsed; // Track which API key was used
         
         console.log("Successfully created question:", questionData);
         return questionData;
@@ -622,8 +497,7 @@ async function generateQuestion(subject: string, unitObjective?: string, challen
           subject: subject,
           difficulty_level: 3,
           unit_objective: unitObjective || "",
-          created_at: new Date().toISOString(),
-          apiKeyUsed: apiKeyUsed // Track which API key was used
+          created_at: new Date().toISOString()
         };
         
         const isReasonable = 
@@ -698,221 +572,347 @@ function createFallbackQuestion(subject: string, unitObjective?: string, questio
         option_c: "t = 10.39 years",
         option_d: "t = 9.19 years",
         correct_answer: "C",
-        explanation: "The maximum adoption is 1,000,000. We need to find when P(t) = 0.75 × 1,000,000 = 750,000. So we have: 750,000 = 1,000,000 / (1 + 999e^(-0.5t)). Simplifying: 0.75 = 1 / (1 + 999e^(-0.5t)), which gives 0.75(1 + 999e^(-0.5t)) = 1. This means 0.75 + 749.25e^(-0.5t) = 1, so 749.25e^(-0.5t) = 0.25, and e^(-0.5t) = 0.25/749.25 = 1/2997. Taking ln of both sides: -0.5t = ln(1/2997) = -ln(2997). Therefore, t = ln(2997)/0.5 ≈ 10.39 years."
-      }
-    ],
-    "Physics": [
-      {
-        question_text: "A 2.0 kg object is moving with a velocity of 4.0 m/s when it experiences a constant force of 6.0 N in the same direction as its motion for 3.0 seconds. What is the final kinetic energy of the object?",
-        option_a: "16 J",
-        option_b: "88 J",
-        option_c: "100 J",
-        option_d: "136 J",
-        correct_answer: "B",
-        explanation: "Initial velocity v₀ = 4.0 m/s, mass m = 2.0 kg, force F = 6.0 N, time t = 3.0 s. Using Newton's Second Law, the acceleration a = F/m = 6.0 N / 2.0 kg = 3.0 m/s². Final velocity v = v₀ + at = 4.0 m/s + (3.0 m/s² × 3.0 s) = 4.0 m/s + 9.0 m/s = 13.0 m/s. The final kinetic energy KE = (1/2)mv² = 0.5 × 2.0 kg × (13.0 m/s)² = 0.5 × 2.0 kg × 169 m²/s² = 169 J."
-      }
-    ],
-    "Chemistry": [
-      {
-        question_text: "Which of the following solutions has the highest pH?",
-        option_a: "0.1 M HCl",
-        option_b: "0.01 M HCl",
-        option_c: "0.1 M CH₃COOH",
-        option_d: "0.01 M NaOH",
-        correct_answer: "D",
-        explanation: "The pH is a measure of acidity, with lower values indicating higher acidity. For 0.1 M HCl (a strong acid): pH = -log(0.1) = 1. For 0.01 M HCl: pH = -log(0.01) = 2. For 0.1 M CH₃COOH (a weak acid with Ka ≈ 1.8 × 10⁻⁵): pH = -log(√(0.1 × 1.8 × 10⁻⁵)) ≈ 2.87. For 0.01 M NaOH (a strong base): pOH = -log(0.01) = 2, so pH = 14 - pOH = 12. Therefore, 0.01 M NaOH has the highest pH at 12."
+        explanation: "The maximum adoption is 1,000,000. We need to find when P(t) = 0.75 × 1,000,000 = 750,000. So we solve: 750,000 = 1,000,000 / (1 + 999e^(-0.5t)). Multiplying both sides by (1 + 999e^(-0.5t)): 750,000(1 + 999e^(-0.5t)) = 1,000,000. Simplifying: 750,000 + 749,250,000e^(-0.5t) = 1,000,000. Therefore: 749,250,000e^(-0.5t) = 250,000. So e^(-0.5t) = 250,000/749,250,000 = 1/3. Taking natural log of both sides: -0.5t = ln(1/3) = -ln(3). Therefore: t = 2ln(3) ≈ 2.2 ≈ 10.39 years."
       }
     ]
   };
   
-  // Default template if subject not found
-  const defaultTemplate = {
-    question_text: `A challenging ${subject} problem involves solving a complex scenario. Which approach is most efficient?`,
-    option_a: "Apply systematic analysis",
-    option_b: "Use direct computation",
-    option_c: "Implement comparative analysis",
-    option_d: "Leverage theoretical principles",
-    correct_answer: "A",
-    explanation: `When solving complex ${subject} problems, systematic analysis allows for breaking down the problem into manageable components while maintaining the integrity of the overall solution path. This approach is generally most efficient for the majority of advanced problems in this field.`
-  };
+  const subjectTemplates = templates[subject] || [{
+    question_text: `A challenging question about ${subject}${unitObjective ? ` related to ${unitObjective}` : ''}`,
+    option_a: "Option A - This would be a plausible but incorrect answer",
+    option_b: "Option B - This would be the correct answer",
+    option_c: "Option C - This would be a plausible but incorrect answer", 
+    option_d: "Option D - This would be a plausible but incorrect answer",
+    correct_answer: "B",
+    explanation: "This is a fallback question created when AI generation failed. The correct answer would be B because of specific concepts and principles related to the topic."
+  }];
   
-  // Choose a template from the subject or use default
-  const subjectTemplates = templates[subject] || [defaultTemplate];
-  const templateIndex = questionIndex % subjectTemplates.length;
-  const template = subjectTemplates[templateIndex];
-  
-  // Add uniqueness to the ID to avoid collisions
-  const uniqueId = `fallback-${questionIndex}-${subject}-${Date.now() % 10000}-${crypto.randomUUID()}`;
-  
+  const template = subjectTemplates[questionIndex % subjectTemplates.length];
+
   return {
     ...template,
-    id: uniqueId,
+    id: crypto.randomUUID(),
     subject: subject,
     difficulty_level: 3,
     unit_objective: unitObjective || "",
     created_at: new Date().toISOString(),
-    isFallback: true
+    isAIGenerated: false
   };
 }
 
-// Handle HTTP requests in the Deno environment
+// Function to check if a question aligns with a learning objective
+function isQuestionAlignedWithObjective(question: any, objective: string): boolean {
+  const objectiveLower = objective.toLowerCase();
+  const questionTextLower = question.question_text.toLowerCase();
+  const optionsText = [
+    question.option_a,
+    question.option_b, 
+    question.option_c, 
+    question.option_d
+  ].join(' ').toLowerCase();
+  const explanationLower = question.explanation.toLowerCase();
+  
+  const objectiveKeywords = objectiveLower.split(/\s+/)
+    .filter(word => word.length > 3) 
+    .map(word => word.replace(/[^\w]/g, ''));
+  
+  const keywordInQuestion = objectiveKeywords.some(keyword => 
+    questionTextLower.includes(keyword) || 
+    optionsText.includes(keyword) ||
+    explanationLower.includes(keyword)
+  );
+  
+  const questionSimilarity = similarityScore(questionTextLower, objectiveLower);
+  const optionsSimilarity = similarityScore(optionsText, objectiveLower);
+  const explanationSimilarity = similarityScore(explanationLower, objectiveLower);
+  
+  const isAligned = 
+    keywordInQuestion || 
+    questionSimilarity > 0.2 || 
+    optionsSimilarity > 0.2 ||
+    explanationSimilarity > 0.2;
+  
+  console.log(`Question alignment check: ${isAligned ? 'ALIGNED' : 'NOT ALIGNED'}`);
+  
+  return isAligned;
+}
+
+// Text similarity helper function
+function similarityScore(text1: string, text2: string): number {
+  const words1 = new Set(text1.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^\w]/g, '')));
+  const words2 = new Set(text2.split(/\s+/).filter(w => w.length > 3).map(w => w.replace(/[^\w]/g, '')));
+  
+  if (words1.size === 0 || words2.size === 0) return 0;
+  
+  let commonWords = 0;
+  for (const word of words1) {
+    if (words2.has(word)) commonWords++;
+  }
+  
+  return commonWords / (words1.size + words2.size - commonWords);
+}
+
 serve(async (req) => {
-  // Handle OPTIONS for CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
-  
-  // Test call handler
-  if (req.method === 'GET') {
-    try {
+
+  try {
+    const requestData = await req.json();
+    const { 
+      subject, 
+      count = 1, 
+      unitObjective,
+      challengeLevel = "advanced",
+      instructionType = "challenging",
+      mode = "question",
+      query = "",
+      context = "",
+      testCall = false
+    } = requestData;
+
+    // Handle test calls quickly for connectivity tests
+    if (testCall === true) {
+      console.log("Processing test call for connection verification");
+      const testQuestion = await generateQuestion(
+        "Mathematics", 
+        "Testing connection", 
+        "basic", 
+        "question", 
+        0
+      );
+      
       return new Response(
-        JSON.stringify({
-          status: "ok",
-          message: "Groq AI Question Generator is running",
-          apiKeysConfigured: apiKeys.length,
-          availableModels: GROQ_MODELS,
-          subjects: Object.keys(subjectPromptGuides),
+        JSON.stringify({ 
+          questions: [testQuestion],
+          source: 'ai',
+          status: 'test_success'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } catch (error) {
+    }
+
+    if (mode === "chat") {
+      console.log(`Generating chat response for subject: ${subject}, query: ${query}`);
+      
+      const result = await generateQuestion(
+        subject || "",
+        query, 
+        "advanced", 
+        "chat", 
+        0
+      );
+      
       return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify(result),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-  }
-  
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  
-  try {
-    // Parse input JSON
-    const input = await req.json();
-    const { subject = "", count = 1, unitObjective, challengeLevel = "advanced", randomSeed = Date.now() } = input;
+
+    if (!subject) {
+      return new Response(
+        JSON.stringify({ error: 'Subject is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    const questionCount = Math.min(count || 1, 10);
     
-    // Limit the count to a reasonable number
-    const questionCount = Math.min(Math.max(1, count), 30);
-    
-    console.log(`Received request for ${questionCount} questions on subject: ${subject || "general"}`);
-    
-    // Sequential generation with delays to avoid rate limits
-    const generatedQuestions = [];
-    const apiKeysUsed = new Set<string>();
+    console.log(`Generating ${questionCount} ${instructionType} questions for subject: ${subject}, objective: ${unitObjective || 'general'}`);
+
+    if (!GROQ_API_KEY) {
+      console.error("GROQ_API_KEY is not set. Cannot use AI-powered question generation.");
+      
+      const fallbackQuestions = [];
+      for (let i = 0; i < questionCount; i++) {
+        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          questions: fallbackQuestions,
+          source: 'fallback',
+          error: "API key is not configured. Please set up GROQ_API_KEY in your Supabase Edge Function Secrets."
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use parallel generation with sufficient gaps between questions
+    const questionPromises = [];
+    for (let i = 0; i < questionCount; i++) {
+      const generateWithRetry = async (index: number) => {
+        // Stagger API calls to reduce likelihood of very similar prompts being processed at the same time
+        await new Promise(r => setTimeout(r, index * 500)); 
+        
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            // Add more entropy to each generation attempt
+            const seedMultiplier = attempt * 1000 + Date.now() % 1000;
+            const question = await generateQuestion(
+              subject, 
+              unitObjective, 
+              challengeLevel, 
+              "question", 
+              index + seedMultiplier
+            );
+            
+            if (question && question.question_text && 
+                question.question_text.length > 20 && 
+                !question.question_text.toLowerCase().includes("fallback")) {
+              return {
+                ...question,
+                isAIGenerated: true
+              };
+            }
+            
+            console.log(`Retry ${attempt + 1}: Question generation didn't produce good result`);
+            
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          } catch (err) {
+            console.error(`Attempt ${attempt + 1} failed for question ${index + 1}:`, err);
+            
+            if (attempt === 2) {
+              return {
+                ...createFallbackQuestion(subject, unitObjective, index),
+                error: err instanceof Error ? err.message : String(err),
+                isAIGenerated: false
+              };
+            }
+            
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+          }
+        }
+        
+        return {
+          ...createFallbackQuestion(subject, unitObjective, index),
+          isAIGenerated: false
+        };
+      };
+      
+      questionPromises.push(generateWithRetry(i));
+    }
+
+    let generatedQuestions = await Promise.all(questionPromises);
     let usedFallback = false;
     let errorDetails = "";
-    
-    // Generate questions one by one with a small delay between requests
-    // This helps prevent hitting rate limits (Groq's limit is ~30 requests per minute)
-    for (let i = 0; i < questionCount; i++) {
-      console.log(`Generating question ${i + 1} of ${questionCount}`);
+
+    // Enhanced duplicate detection to catch near-identical questions
+    const seen = new Set();
+    const uniqueQuestions = generatedQuestions.filter(q => {
+      if (!q) return false;
       
-      try {
-        // Add entropy to each question's generation
-        const seedOffset = i * 1000 + randomSeed;
-        const question = await generateQuestion(
-          subject, 
-          unitObjective, 
-          challengeLevel, 
-          "question", 
-          i + seedOffset
-        );
-        
-        // Track which API key was used
-        if (question.apiKeyUsed) {
-          apiKeysUsed.add(question.apiKeyUsed);
-        }
-        
-        // Check if this is a fallback question
-        if (question.isFallback || question.isAIGenerated === false) {
-          usedFallback = true;
-          console.log(`Used fallback for question ${i + 1}`);
-        }
-        
-        // Add the question to our collection
-        generatedQuestions.push({
-          ...question,
-          isAIGenerated: !question.isFallback && question.isAIGenerated !== false,
-          questionIndex: i
-        });
-      } catch (error) {
-        console.error(`Error generating question ${i + 1}:`, error);
-        errorDetails += `Question ${i + 1}: ${error.message || "Unknown error"}. `;
-        
-        // Create a fallback question on error
-        const fallback = createFallbackQuestion(subject, unitObjective, i);
-        generatedQuestions.push({
-          ...fallback,
-          isAIGenerated: false,
-          questionIndex: i,
-          error: error.message || "Failed to generate"
-        });
-        
+      if (q.error && !errorDetails) {
+        errorDetails = q.error;
+      }
+      
+      if (q.isAIGenerated === false) {
         usedFallback = true;
       }
       
-      // Add a delay between requests to avoid rate limits (2 seconds)
-      if (i < questionCount - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    // Basic deduplication of questions by checking question_text and options
-    const uniqueQuestions = [];
-    const seenQuestionKeys = new Set();
-    
-    for (const question of generatedQuestions) {
-      // Create a key by combining question text and options
-      const questionKey = (question.question_text || "") + 
-        (question.option_a || "") + 
-        (question.option_b || "") + 
-        (question.option_c || "") + 
-        (question.option_d || "");
+      delete q.error;
       
-      // Only add unique questions
-      if (!seenQuestionKeys.has(questionKey) && question.question_text && question.question_text.length > 15) {
-        seenQuestionKeys.add(questionKey);
-        uniqueQuestions.push(question);
+      // Create a more robust fingerprint that catches near-identical questions
+      // Look at first 50 chars of question and first 20 chars of each option
+      const fingerprint = [
+        q.question_text.substring(0, 50).toLowerCase(),
+        q.option_a.substring(0, 20).toLowerCase(),
+        q.option_b.substring(0, 20).toLowerCase()
+      ].join('|');
+      
+      if (seen.has(fingerprint)) {
+        console.log(`Detected duplicate question with fingerprint: ${fingerprint.substring(0, 30)}...`);
+        return false;
+      }
+      
+      seen.add(fingerprint);
+      return true;
+    });
+    
+    // If we don't have enough unique questions, generate fallbacks with extra entropy
+    if (uniqueQuestions.length < questionCount) {
+      console.log(`Only have ${uniqueQuestions.length} unique questions out of ${questionCount} requested. Adding fallbacks...`);
+      const additionalNeeded = questionCount - uniqueQuestions.length;
+      
+      for (let i = 0; i < additionalNeeded; i++) {
+        // Add timestamp and extra randomness to ensure each fallback is different
+        const randomOffset = Math.floor(Math.random() * 10000);
+        const fallback = {
+          ...createFallbackQuestion(
+            subject, 
+            unitObjective, 
+            uniqueQuestions.length + i + 50 + randomOffset
+          ),
+          isAIGenerated: false
+        };
+        
+        // Add unique timestamp to question text to prevent duplicates
+        fallback.question_text = `[Q${i+1}] ` + fallback.question_text;
+        
+        uniqueQuestions.push(fallback);
+        usedFallback = true;
       }
     }
+
+    const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated === true).length;
+    const totalFallbackCount = uniqueQuestions.filter(q => q.isAIGenerated === false).length;
     
-    // Count AI-generated vs. fallback questions
-    const aiGeneratedCount = uniqueQuestions.filter(q => q.isAIGenerated !== false).length;
-    const totalFallbackCount = uniqueQuestions.length - aiGeneratedCount;
+    uniqueQuestions.forEach(q => {
+      delete q.isAIGenerated;
+    });
+
+    const source = aiGeneratedCount > 0 ? 'ai' : 'fallback';
     
-    console.log(`Generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback). Keys used: ${Array.from(apiKeysUsed).join(", ")}`);
+    console.log(`Successfully generated ${uniqueQuestions.length} questions (${aiGeneratedCount} AI, ${totalFallbackCount} fallback)`);
     
-    // Prepare the final response
     return new Response(
-      JSON.stringify({
-        questions: uniqueQuestions,
-        source: apiKeys.length > 0 && aiGeneratedCount > 0 ? "ai" : "fallback",
+      JSON.stringify({ 
+        questions: uniqueQuestions.slice(0, questionCount),
+        source: source,
         stats: {
           aiGenerated: aiGeneratedCount,
           fallbackUsed: totalFallbackCount,
-          totalRequested: questionCount,
-          apiKeysAvailable: apiKeys.length,
-          apiKeysUsed: Array.from(apiKeysUsed)
+          totalRequested: questionCount
         },
-        warning: usedFallback ? `Some questions (${totalFallbackCount} of ${uniqueQuestions.length}) used fallback templates due to API limitations.` : undefined,
         error: errorDetails || undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error("Error processing request:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || "An unknown error occurred", 
-        questions: [], 
-        source: "error" 
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Error in ai-generate-questions function:", error);
+    
+    try {
+      const { subject, count = 1, unitObjective } = await req.json();
+      
+      if (!subject) {
+        throw new Error("Subject is required");
+      }
+      
+      const fallbackQuestions = [];
+      const questionCount = Math.min(count || 1, 10);
+      
+      for (let i = 0; i < questionCount; i++) {
+        fallbackQuestions.push(createFallbackQuestion(subject, unitObjective, i));
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          questions: fallbackQuestions,
+          source: 'fallback',
+          error: error instanceof Error ? error.message : String(error),
+          fix: "To enable AI question generation, please set up the GROQ_API_KEY in your Supabase Edge Function Secrets."
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (fallbackError) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to generate questions. Please try again or use a different subject.",
+          message: "The question generation service is currently experiencing issues.",
+          fix: "To enable AI question generation, please set up the GROQ_API_KEY in your Supabase Edge Function Secrets."
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
   }
 });
