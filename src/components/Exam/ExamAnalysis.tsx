@@ -41,18 +41,21 @@ const ExamAnalysis = ({
 }: ExamAnalysisProps) => {
   // Calculate basic stats
   const totalQuestions = examQuestions.length;
-  let correctAnswers = 0;
+  let correctCount = 0;
   const incorrectQuestions: ExamQuestion[] = [];
   
   examQuestions.forEach(question => {
     if (studentAnswers[question.id] === question.correct_answer) {
       correctAnswers++;
     } else {
-      incorrectQuestions.push(question);
+      incorrectQuestions.push({
+        ...question,
+        student_answer: studentAnswers[question.id]
+      });
     }
   });
   
-  const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+  const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
   
   // Helper to create a performance descriptor based on score
   const getPerformanceDescriptor = () => {
@@ -63,6 +66,16 @@ const ExamAnalysis = ({
     if (score >= 50) return "fair";
     return "needs improvement";
   };
+  
+  // Group incorrect questions by topic/subject if available
+  const incorrectByTopic: Record<string, ExamQuestion[]> = {};
+  incorrectQuestions.forEach(q => {
+    const topic = q.subject || "General";
+    if (!incorrectByTopic[topic]) {
+      incorrectByTopic[topic] = [];
+    }
+    incorrectByTopic[topic].push(q);
+  });
 
   // Enhanced extraction of analysis sections with improved parsing logic
   const extractAnalysisSections = (analysisText: string | null) => {
@@ -187,7 +200,7 @@ const ExamAnalysis = ({
                   </div>
                   <div className="flex flex-col bg-muted/40 rounded-lg p-3">
                     <span className="text-sm text-muted-foreground">Correct Answers</span>
-                    <span className="font-medium text-lg">{correctAnswers} of {totalQuestions} ({score}%)</span>
+                    <span className="font-medium text-lg">{correctCount} of {totalQuestions} ({score}%)</span>
                   </div>
                   <div className="flex flex-col bg-muted/40 rounded-lg p-3">
                     <span className="text-sm text-muted-foreground">Difficulty Level</span>
@@ -205,18 +218,45 @@ const ExamAnalysis = ({
                   ) : (
                     <div>
                       <p>
-                        Your score of {score}% ({correctAnswers} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material. 
+                        Your score of {score}% ({correctCount} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material.
                       </p>
-                      <p>
-                        This exam covered several important concepts and tested your ability to apply them to complex problems. 
-                        Your performance indicates that you have a solid foundation in some areas, while others may require more attention.
+                      
+                      <p className="mt-4">
+                        This exam covered various topics, and your performance provides valuable insights into your strengths and areas for improvement. Your results indicate that you have a solid foundation in some concepts while others may require more focused attention.
                       </p>
-                      <p>
-                        Take some time to review the other tabs for more specific feedback on your strengths and areas that need attention.
+                      
+                      <p className="mt-4">
+                        You performed particularly well on {correctCount > 0 ? correctCount : 'some'} questions, demonstrating good comprehension of those topics. However, there {incorrectQuestions.length === 1 ? 'is' : 'are'} {incorrectQuestions.length} {incorrectQuestions.length === 1 ? 'area' : 'areas'} where additional practice would be beneficial.
+                      </p>
+                      
+                      <p className="mt-4">
+                        The detailed breakdown in the other tabs will help you understand your performance patterns and provide targeted strategies to strengthen your knowledge in specific areas.
                       </p>
                     </div>
                   )}
                 </div>
+                
+                {/* Additional performance patterns */}
+                {!analysis && incorrectQuestions.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="font-medium text-lg mb-3">Performance Patterns</h4>
+                    <div className="rounded-md border p-4">
+                      <h5 className="font-medium mb-2">Topic Distribution of Incorrect Answers</h5>
+                      <div className="space-y-2">
+                        {Object.entries(incorrectByTopic).map(([topic, questions]) => (
+                          <div key={topic} className="flex items-center justify-between">
+                            <span>{topic}</span>
+                            <div className="flex items-center">
+                              <span className="text-red-600 dark:text-red-400 font-medium">
+                                {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -234,13 +274,42 @@ const ExamAnalysis = ({
                     </div>
                   ) : (
                     <div>
-                      {correctAnswers === totalQuestions ? (
+                      {correctCount === totalQuestions ? (
                         <p>Excellent work! You've demonstrated strong understanding across all topics covered in this exam. Your performance shows mastery of the subject matter.</p>
-                      ) : correctAnswers > 0 ? (
-                        <p>You demonstrated good understanding in several areas, particularly on questions {totalQuestions - incorrectQuestions.length > 1 ? 'numbers' : 'number'} {examQuestions
-                          .filter((_, index) => !incorrectQuestions.includes(examQuestions[index]))
-                          .map((_, index) => index + 1)
-                          .join(', ')}. Continue to build on these strengths.</p>
+                      ) : correctCount > 0 ? (
+                        <>
+                          <p>You demonstrated good understanding in several areas, particularly on questions {totalQuestions - incorrectQuestions.length > 1 ? 'numbers' : 'number'} {examQuestions
+                            .filter((q) => studentAnswers[q.id] === q.correct_answer)
+                            .map((_, index) => index + 1)
+                            .join(', ')}. Continue to build on these strengths.</p>
+                          
+                          <div className="mt-4 space-y-4">
+                            {examQuestions
+                              .filter((q) => studentAnswers[q.id] === q.correct_answer)
+                              .map((question, index) => {
+                                const questionNumber = examQuestions.findIndex(q => q.id === question.id) + 1;
+                                return (
+                                  <div key={index} className="rounded-lg border p-4">
+                                    <div className="flex items-start gap-2">
+                                      <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 size-6 flex items-center justify-center rounded-full flex-shrink-0">
+                                        <CheckCircle className="size-4" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-medium mb-1">Question {questionNumber}: {question.subject || 'General Topic'}</h4>
+                                        <p className="text-sm mb-2">{question.question_text}</p>
+                                        
+                                        {question.explanation && (
+                                          <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/20 rounded text-sm">
+                                            <span className="font-medium">Key Concept Mastered:</span> {question.explanation}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                            })}
+                          </div>
+                        </>
                       ) : (
                         <p>This exam was challenging for you, but don't worry. Everyone has different starting points, and with targeted practice, you'll see improvement next time.</p>
                       )}
@@ -266,7 +335,7 @@ const ExamAnalysis = ({
                     <div>
                       <p>
                         You missed {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}. 
-                        Let's look at each one in detail:
+                        Let's examine each one to understand the specific concepts that need improvement:
                       </p>
                       
                       <div className="mt-4 space-y-4">
@@ -278,13 +347,20 @@ const ExamAnalysis = ({
                                 <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 size-6 flex items-center justify-center rounded-full flex-shrink-0">
                                   <XCircle className="size-4" />
                                 </div>
-                                <div>
-                                  <h4 className="font-medium mb-1">Question {questionNumber}:</h4>
+                                <div className="w-full">
+                                  <div className="flex justify-between items-start w-full">
+                                    <h4 className="font-medium mb-1">Question {questionNumber}:</h4>
+                                    {question.subject && (
+                                      <Badge variant="outline" className="ml-auto">
+                                        Topic: {question.subject}
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-sm mb-2">{question.question_text}</p>
                                   
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3 text-sm">
                                     <div className="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
-                                      <span className="font-medium text-red-700 dark:text-red-400">Your answer:</span> Option {studentAnswers[question.id]} ({question[`option_${studentAnswers[question.id].toLowerCase()}`]})
+                                      <span className="font-medium text-red-700 dark:text-red-400">Your answer:</span> Option {question.student_answer} ({question[`option_${question.student_answer?.toLowerCase()}`]})
                                     </div>
                                     <div className="p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900">
                                       <span className="font-medium text-green-700 dark:text-green-400">Correct answer:</span> Option {question.correct_answer} ({question[`option_${question.correct_answer.toLowerCase()}`]})
@@ -296,6 +372,10 @@ const ExamAnalysis = ({
                                       <span className="font-medium">Explanation:</span> {question.explanation}
                                     </div>
                                   )}
+                                  
+                                  <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-sm">
+                                    <span className="font-medium">Why this concept is challenging:</span> This question tests your understanding of {question.subject || 'fundamental concepts'}. The incorrect answer suggests you may need to review {question.subject ? `key principles in ${question.subject}` : 'this area'}, particularly how to {question.explanation ? question.explanation.split('.')[0].toLowerCase() : 'apply these concepts correctly'}.
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -326,50 +406,78 @@ const ExamAnalysis = ({
                     <div>
                       {incorrectQuestions.length > 0 ? (
                         <>
-                          <p>Based on your performance, here are targeted strategies to help you improve in the areas where you faced challenges:</p>
+                          <p>Based on your performance, here are targeted strategies to help you improve in the specific areas where you faced challenges:</p>
                           
                           <div className="mt-4 space-y-4">
-                            {/* Group questions by conceptual areas if possible */}
-                            <div className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-4">
-                              <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">Specific Learning Strategies</h4>
-                              <ul className="list-disc text-sm text-blue-800 dark:text-blue-300 ml-4 space-y-2">
-                                <li>
-                                  <strong>Active problem solving:</strong> Don't just review theory—practice solving problems step by step, writing out your reasoning for each step.
-                                </li>
-                                <li>
-                                  <strong>Concept mapping:</strong> Create visual connections between related concepts to strengthen your understanding of how they interact.
-                                </li>
-                                <li>
-                                  <strong>Spaced repetition:</strong> Review these challenging concepts at increasing intervals (1 day, 3 days, 1 week) to build long-term retention.
-                                </li>
-                                <li>
-                                  <strong>Teach the concepts:</strong> Explain the topics you struggled with to someone else, which will reveal gaps in your understanding.
-                                </li>
-                              </ul>
-                            </div>
+                            {Object.entries(incorrectByTopic).map(([topic, questions]) => (
+                              <div key={topic} className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-4">
+                                <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
+                                  Strategies for {topic}
+                                </h4>
+                                <ul className="list-disc text-sm text-blue-800 dark:text-blue-300 ml-4 space-y-2">
+                                  <li>
+                                    <strong>Focused concept review:</strong> Revisit the fundamental principles of {topic}, paying special attention to the areas covered in questions {questions.map((_, i) => examQuestions.findIndex(q => q.id === questions[i].id) + 1).join(', ')}.
+                                  </li>
+                                  <li>
+                                    <strong>Practice with similar problems:</strong> Solve additional problems that test the same concepts to reinforce your understanding and identify any recurring patterns in your approach.
+                                  </li>
+                                  <li>
+                                    <strong>Visual learning technique:</strong> Create concept maps or diagrams that illustrate the relationships between key ideas in {topic} to strengthen your conceptual framework.
+                                  </li>
+                                  <li>
+                                    <strong>Apply active recall:</strong> After studying, test yourself by explaining the concepts out loud or writing explanations without referring to your notes.
+                                  </li>
+                                </ul>
+                              </div>
+                            ))}
                             
                             <div className="rounded-md bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 p-4">
-                              <h4 className="font-medium text-purple-900 dark:text-purple-200 mb-2">Resource Recommendations</h4>
+                              <h4 className="font-medium text-purple-900 dark:text-purple-200 mb-2">General Study Techniques</h4>
                               <ul className="list-disc text-sm text-purple-800 dark:text-purple-300 ml-4 space-y-1">
-                                <li>Review the explanations provided for each incorrect answer carefully</li>
-                                <li>Complete practice exercises that specifically target your weak areas</li>
-                                <li>Consider finding video tutorials that walk through similar problems step by step</li>
-                                <li>Schedule a brief review session every few days to reinforce these concepts</li>
+                                <li><strong>Spaced repetition:</strong> Review the challenging concepts at increasing intervals (1 day, 3 days, 1 week) to build long-term retention.</li>
+                                <li><strong>Teaching method:</strong> Explain the concepts you struggled with to someone else, which will highlight gaps in your understanding.</li>
+                                <li><strong>Problem-solving journal:</strong> Keep a record of mistakes and their corrections to identify patterns and prevent similar errors in the future.</li>
+                                <li><strong>Study group participation:</strong> Discuss challenging concepts with peers to gain different perspectives and deepen your understanding.</li>
                               </ul>
                             </div>
                           </div>
                           
-                          <p className="mt-4">
-                            Remember that mastering these concepts is an achievable goal with focused practice. 
-                            By addressing each specific area of difficulty with targeted strategies, 
-                            you'll develop a more comprehensive understanding of the material.
-                          </p>
+                          <div className="mt-6 p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+                            <p className="font-medium">
+                              Remember that mastering these concepts takes time and consistent effort. Your current challenges are stepping stones to deeper understanding. With targeted practice and the strategies above, you'll see significant improvement in your next assessment. Keep going—each study session brings you closer to mastery!
+                            </p>
+                          </div>
                         </>
                       ) : (
-                        <p>
-                          Your performance was exceptional! To continue building on this success, consider exploring more advanced 
-                          topics in this subject area or helping others understand these concepts, which will further solidify your own mastery.
-                        </p>
+                        <div>
+                          <p>
+                            Your performance was exceptional! To continue building on this success, consider exploring more advanced 
+                            topics in this subject area or helping others understand these concepts, which will further solidify your own mastery.
+                          </p>
+                          
+                          <div className="mt-4 space-y-4">
+                            <div className="rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 p-4">
+                              <h4 className="font-medium text-green-900 dark:text-green-200 mb-2">Next Level Strategies</h4>
+                              <ul className="list-disc text-sm text-green-800 dark:text-green-300 ml-4 space-y-2">
+                                <li>
+                                  <strong>Challenge yourself:</strong> Seek out more advanced problems or compete in subject-related competitions to push your boundaries.
+                                </li>
+                                <li>
+                                  <strong>Interdisciplinary connections:</strong> Explore how these concepts connect to other subjects or real-world applications.
+                                </li>
+                                <li>
+                                  <strong>Mentoring others:</strong> Consider tutoring peers who are struggling with these concepts, which will deepen your own understanding.
+                                </li>
+                              </ul>
+                            </div>
+                            
+                            <div className="mt-6 p-4 border rounded-lg bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20">
+                              <p className="font-medium">
+                                Your excellent performance demonstrates strong mastery of the material. Continue to nurture your curiosity and explore these topics more deeply. Your understanding and dedication will serve you well in future academic and professional pursuits!
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
