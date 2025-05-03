@@ -9,9 +9,12 @@ import { cn } from "@/lib/utils";
 const renderMathContent = (text: string) => {
   if (!text) return "";
   
-  // This is a simple placeholder - in a real app, you would use a LaTeX rendering library
-  // like KaTeX or MathJax. For now, we'll just identify LaTeX content and add a class to it.
-  return text.replace(/\$(.+?)\$/g, '<span class="math-formula">$1</span>');
+  // Enhanced LaTeX rendering - in a real app, you would integrate a proper LaTeX library
+  // This is a simple implementation that adds special styling to math formulas
+  return text.replace(/\$(.+?)\$/g, '<span class="math-formula">$1</span>')
+            .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '<span class="math-fraction">$1/$2</span>')
+            .replace(/\\sqrt\{([^}]*)\}/g, '<span class="math-sqrt">√($1)</span>')
+            .replace(/\\text\{([^}]*)\}/g, '$1');
 };
 
 interface ExamQuestionProps {
@@ -26,6 +29,7 @@ interface ExamQuestionProps {
     explanation?: string;
     difficulty_level?: number;
     subject?: string;
+    isAIGenerated?: boolean;
   };
   selectedAnswer: string | null;
   onSelectAnswer: (answer: string) => void;
@@ -102,8 +106,8 @@ const ExamQuestion = ({
                 key={option} 
                 className={cn(
                   "flex items-start space-x-2 rounded-md border p-3",
-                  isCorrect(option) && "border-green-500 bg-green-50",
-                  isIncorrect(option) && "border-red-500 bg-red-50"
+                  isCorrect(option) && "border-green-500 bg-green-50 dark:bg-green-950/30",
+                  isIncorrect(option) && "border-red-500 bg-red-50 dark:bg-red-950/30"
                 )}
               >
                 <RadioGroupItem value={option} id={`option-${question.id}-${option}`} />
@@ -126,12 +130,12 @@ const ExamQuestion = ({
             <div className="font-semibold mb-1">Explanation:</div>
             <div className="text-sm" dangerouslySetInnerHTML={explanationHtml} />
             {selectedAnswer && !isCorrect(selectedAnswer) && (
-              <div className="mt-2 text-sm font-medium text-red-600">
+              <div className="mt-2 text-sm font-medium text-red-600 dark:text-red-400">
                 You selected option {selectedAnswer}, but the correct answer is option {question.correct_answer}.
               </div>
             )}
             {selectedAnswer && isCorrect(selectedAnswer) && (
-              <div className="mt-2 text-sm font-medium text-green-600">
+              <div className="mt-2 text-sm font-medium text-green-600 dark:text-green-400">
                 Correct! You selected the right answer.
               </div>
             )}
