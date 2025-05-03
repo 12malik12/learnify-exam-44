@@ -5,16 +5,32 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-// Use MathJax for LaTeX rendering
+// Enhanced MathJax for LaTeX rendering with more comprehensive replacement patterns
 const renderMathContent = (text: string) => {
   if (!text) return "";
   
   // Enhanced LaTeX rendering - in a real app, you would integrate a proper LaTeX library
-  // This is a simple implementation that adds special styling to math formulas
-  return text.replace(/\$(.+?)\$/g, '<span class="math-formula">$1</span>')
-            .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '<span class="math-fraction">$1/$2</span>')
-            .replace(/\\sqrt\{([^}]*)\}/g, '<span class="math-sqrt">√($1)</span>')
-            .replace(/\\text\{([^}]*)\}/g, '$1');
+  return text
+    // Basic inline math expressions
+    .replace(/\$(.+?)\$/g, '<span class="math-formula">$1</span>')
+    // Fractions
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '<span class="math-fraction">$1/$2</span>')
+    // Square roots
+    .replace(/\\sqrt\{([^}]*)\}/g, '<span class="math-sqrt">√($1)</span>')
+    // Plain text within math
+    .replace(/\\text\{([^}]*)\}/g, '$1')
+    // Superscripts
+    .replace(/\^(\d+|{[^}]*})/g, '<sup>$1</sup>'.replace(/{|}/g, ''))
+    // Subscripts
+    .replace(/\_(\d+|{[^}]*})/g, '<sub>$1</sub>'.replace(/{|}/g, ''))
+    // Common math symbols
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\pm/g, '±')
+    .replace(/\\leq/g, '≤')
+    .replace(/\\geq/g, '≥')
+    .replace(/\\neq/g, '≠')
+    .replace(/\\approx/g, '≈');
 };
 
 interface ExamQuestionProps {
