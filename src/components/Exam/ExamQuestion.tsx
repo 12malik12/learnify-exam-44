@@ -30,7 +30,15 @@ const renderMathContent = (text: string) => {
     .replace(/\\leq/g, '≤')
     .replace(/\\geq/g, '≥')
     .replace(/\\neq/g, '≠')
-    .replace(/\\approx/g, '≈');
+    .replace(/\\approx/g, '≈')
+    .replace(/\\infty/g, '∞')
+    .replace(/\\partial/g, '∂')
+    .replace(/\\nabla/g, '∇')
+    .replace(/\\ldots/g, '...')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\circ/g, '°')
+    .replace(/\\gt\b/g, '>')
+    .replace(/\\lt\b/g, '<');
 };
 
 interface ExamQuestionProps {
@@ -94,6 +102,11 @@ const ExamQuestion = ({
               {question.subject && (
                 <span className="inline-block mr-2 text-sm font-medium text-muted-foreground">
                   {question.subject}
+                </span>
+              )}
+              {question.difficulty_level && (
+                <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 ml-2">
+                  Level {question.difficulty_level}
                 </span>
               )}
               <div 
