@@ -34,65 +34,85 @@ C) ${question.option_c}
 D) ${question.option_d}
 Student's Answer: ${question.student_answer || 'Not answered'}
 Correct Answer: ${question.correct_answer}
+Subject/Topic: ${question.subject || 'Not specified'}
+Explanation: ${question.explanation || 'Not provided'}
       `;
     }).join("\n\n");
     
     // Calculate basic stats for more personalized prompt
     const totalQuestions = examData.length;
     let correctCount = 0;
-    examData.forEach(q => {
-      if (q.student_answer === q.correct_answer) correctCount++;
-    });
-    const score = Math.round((correctCount / totalQuestions) * 100);
+    const incorrectQuestions = [];
     
-    // Group questions by topic if subject is provided
-    const questionsByTopic = {};
-    let subjectName = "";
-    
-    examData.forEach(q => {
-      if (q.subject) {
-        subjectName = q.subject;
+    examData.forEach((q, index) => {
+      if (q.student_answer === q.correct_answer) {
+        correctCount++;
+      } else {
+        incorrectQuestions.push({
+          questionNum: index + 1,
+          question: q
+        });
       }
     });
     
-    // Enhanced prompt for GROQ with more structured requirements
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    
+    // Group questions by topic if subject is provided
+    const subjectsByQuestion = {};
+    let mainSubject = "";
+    
+    examData.forEach((q, index) => {
+      if (q.subject) {
+        subjectsByQuestion[index + 1] = q.subject;
+        if (!mainSubject) mainSubject = q.subject;
+      }
+    });
+    
+    // Enhanced prompt for GROQ with clearer structure requirements
     const prompt = `
-As an exceptional educator with decades of experience, provide a personalized, encouraging analysis of a student's exam performance. They scored ${score}% (${correctCount} correct out of ${totalQuestions} questions) on their ${subjectName || ""} exam.
+As an exceptional educator with decades of experience, provide a detailed, personalized analysis of a student's exam performance. They scored ${score}% (${correctCount} correct out of ${totalQuestions} questions) on their ${mainSubject || ""} exam.
 
-Write a warm, conversational performance summary that feels like it was written by a human tutor who genuinely cares about this student's success. Avoid anything that sounds like AI-generated text.
-
-Your analysis MUST follow this EXACT structure with these clear sections:
+Your analysis MUST be organized into THREE DISTINCT SECTIONS (do not include these section headers in your response):
 
 1. OVERVIEW SECTION:
-   Provide a detailed summary of the student's overall performance. Highlight their strengths, offer a score breakdown, and identify any patterns in their answers. Be specific about what topics they showed mastery in and which areas need improvement. This section should give a comprehensive picture of their current understanding.
+   Provide a comprehensive and encouraging assessment of the student's performance. Include:
+   - A detailed summary of their overall performance with specific strengths
+   - Concrete observations about question-answering patterns
+   - Notable areas of mastery
+   - A positive but honest assessment of their current understanding level
+   
+   Write this section in a warm, conversational tone that acknowledges their effort while being specific about their achievements.
 
 2. AREAS TO IMPROVE SECTION:
-   List EVERY incorrectly answered question by number. For each one:
-   - Identify the specific topic the question covers
-   - Explain precisely why their answer was incorrect
-   - Describe the conceptual misunderstanding that likely led to the error
-   - Clarify what the correct approach should have been
+   You MUST analyze EACH incorrect question individually (${incorrectQuestions.length} questions total). For EACH incorrect question:
+   - Begin with "Question X:" (where X is the question number)
+   - Identify the specific topic/concept being tested
+   - Explain precisely why their chosen answer was incorrect using specific details from the question
+   - Describe the conceptual misunderstanding that likely led to their error
+   - Clarify the correct approach and reasoning
+   - End each question analysis with a brief takeaway lesson
+
+   Be thorough - do not skip ANY incorrect question. This section should help the student understand exactly where and why they made each mistake.
 
 3. NEXT STEPS SECTION:
-   Focus ONLY on practical strategies and study techniques specifically tailored to help improve in the identified weak areas. Do NOT repeat the question explanations here - those belong in the previous section. Include:
-   - Concrete study methods for each problem area
-   - Specific resources they can use (books, websites, videos)
-   - A clear, immediate action they can take tomorrow
-   - End with encouraging words to motivate the student and help them stay committed to progress
+   Focus EXCLUSIVELY on practical study strategies and resources that directly address the identified weak areas. Include:
+   - Specific, actionable study methods for each topic where mistakes were made
+   - Concrete resources (books, websites, videos) with actual names/titles when possible
+   - A clear, immediate action plan they can implement (what to do tomorrow)
+   - Skills to practice and concepts to review further
+   - End with genuinely encouraging words that motivate ongoing effort
 
 General requirements:
 - Write in a warm, conversational tone as if speaking directly to the student
-- Do NOT use the student's name or any placeholders like [Student]
-- Do NOT include section headers, formatting marks, or motivation quotes
-- Do NOT mention that you're an AI or that this is AI-generated
-- Focus on being specific and factual about their performance
-- Keep your analysis concise (around 350-450 words)
-- Never make up information - only reference what's evident from their answers
+- Do NOT include section headers or formatting marks
+- Be specific and factual - reference actual question content
+- Keep your analysis concise but thorough (450-650 words)
+- Avoid generic advice - tailor recommendations specifically to the student's mistakes
 
 Here is the exam result data:
 ${formattedExamData}
 
-Important: Focus on extracting patterns from the questions to determine the actual topics and subtopics the student needs help with. Be concrete and specific in your recommendations, not generic. Make your feedback actionable and motivating, helping the student understand exactly what to do next to improve their understanding.
+IMPORTANT: Make absolutely certain that you address EVERY incorrect question in the Areas to Improve section. Do not group questions together or skip any. Number each question analysis clearly.
 `;
 
     if (!GROQ_API_KEY) {
