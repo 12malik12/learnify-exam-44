@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import { useLanguage } from "@/context/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const Auth = () => {
-  const { signIn, signUp, user, loading, userRole } = useAuth();
+  const { signIn, signUp, user, loading } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +33,7 @@ const Auth = () => {
       const { error } = await signIn(email, password);
       if (error) throw error;
       toast.success(t("auth.signin_success"));
+      navigate("/subjects");
     } catch (error: any) {
       toast.error(error.message || t("auth.signin_error"));
       console.error("Error signing in:", error);
@@ -49,7 +51,15 @@ const Auth = () => {
       if (error) throw error;
       
       toast.success(t("auth.signup_success"));
-      // Note: With email confirmation enabled, user will need to verify email
+      // After successful signup, automatically sign in the user
+      const signInResult = await signIn(email, password);
+      if (signInResult.error) {
+        toast.error(t("auth.auto_signin_error"));
+        console.error("Error auto signing in after signup:", signInResult.error);
+      } else {
+        // Redirect to subjects page after successful signup and auto sign-in
+        navigate("/subjects");
+      }
     } catch (error: any) {
       toast.error(error.message || t("auth.signup_error"));
       console.error("Error signing up:", error);
