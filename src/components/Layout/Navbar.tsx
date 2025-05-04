@@ -1,20 +1,21 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Book, User, Home, Notebook, LogOut } from "lucide-react";
+import { Menu, X, Book, User, Home, Notebook, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { t } = useLanguage();
-  const { signOut, user } = useAuth();
+  const { signOut, user, userRole, isAdmin } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -55,6 +56,15 @@ const Navbar = () => {
     { name: t("nav.profile"), path: "/profile", icon: <User className="size-4" /> },
   ];
 
+  // Admin-specific navigation items
+  const adminNavItems = isAdmin() ? [
+    { 
+      name: t("nav.admin") || "Admin", 
+      path: "/admin", 
+      icon: <Shield className="size-4" /> 
+    }
+  ] : [];
+
   return (
     <header
       className={cn(
@@ -73,6 +83,12 @@ const Navbar = () => {
           </div>
           <span className="hidden sm:inline bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name")}</span>
           <span className="inline sm:hidden bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent font-bold">{t("app.name.short")}</span>
+          
+          {userRole && (
+            <Badge variant={isAdmin() ? "destructive" : "secondary"} className="ml-2">
+              {userRole}
+            </Badge>
+          )}
         </Link>
 
         {/* Desktop Navigation */}
@@ -86,6 +102,22 @@ const Navbar = () => {
                 location.pathname === item.path
                   ? "bg-ethiopia-green text-white"
                   : "text-foreground/80 hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
+              )}
+            >
+              {item.icon}
+              {item.name}
+            </Link>
+          ))}
+          
+          {adminNavItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full transition-colors",
+                location.pathname === item.path
+                  ? "bg-red-500 text-white"
+                  : "text-red-500 hover:bg-red-500/10"
               )}
             >
               {item.icon}
@@ -132,6 +164,12 @@ const Navbar = () => {
                     E
                   </div>
                   <span className="bg-gradient-to-r from-ethiopia-green via-ethiopia-yellow to-ethiopia-red bg-clip-text text-transparent">{t("app.name")}</span>
+                  
+                  {userRole && (
+                    <Badge variant={isAdmin() ? "destructive" : "secondary"} className="ml-2">
+                      {userRole}
+                    </Badge>
+                  )}
                 </Link>
                 <Button
                   variant="ghost"
@@ -154,6 +192,23 @@ const Navbar = () => {
                       location.pathname === item.path
                         ? "bg-ethiopia-green text-white"
                         : "hover:bg-ethiopia-green/10 hover:text-ethiopia-green"
+                    )}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                ))}
+                
+                {adminNavItems.map((item, index) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={closeMenu}
+                    className={cn(
+                      `flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors animate-fade-up-${index + navItems.length + 1}`,
+                      location.pathname === item.path
+                        ? "bg-red-500 text-white"
+                        : "text-red-500 hover:bg-red-500/10"
                     )}
                   >
                     {item.icon}
