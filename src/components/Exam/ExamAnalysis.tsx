@@ -46,7 +46,7 @@ const ExamAnalysis = ({
   
   examQuestions.forEach(question => {
     if (studentAnswers[question.id] === question.correct_answer) {
-      correctAnswers++;
+      correctCount++;
     } else {
       incorrectQuestions.push({
         ...question,
