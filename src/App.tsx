@@ -22,6 +22,9 @@ import { Wifi, WifiOff } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import SubjectResources from "./pages/SubjectResources";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import AdminRoute from "./components/Auth/AdminRoute";
+import Unauthorized from "./pages/Unauthorized";
+import Admin from "./pages/Admin";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -154,6 +157,7 @@ const App = () => {
                 <Routes>
                   {/* Public route */}
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/unauthorized" element={<Unauthorized />} />
                   
                   {/* Protected routes */}
                   <Route element={<ProtectedRoute />}>
@@ -165,8 +169,14 @@ const App = () => {
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/performance" element={<Performance />} />
                     <Route path="/ai-assistant" element={<AIAssistant />} />
-                    <Route path="*" element={<NotFound />} />
                   </Route>
+                  
+                  {/* Admin-only routes */}
+                  <Route element={<AdminRoute />}>
+                    <Route path="/admin" element={<Admin />} />
+                  </Route>
+                  
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
             </TooltipProvider>

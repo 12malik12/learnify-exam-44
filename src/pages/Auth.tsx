@@ -12,7 +12,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const Auth = () => {
-  const { signIn, signUp, user, loading } = useAuth();
+  const { signIn, signUp, user, loading, userRole } = useAuth();
   const { t } = useLanguage();
   
   const [email, setEmail] = useState("");
