@@ -55,27 +55,37 @@ Correct Answer: ${question.correct_answer}
       }
     });
     
-    // Enhanced prompt for GROQ with more personalized, human-like requirements
+    // Enhanced prompt for GROQ with more structured requirements
     const prompt = `
 As an exceptional educator with decades of experience, provide a personalized, encouraging analysis of a student's exam performance. They scored ${score}% (${correctCount} correct out of ${totalQuestions} questions) on their ${subjectName || ""} exam.
 
 Write a warm, conversational performance summary that feels like it was written by a human tutor who genuinely cares about this student's success. Avoid anything that sounds like AI-generated text.
 
-Your analysis should include:
+Your analysis MUST follow this EXACT structure with these clear sections:
 
-1. A brief, friendly assessment of their overall performance that acknowledges specific strengths you identify in their answers
-2. A detailed but encouraging explanation of 2-3 specific topic areas where they struggled, with precise reasons for why these concepts might be challenging
-3. Practical, actionable advice tailored to these specific weak areas, including concrete study techniques (not generic tips like "practice more")
-4. A clear, specific next step they should take tomorrow to improve, referencing actual learning resources when possible
-5. A brief encouraging note that connects their current performance to their future goals
+1. OVERVIEW SECTION:
+   Provide a detailed summary of the student's overall performance. Highlight their strengths, offer a score breakdown, and identify any patterns in their answers. Be specific about what topics they showed mastery in and which areas need improvement. This section should give a comprehensive picture of their current understanding.
 
-Important requirements:
+2. AREAS TO IMPROVE SECTION:
+   List EVERY incorrectly answered question by number. For each one:
+   - Identify the specific topic the question covers
+   - Explain precisely why their answer was incorrect
+   - Describe the conceptual misunderstanding that likely led to the error
+   - Clarify what the correct approach should have been
+
+3. NEXT STEPS SECTION:
+   Focus ONLY on practical strategies and study techniques specifically tailored to help improve in the identified weak areas. Do NOT repeat the question explanations here - those belong in the previous section. Include:
+   - Concrete study methods for each problem area
+   - Specific resources they can use (books, websites, videos)
+   - A clear, immediate action they can take tomorrow
+   - End with encouraging words to motivate the student and help them stay committed to progress
+
+General requirements:
 - Write in a warm, conversational tone as if speaking directly to the student
 - Do NOT use the student's name or any placeholders like [Student]
 - Do NOT include section headers, formatting marks, or motivation quotes
 - Do NOT mention that you're an AI or that this is AI-generated
 - Focus on being specific and factual about their performance
-- Provide genuinely helpful advice that demonstrates expertise in the subject
 - Keep your analysis concise (around 350-450 words)
 - Never make up information - only reference what's evident from their answers
 
