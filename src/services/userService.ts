@@ -37,6 +37,7 @@ export interface UserSubjectProgress {
 // Fetch user profile
 export const fetchUserProfile = async (): Promise<UserProfile | null> => {
   try {
+    // Use type assertion to bypass TypeScript checking until types are regenerated
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -57,6 +58,7 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
 // Fetch user activities
 export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> => {
   try {
+    // Use type assertion
     const { data, error } = await supabase
       .from('user_activities')
       .select('*')
@@ -78,6 +80,7 @@ export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> =
 // Fetch user subject progress
 export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]> => {
   try {
+    // Use type assertion
     const { data, error } = await supabase
       .from('user_subject_progress')
       .select('*')
@@ -103,12 +106,14 @@ export const recordUserActivity = async (
   details?: any
 ): Promise<void> => {
   try {
-    const { error } = await supabase.from('user_activities').insert({
-      activity_type: activityType,
-      title,
-      subject_id: subjectId,
-      details,
-    });
+    const { error } = await supabase
+      .from('user_activities')
+      .insert({
+        activity_type: activityType,
+        title,
+        subject_id: subjectId,
+        details,
+      });
     
     if (error) {
       console.error('Error recording user activity:', error);
