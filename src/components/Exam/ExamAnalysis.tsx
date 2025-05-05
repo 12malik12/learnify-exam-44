@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,7 +6,6 @@ import { Lightbulb, BookOpen, Book, Brain, BarChart, CheckCircle, XCircle, Calen
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
 interface ExamQuestion {
   id: string;
   question_text: string;
@@ -21,7 +19,6 @@ interface ExamQuestion {
   subject?: string;
   difficulty_level?: number;
 }
-
 interface ExamAnalysisProps {
   examQuestions: ExamQuestion[];
   studentAnswers: Record<string, string>;
@@ -30,20 +27,18 @@ interface ExamAnalysisProps {
   onReviewQuestions: () => void;
   onNewExam: () => void;
 }
-
-const ExamAnalysis = ({ 
-  examQuestions, 
-  studentAnswers, 
-  analysis, 
-  isLoading, 
-  onReviewQuestions, 
-  onNewExam 
+const ExamAnalysis = ({
+  examQuestions,
+  studentAnswers,
+  analysis,
+  isLoading,
+  onReviewQuestions,
+  onNewExam
 }: ExamAnalysisProps) => {
   // Calculate basic stats
   const totalQuestions = examQuestions.length;
   let correctCount = 0;
   const incorrectQuestions: ExamQuestion[] = [];
-  
   examQuestions.forEach(question => {
     if (studentAnswers[question.id] === question.correct_answer) {
       correctCount++;
@@ -54,9 +49,8 @@ const ExamAnalysis = ({
       });
     }
   });
-  
-  const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-  
+  const score = totalQuestions > 0 ? Math.round(correctCount / totalQuestions * 100) : 0;
+
   // Helper to create a performance descriptor based on score
   const getPerformanceDescriptor = () => {
     if (score >= 90) return "excellent";
@@ -66,7 +60,7 @@ const ExamAnalysis = ({
     if (score >= 50) return "fair";
     return "needs improvement";
   };
-  
+
   // Group incorrect questions by topic/subject if available
   const incorrectByTopic: Record<string, ExamQuestion[]> = {};
   incorrectQuestions.forEach(q => {
@@ -79,83 +73,54 @@ const ExamAnalysis = ({
 
   // Enhanced extraction of analysis sections with improved parsing logic
   const extractAnalysisSections = (analysisText: string | null) => {
-    if (!analysisText) return { 
-      overview: '', 
-      strengths: '', 
-      weaknesses: '', 
-      recommendations: '' 
+    if (!analysisText) return {
+      overview: '',
+      strengths: '',
+      weaknesses: '',
+      recommendations: ''
     };
-    
+
     // Split the text into paragraphs
     const paragraphs = analysisText.split('\n\n').filter(p => p.trim() !== '');
-    
+
     // More sophisticated section detection based on content patterns
     // Usually the first paragraph contains overall assessment
     const overview = paragraphs[0] || '';
-    
+
     // Look for strengths-related paragraphs (typically mentions positive aspects)
-    let strengthsIndex = paragraphs.findIndex(p => 
-      p.toLowerCase().includes('strength') || 
-      p.toLowerCase().includes('did well') ||
-      p.toLowerCase().includes('excellent') ||
-      p.toLowerCase().includes('good job')
-    );
-    
+    let strengthsIndex = paragraphs.findIndex(p => p.toLowerCase().includes('strength') || p.toLowerCase().includes('did well') || p.toLowerCase().includes('excellent') || p.toLowerCase().includes('good job'));
     if (strengthsIndex === -1) strengthsIndex = 1; // Default to second paragraph
-    
+
     // Look for weaknesses-related paragraphs (typically mentions areas to improve)
-    let weaknessesIndex = paragraphs.findIndex(p => 
-      p.toLowerCase().includes('improve') || 
-      p.toLowerCase().includes('challenging') ||
-      p.toLowerCase().includes('struggled') ||
-      p.toLowerCase().includes('difficult')
-    );
-    
+    let weaknessesIndex = paragraphs.findIndex(p => p.toLowerCase().includes('improve') || p.toLowerCase().includes('challenging') || p.toLowerCase().includes('struggled') || p.toLowerCase().includes('difficult'));
     if (weaknessesIndex === -1) weaknessesIndex = 2; // Default to third paragraph
-    
+
     // Ensure we don't have duplicate indices
     if (weaknessesIndex === strengthsIndex) weaknessesIndex++;
-    
+
     // Find recommendations section (typically toward the end)
-    let recommendationsIndex = paragraphs.findIndex(p => 
-      p.toLowerCase().includes('recommend') || 
-      p.toLowerCase().includes('suggest') ||
-      p.toLowerCase().includes('try') ||
-      p.toLowerCase().includes('next step')
-    );
-    
+    let recommendationsIndex = paragraphs.findIndex(p => p.toLowerCase().includes('recommend') || p.toLowerCase().includes('suggest') || p.toLowerCase().includes('try') || p.toLowerCase().includes('next step'));
     if (recommendationsIndex === -1) recommendationsIndex = Math.max(3, paragraphs.length - 1);
-    
+
     // Ensure we have unique sections
     const indices = [0, strengthsIndex, weaknessesIndex, recommendationsIndex].sort((a, b) => a - b);
-    
     return {
       overview: paragraphs.slice(indices[0], indices[1]).join('\n\n'),
       strengths: paragraphs.slice(indices[1], indices[2]).join('\n\n'),
       weaknesses: paragraphs.slice(indices[2], indices[3]).join('\n\n'),
-      recommendations: paragraphs.slice(indices[3]).join('\n\n'),
+      recommendations: paragraphs.slice(indices[3]).join('\n\n')
     };
   };
-  
   const analysisSections = analysis ? extractAnalysisSections(analysis) : null;
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Exam Analysis</h2>
-        <Badge 
-          variant={score < 50 ? "destructive" : "default"} 
-          className={cn("px-3 py-1 text-base", 
-            score >= 70 && "bg-green-500 hover:bg-green-600",
-            score >= 50 && score < 70 && "bg-amber-500 hover:bg-amber-600"
-          )}
-        >
+        <Badge variant={score < 50 ? "destructive" : "default"} className={cn("px-3 py-1 text-base", score >= 70 && "bg-green-500 hover:bg-green-600", score >= 50 && score < 70 && "bg-amber-500 hover:bg-amber-600")}>
           Score: {score}%
         </Badge>
       </div>
       
-      {isLoading ? (
-        <Card>
+      {isLoading ? <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
               <Skeleton className="h-4 w-full" />
@@ -169,9 +134,7 @@ const ExamAnalysis = ({
               <Skeleton className="h-4 w-2/3" />
             </div>
           </CardContent>
-        </Card>
-      ) : (
-        <Tabs defaultValue="overview" className="w-full">
+        </Card> : <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="overview" className="flex items-center gap-1">
               <Award className="size-4" /> Overview
@@ -202,21 +165,13 @@ const ExamAnalysis = ({
                     <span className="text-sm text-muted-foreground">Correct Answers</span>
                     <span className="font-medium text-lg">{correctCount} of {totalQuestions} ({score}%)</span>
                   </div>
-                  <div className="flex flex-col bg-muted/40 rounded-lg p-3">
-                    <span className="text-sm text-muted-foreground">Difficulty Level</span>
-                    <span className="font-medium text-lg">
-                      {Math.max(...examQuestions.map(q => q.difficulty_level || 1))} / 5
-                    </span>
-                  </div>
+                  
                 </div>
                 
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {analysis ? (
-                    <div className="whitespace-pre-line">
+                  {analysis ? <div className="whitespace-pre-line">
                       {analysisSections?.overview}
-                    </div>
-                  ) : (
-                    <div>
+                    </div> : <div>
                       <p>
                         Your score of {score}% ({correctCount} out of {totalQuestions} questions correct) shows a {getPerformanceDescriptor()} understanding of the material.
                       </p>
@@ -232,31 +187,26 @@ const ExamAnalysis = ({
                       <p className="mt-4">
                         The detailed breakdown in the other tabs will help you understand your performance patterns and provide targeted strategies to strengthen your knowledge in specific areas.
                       </p>
-                    </div>
-                  )}
+                    </div>}
                 </div>
                 
                 {/* Additional performance patterns */}
-                {!analysis && incorrectQuestions.length > 0 && (
-                  <div className="mt-6">
+                {!analysis && incorrectQuestions.length > 0 && <div className="mt-6">
                     <h4 className="font-medium text-lg mb-3">Performance Patterns</h4>
                     <div className="rounded-md border p-4">
                       <h5 className="font-medium mb-2">Topic Distribution of Incorrect Answers</h5>
                       <div className="space-y-2">
-                        {Object.entries(incorrectByTopic).map(([topic, questions]) => (
-                          <div key={topic} className="flex items-center justify-between">
+                        {Object.entries(incorrectByTopic).map(([topic, questions]) => <div key={topic} className="flex items-center justify-between">
                             <span>{topic}</span>
                             <div className="flex items-center">
                               <span className="text-red-600 dark:text-red-400 font-medium">
                                 {questions.length} {questions.length === 1 ? 'question' : 'questions'}
                               </span>
                             </div>
-                          </div>
-                        ))}
+                          </div>)}
                       </div>
                     </div>
-                  </div>
-                )}
+                  </div>}
               </CardContent>
             </Card>
           </TabsContent>
@@ -268,28 +218,16 @@ const ExamAnalysis = ({
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {analysis ? (
-                    <div className="whitespace-pre-line">
+                  {analysis ? <div className="whitespace-pre-line">
                       {analysisSections?.strengths}
-                    </div>
-                  ) : (
-                    <div>
-                      {correctCount === totalQuestions ? (
-                        <p>Excellent work! You've demonstrated strong understanding across all topics covered in this exam. Your performance shows mastery of the subject matter.</p>
-                      ) : correctCount > 0 ? (
-                        <>
-                          <p>You demonstrated good understanding in several areas, particularly on questions {totalQuestions - incorrectQuestions.length > 1 ? 'numbers' : 'number'} {examQuestions
-                            .filter((q) => studentAnswers[q.id] === q.correct_answer)
-                            .map((_, index) => index + 1)
-                            .join(', ')}. Continue to build on these strengths.</p>
+                    </div> : <div>
+                      {correctCount === totalQuestions ? <p>Excellent work! You've demonstrated strong understanding across all topics covered in this exam. Your performance shows mastery of the subject matter.</p> : correctCount > 0 ? <>
+                          <p>You demonstrated good understanding in several areas, particularly on questions {totalQuestions - incorrectQuestions.length > 1 ? 'numbers' : 'number'} {examQuestions.filter(q => studentAnswers[q.id] === q.correct_answer).map((_, index) => index + 1).join(', ')}. Continue to build on these strengths.</p>
                           
                           <div className="mt-4 space-y-4">
-                            {examQuestions
-                              .filter((q) => studentAnswers[q.id] === q.correct_answer)
-                              .map((question, index) => {
-                                const questionNumber = examQuestions.findIndex(q => q.id === question.id) + 1;
-                                return (
-                                  <div key={index} className="rounded-lg border p-4">
+                            {examQuestions.filter(q => studentAnswers[q.id] === q.correct_answer).map((question, index) => {
+                      const questionNumber = examQuestions.findIndex(q => q.id === question.id) + 1;
+                      return <div key={index} className="rounded-lg border p-4">
                                     <div className="flex items-start gap-2">
                                       <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 size-6 flex items-center justify-center rounded-full flex-shrink-0">
                                         <CheckCircle className="size-4" />
@@ -298,23 +236,16 @@ const ExamAnalysis = ({
                                         <h4 className="font-medium mb-1">Question {questionNumber}: {question.subject || 'General Topic'}</h4>
                                         <p className="text-sm mb-2">{question.question_text}</p>
                                         
-                                        {question.explanation && (
-                                          <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/20 rounded text-sm">
+                                        {question.explanation && <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/20 rounded text-sm">
                                             <span className="font-medium">Key Concept Mastered:</span> {question.explanation}
-                                          </div>
-                                        )}
+                                          </div>}
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                            })}
+                                  </div>;
+                    })}
                           </div>
-                        </>
-                      ) : (
-                        <p>This exam was challenging for you, but don't worry. Everyone has different starting points, and with targeted practice, you'll see improvement next time.</p>
-                      )}
-                    </div>
-                  )}
+                        </> : <p>This exam was challenging for you, but don't worry. Everyone has different starting points, and with targeted practice, you'll see improvement next time.</p>}
+                    </div>}
                 </div>
               </CardContent>
             </Card>
@@ -327,12 +258,9 @@ const ExamAnalysis = ({
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {analysis ? (
-                    <div className="whitespace-pre-line">
+                  {analysis ? <div className="whitespace-pre-line">
                       {analysisSections?.weaknesses}
-                    </div>
-                  ) : incorrectQuestions.length > 0 ? (
-                    <div>
+                    </div> : incorrectQuestions.length > 0 ? <div>
                       <p>
                         You missed {incorrectQuestions.length} question{incorrectQuestions.length !== 1 ? 's' : ''}. 
                         Let's examine each one to understand the specific concepts that need improvement:
@@ -340,9 +268,8 @@ const ExamAnalysis = ({
                       
                       <div className="mt-4 space-y-4">
                         {incorrectQuestions.map((question, index) => {
-                          const questionNumber = examQuestions.findIndex(q => q.id === question.id) + 1;
-                          return (
-                            <div key={index} className="rounded-lg border p-4">
+                    const questionNumber = examQuestions.findIndex(q => q.id === question.id) + 1;
+                    return <div key={index} className="rounded-lg border p-4">
                               <div className="flex items-start gap-2">
                                 <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 size-6 flex items-center justify-center rounded-full flex-shrink-0">
                                   <XCircle className="size-4" />
@@ -350,11 +277,9 @@ const ExamAnalysis = ({
                                 <div className="w-full">
                                   <div className="flex justify-between items-start w-full">
                                     <h4 className="font-medium mb-1">Question {questionNumber}:</h4>
-                                    {question.subject && (
-                                      <Badge variant="outline" className="ml-auto">
+                                    {question.subject && <Badge variant="outline" className="ml-auto">
                                         Topic: {question.subject}
-                                      </Badge>
-                                    )}
+                                      </Badge>}
                                   </div>
                                   <p className="text-sm mb-2">{question.question_text}</p>
                                   
@@ -367,25 +292,19 @@ const ExamAnalysis = ({
                                     </div>
                                   </div>
                                   
-                                  {question.explanation && (
-                                    <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded text-sm">
+                                  {question.explanation && <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded text-sm">
                                       <span className="font-medium">Explanation:</span> {question.explanation}
-                                    </div>
-                                  )}
+                                    </div>}
                                   
                                   <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 rounded text-sm">
                                     <span className="font-medium">Why this concept is challenging:</span> This question tests your understanding of {question.subject || 'fundamental concepts'}. The incorrect answer suggests you may need to review {question.subject ? `key principles in ${question.subject}` : 'this area'}, particularly how to {question.explanation ? question.explanation.split('.')[0].toLowerCase() : 'apply these concepts correctly'}.
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            </div>;
+                  })}
                       </div>
-                    </div>
-                  ) : (
-                    <p>Outstanding! You answered all questions correctly. This is an excellent result and shows you have a strong grasp of the material. Keep up the great work!</p>
-                  )}
+                    </div> : <p>Outstanding! You answered all questions correctly. This is an excellent result and shows you have a strong grasp of the material. Keep up the great work!</p>}
                 </div>
               </CardContent>
             </Card>
@@ -398,19 +317,14 @@ const ExamAnalysis = ({
               </CardHeader>
               <CardContent>
                 <div className="prose prose-sm max-w-none dark:prose-invert">
-                  {analysis ? (
-                    <div className="whitespace-pre-line">
+                  {analysis ? <div className="whitespace-pre-line">
                       {analysisSections?.recommendations}
-                    </div>
-                  ) : (
-                    <div>
-                      {incorrectQuestions.length > 0 ? (
-                        <>
+                    </div> : <div>
+                      {incorrectQuestions.length > 0 ? <>
                           <p>Based on your performance, here are targeted strategies to help you improve in the specific areas where you faced challenges:</p>
                           
                           <div className="mt-4 space-y-4">
-                            {Object.entries(incorrectByTopic).map(([topic, questions]) => (
-                              <div key={topic} className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-4">
+                            {Object.entries(incorrectByTopic).map(([topic, questions]) => <div key={topic} className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-4">
                                 <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
                                   Strategies for {topic}
                                 </h4>
@@ -428,8 +342,7 @@ const ExamAnalysis = ({
                                     <strong>Apply active recall:</strong> After studying, test yourself by explaining the concepts out loud or writing explanations without referring to your notes.
                                   </li>
                                 </ul>
-                              </div>
-                            ))}
+                              </div>)}
                             
                             <div className="rounded-md bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 p-4">
                               <h4 className="font-medium text-purple-900 dark:text-purple-200 mb-2">General Study Techniques</h4>
@@ -447,9 +360,7 @@ const ExamAnalysis = ({
                               Remember that mastering these concepts takes time and consistent effort. Your current challenges are stepping stones to deeper understanding. With targeted practice and the strategies above, you'll see significant improvement in your next assessment. Keep going—each study session brings you closer to mastery!
                             </p>
                           </div>
-                        </>
-                      ) : (
-                        <div>
+                        </> : <div>
                           <p>
                             Your performance was exceptional! To continue building on this success, consider exploring more advanced 
                             topics in this subject area or helping others understand these concepts, which will further solidify your own mastery.
@@ -477,16 +388,13 @@ const ExamAnalysis = ({
                               </p>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        </div>}
+                    </div>}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      )}
+        </Tabs>}
       
       <div className="flex flex-col sm:flex-row gap-4 mt-6">
         <Button onClick={onReviewQuestions} variant="outline" className="flex-1">
@@ -496,8 +404,6 @@ const ExamAnalysis = ({
           <Brain className="mr-2 size-4" /> Take Another Exam
         </Button>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default ExamAnalysis;
