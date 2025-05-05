@@ -14,21 +14,30 @@ export const recordExamCompletion = async (
     const scorePercentage = Math.round((score / totalQuestions) * 100);
     
     // Record the activity
-    await recordUserActivity(
-      'exam_completed',
-      examTitle,
-      subjectId,
-      { 
-        score: scorePercentage, 
-        totalQuestions,
-        completed: true
-      }
-    );
+    try {
+      await recordUserActivity(
+        'exam_completed',
+        examTitle,
+        subjectId,
+        { 
+          score: scorePercentage, 
+          totalQuestions,
+          completed: true
+        }
+      );
+    } catch (error) {
+      console.log('Failed to record activity in Supabase, will use local storage');
+      // The AppContext will handle storing in localStorage
+    }
     
     // Update subject progress
-    // For simplicity, we'll update progress based on exam score
-    // A more complex algorithm could be implemented based on requirements
-    await updateSubjectProgress(subjectId, scorePercentage, 30); // Assuming 30 minutes per exam
+    try {
+      // For simplicity, we'll update progress based on exam score
+      await updateSubjectProgress(subjectId, scorePercentage, 30); // Assuming 30 minutes per exam
+    } catch (error) {
+      console.log('Failed to update progress in Supabase, will use local storage');
+      // The AppContext will handle storing in localStorage
+    }
     
     return true;
   } catch (error) {
@@ -44,15 +53,24 @@ export const recordTopicStarted = async (
 ) => {
   try {
     // Record the activity
-    await recordUserActivity(
-      'topic_started',
-      topicTitle,
-      subjectId,
-      { started: true }
-    );
+    try {
+      await recordUserActivity(
+        'topic_started',
+        topicTitle,
+        subjectId,
+        { started: true }
+      );
+    } catch (error) {
+      console.log('Failed to record topic activity in Supabase, will use local storage');
+      // The AppContext will handle storing in localStorage
+    }
     
     // Update study time
-    await updateTotalStudyTime(5); // Add 5 minutes for starting a topic
+    try {
+      await updateTotalStudyTime(5); // Add 5 minutes for starting a topic
+    } catch (error) {
+      console.log('Failed to update study time in Supabase, will use local storage');
+    }
     
     return true;
   } catch (error) {
@@ -69,12 +87,16 @@ export const recordResourceDownloaded = async (
 ) => {
   try {
     // Record the activity
-    await recordUserActivity(
-      'resource_downloaded',
-      resourceTitle,
-      subjectId,
-      { type: resourceType }
-    );
+    try {
+      await recordUserActivity(
+        'resource_downloaded',
+        resourceTitle,
+        subjectId,
+        { type: resourceType }
+      );
+    } catch (error) {
+      console.log('Failed to record resource download in Supabase, will use local storage');
+    }
     
     return true;
   } catch (error) {
@@ -90,7 +112,11 @@ export const recordStudySession = async (
 ) => {
   try {
     // Update subject progress
-    await updateSubjectProgress(subjectId, 0, durationMinutes);
+    try {
+      await updateSubjectProgress(subjectId, 0, durationMinutes);
+    } catch (error) {
+      console.log('Failed to record study session in Supabase, will use local storage');
+    }
     
     return true;
   } catch (error) {
