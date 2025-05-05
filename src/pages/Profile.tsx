@@ -1,7 +1,10 @@
 
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,32 +18,99 @@ import {
   Bell,
   RefreshCw,
   User,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { useAppContext } from "@/context/AppContext";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 import { subjects } from "@/utils/subjects";
+import { useUserData } from "@/hooks/use-user-data";
+import { formatDistanceToNow } from "date-fns";
 
 const Profile = () => {
-  const { subjectProgress, recentExams } = useAppContext();
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { 
+    isLoading, 
+    profile, 
+    activities, 
+    progress: subjectProgress, 
+    stats,
+    error,
+    refreshData
+  } = useUserData();
   
-  // Calculate overall progress
-  const overallProgress = Object.values(subjectProgress).reduce(
-    (acc, progress) => acc + progress,
-    0
-  ) / Object.values(subjectProgress).length;
+  const handleRefresh = async () => {
+    toast.promise(refreshData(), {
+      loading: "Refreshing your profile data...",
+      success: "Profile data updated successfully",
+      error: "Failed to refresh data"
+    });
+  };
   
-  // Calculate most active subject
-  const mostActiveSubject = Object.entries(subjectProgress).reduce(
-    (max, [id, progress]) => (progress > max.progress ? { id, progress } : max),
-    { id: "", progress: 0 }
-  );
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow pt-20 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading your profile data...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
-  const mostActiveSubjectName = subjects.find(
-    (s) => s.id === mostActiveSubject.id
-  )?.name || "None";
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow pt-20 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <AlertCircle className="mr-2 h-5 w-5 text-destructive" />
+                Error Loading Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">{error}</p>
+              <Button onClick={refreshData}>Try Again</Button>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
-  // Mock data for demonstration
-  const timeSpent = 24; // hours
-  const completedExams = recentExams.length || 5;
+  // Get initials for avatar
+  const getInitials = () => {
+    if (!profile?.display_name) return "U";
+    return profile.display_name
+      .split(" ")
+      .map(n => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
+  // Calculate stats
+  const overallProgress = stats?.overallProgress || 0;
+  const mostActiveSubjectName = stats?.mostActiveSubject?.name || "None";
+  const timeSpent = stats?.studyTime || 0; // hours
+  const completedExams = stats?.totalExams || 0;
+  
+  // Format study time
+  const formatStudyTime = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  };
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -52,26 +122,32 @@ const Profile = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="size-16 md:size-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold">
-                    SE
-                  </div>
-                  <div className="absolute bottom-0 right-0 size-5 rounded-full bg-ethiopia-green text-white flex items-center justify-center">
-                    <Check className="size-3" />
+                  <Avatar className="h-16 w-16 md:h-20 md:w-20">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.display_name} />
+                    ) : (
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+                        {getInitials()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center">
+                    <Check className="h-3 w-3" />
                   </div>
                 </div>
                 
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold">Student Explorer</h1>
-                  <p className="text-muted-foreground">Grade 12 • Addis Ababa</p>
+                  <h1 className="text-2xl md:text-3xl font-bold">{profile?.display_name || "Student Explorer"}</h1>
+                  <p className="text-muted-foreground">{profile?.grade || "Grade 12"} • {profile?.location || "Addis Ababa"}</p>
                 </div>
               </div>
               
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-9">
-                  <Upload className="mr-2 size-4" /> Export Data
+                <Button variant="outline" size="sm" className="h-9" onClick={handleRefresh}>
+                  <RefreshCw className="mr-2 w-4 h-4" /> Refresh Data
                 </Button>
                 <Button variant="outline" size="sm" className="h-9">
-                  <Settings className="size-4" />
+                  <Settings className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -84,8 +160,8 @@ const Profile = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-4 flex flex-col items-center text-center">
-                  <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                    <BarChart3 className="size-6 text-primary" />
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <BarChart3 className="h-6 w-6 text-primary" />
                   </div>
                   <div className="text-2xl font-bold">{Math.round(overallProgress)}%</div>
                   <p className="text-xs text-muted-foreground">Overall Progress</p>
@@ -94,8 +170,8 @@ const Profile = () => {
               
               <Card>
                 <CardContent className="p-4 flex flex-col items-center text-center">
-                  <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                    <BookOpen className="size-6 text-primary" />
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <BookOpen className="h-6 w-6 text-primary" />
                   </div>
                   <div className="text-2xl font-bold">{mostActiveSubjectName}</div>
                   <p className="text-xs text-muted-foreground">Most Active Subject</p>
@@ -104,18 +180,18 @@ const Profile = () => {
               
               <Card>
                 <CardContent className="p-4 flex flex-col items-center text-center">
-                  <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                    <Clock className="size-6 text-primary" />
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Clock className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="text-2xl font-bold">{timeSpent}h</div>
+                  <div className="text-2xl font-bold">{formatStudyTime(timeSpent)}</div>
                   <p className="text-xs text-muted-foreground">Study Time</p>
                 </CardContent>
               </Card>
               
               <Card>
                 <CardContent className="p-4 flex flex-col items-center text-center">
-                  <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                    <Award className="size-6 text-primary" />
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Award className="h-6 w-6 text-primary" />
                   </div>
                   <div className="text-2xl font-bold">{completedExams}</div>
                   <p className="text-xs text-muted-foreground">Exams Completed</p>
@@ -137,27 +213,38 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {subjects.slice(0, 5).map((subject) => (
-                        <div key={subject.id}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{subject.name}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {subjectProgress[subject.id] || 0}%
-                            </span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-secondary">
-                            <div
-                              className="h-2 rounded-full bg-primary"
-                              style={{
-                                width: `${subjectProgress[subject.id] || 0}%`,
-                              }}
-                            />
-                          </div>
+                      {subjectProgress.length > 0 ? (
+                        subjectProgress.slice(0, 5).map((subjectData) => {
+                          const subject = subjects.find(s => s.id === subjectData.subject_id);
+                          if (!subject) return null;
+                          
+                          return (
+                            <div key={subjectData.id}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium">{subject.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {subjectData.progress}%
+                                </span>
+                              </div>
+                              <div className="h-2 w-full rounded-full bg-secondary">
+                                <div
+                                  className="h-2 rounded-full bg-primary"
+                                  style={{
+                                    width: `${subjectData.progress}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-6">
+                          <p className="text-muted-foreground">No progress data yet. Start studying to track your progress!</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                     
-                    <Button variant="outline" size="sm" className="mt-4 w-full">
+                    <Button variant="outline" size="sm" className="mt-4 w-full" onClick={() => navigate("/performance")}>
                       View All Subjects
                     </Button>
                   </CardContent>
@@ -172,54 +259,51 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-                          <Award className="size-4 text-primary" />
+                      {activities.length > 0 ? (
+                        activities.slice(0, 3).map((activity) => {
+                          const subject = activity.subject_id ? 
+                            subjects.find(s => s.id === activity.subject_id)?.name : 
+                            null;
+                          
+                          let icon = BookOpen;
+                          if (activity.activity_type === 'exam_completed') {
+                            icon = Award;
+                          } else if (activity.activity_type === 'resource_downloaded') {
+                            icon = Download;
+                          }
+                          
+                          const Icon = icon;
+                          
+                          return (
+                            <div key={activity.id} className="flex items-start gap-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                                <Icon className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {activity.activity_type === 'exam_completed' ? 'Completed Exam' : 
+                                   activity.activity_type === 'topic_started' ? 'Started New Topic' :
+                                   'Downloaded Resource'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {activity.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-6">
+                          <p className="text-muted-foreground">No activities yet. Start studying!</p>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium">Completed Exam</p>
-                          <p className="text-xs text-muted-foreground">
-                            Physics Timed Exam - 80%
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Today, 10:30 AM
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3">
-                        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-                          <BookOpen className="size-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Started New Topic</p>
-                          <p className="text-xs text-muted-foreground">
-                            Chemistry - Organic Compounds
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Yesterday, 3:15 PM
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3">
-                        <div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-                          <Download className="size-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">Downloaded Resource</p>
-                          <p className="text-xs text-muted-foreground">
-                            Math Formula Sheet PDF
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            2 days ago, 5:45 PM
-                          </p>
-                        </div>
-                      </div>
+                      )}
                     </div>
                     
-                    <Button variant="outline" size="sm" className="mt-4 w-full">
-                      <RefreshCw className="mr-2 size-3.5" /> Load More
+                    <Button variant="outline" size="sm" className="mt-4 w-full" onClick={() => navigate("/performance")}>
+                      <RefreshCw className="mr-2 h-3.5 w-3.5" /> View All Activities
                     </Button>
                   </CardContent>
                 </Card>
@@ -239,7 +323,7 @@ const Profile = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Bell className="size-5 text-muted-foreground" />
+                      <Bell className="h-5 w-5 text-muted-foreground" />
                       <span>Notifications</span>
                     </div>
                     <div>
@@ -254,7 +338,7 @@ const Profile = () => {
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Download className="size-5 text-muted-foreground" />
+                      <Download className="h-5 w-5 text-muted-foreground" />
                       <span>Offline Access</span>
                     </div>
                     <div>
@@ -269,7 +353,7 @@ const Profile = () => {
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <User className="size-5 text-muted-foreground" />
+                      <User className="h-5 w-5 text-muted-foreground" />
                       <span>Account Information</span>
                     </div>
                     <Button variant="outline" size="sm">
