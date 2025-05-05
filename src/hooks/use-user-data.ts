@@ -40,6 +40,11 @@ export const useUserData = () => {
           calculateUserStats()
         ]);
 
+        // Ensure profile has email if available
+        if (profileData && !profileData.email && user.email) {
+          profileData.email = user.email;
+        }
+
         setProfile(profileData);
         setActivities(activitiesData);
         setProgress(progressData);
@@ -71,6 +76,11 @@ export const useUserData = () => {
           fetchUserSubjectProgress(),
           calculateUserStats()
         ]);
+
+        // Ensure profile has email if available
+        if (profileData && !profileData.email && user?.email) {
+          profileData.email = user.email;
+        }
 
         setProfile(profileData);
         setActivities(activitiesData);

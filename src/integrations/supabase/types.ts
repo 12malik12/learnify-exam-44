@@ -11,7 +11,7 @@ export type Database = {
     Tables: {
       questions: {
         Row: {
-          correct_answer: string
+          correct_answer: string | null
           created_at: string | null
           difficulty: string | null
           explanation: string | null
@@ -25,7 +25,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
-          correct_answer: string
+          correct_answer?: string | null
           created_at?: string | null
           difficulty?: string | null
           explanation?: string | null
@@ -39,7 +39,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
-          correct_answer?: string
+          correct_answer?: string | null
           created_at?: string | null
           difficulty?: string | null
           explanation?: string | null

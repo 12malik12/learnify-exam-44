@@ -89,7 +89,13 @@ const Profile = () => {
   
   // Get initials for avatar
   const getInitials = () => {
-    if (!profile?.display_name) return "U";
+    if (!profile?.display_name) {
+      // If no display name, use email initials if available
+      if (user?.email) {
+        return user.email.substring(0, 2).toUpperCase();
+      }
+      return "U";
+    }
     return profile.display_name
       .split(" ")
       .map(n => n[0])
@@ -112,6 +118,9 @@ const Profile = () => {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
   };
   
+  // Get display name - use email if no display name is set
+  const displayName = profile?.display_name || user?.email || "Student";
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -124,7 +133,7 @@ const Profile = () => {
                 <div className="relative">
                   <Avatar className="h-16 w-16 md:h-20 md:w-20">
                     {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt={profile.display_name} />
+                      <img src={profile.avatar_url} alt={displayName} />
                     ) : (
                       <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
                         {getInitials()}
@@ -137,7 +146,7 @@ const Profile = () => {
                 </div>
                 
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold">{profile?.display_name || "Student Explorer"}</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold">{displayName}</h1>
                   <p className="text-muted-foreground">{profile?.grade || "Grade 12"} • {profile?.location || "Addis Ababa"}</p>
                 </div>
               </div>
