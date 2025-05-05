@@ -19,8 +19,10 @@ export type Database = {
           options: Json
           question_number: string
           question_text: string
+          subject: string | null
           tags: string[] | null
           updated_at: string | null
+          year: number | null
         }
         Insert: {
           correct_answer: string
@@ -31,8 +33,10 @@ export type Database = {
           options: Json
           question_number: string
           question_text: string
+          subject?: string | null
           tags?: string[] | null
           updated_at?: string | null
+          year?: number | null
         }
         Update: {
           correct_answer?: string
@@ -43,8 +47,10 @@ export type Database = {
           options?: Json
           question_number?: string
           question_text?: string
+          subject?: string | null
           tags?: string[] | null
           updated_at?: string | null
+          year?: number | null
         }
         Relationships: []
       }
