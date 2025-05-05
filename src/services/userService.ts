@@ -11,6 +11,7 @@ export interface UserProfile {
   total_study_time: number;
   created_at: string;
   updated_at: string;
+  email?: string; // Added email field
 }
 
 export interface UserActivity {
@@ -48,7 +49,13 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
       return null;
     }
     
-    return data as UserProfile;
+    // Get the user's email
+    const { data: userData } = await supabase.auth.getUser();
+    
+    return {
+      ...data as UserProfile,
+      email: userData?.user?.email
+    };
   } catch (error) {
     console.error('Error in fetchUserProfile:', error);
     return null;
