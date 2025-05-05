@@ -19,13 +19,15 @@ import {
   RefreshCw,
   User,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Info
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { subjects } from "@/utils/subjects";
 import { useUserData } from "@/hooks/use-user-data";
 import { formatDistanceToNow } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -38,7 +40,8 @@ const Profile = () => {
     progress: subjectProgress, 
     stats,
     error,
-    refreshData
+    refreshData,
+    isUsingLocalData
   } = useUserData();
   
   const handleRefresh = async () => {
@@ -64,7 +67,7 @@ const Profile = () => {
     );
   }
   
-  if (error) {
+  if (error && !isUsingLocalData) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -107,7 +110,7 @@ const Profile = () => {
   // Calculate stats
   const overallProgress = stats?.overallProgress || 0;
   const mostActiveSubjectName = stats?.mostActiveSubject?.name || "None";
-  const timeSpent = stats?.studyTime || 0; // hours
+  const timeSpent = stats?.studyTime || 0; // minutes
   const completedExams = stats?.totalExams || 0;
   
   // Format study time
@@ -119,7 +122,7 @@ const Profile = () => {
   };
   
   // Get display name - use email if no display name is set
-  const displayName = profile?.display_name || user?.email || "Student";
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || "Student";
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -146,7 +149,24 @@ const Profile = () => {
                 </div>
                 
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold">{displayName}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl md:text-3xl font-bold">{displayName}</h1>
+                    {isUsingLocalData && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="w-[200px] text-xs">
+                              Using local data. Connect Supabase to enable persistent profiles.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground">{user?.email}</p>
                   <p className="text-muted-foreground">{profile?.grade || "Grade 12"} • {profile?.location || "Addis Ababa"}</p>
                 </div>
               </div>
