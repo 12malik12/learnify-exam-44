@@ -37,11 +37,11 @@ export interface UserSubjectProgress {
 // Fetch user profile
 export const fetchUserProfile = async (): Promise<UserProfile | null> => {
   try {
-    // Use type assertion to bypass TypeScript checking until types are regenerated
-    const { data, error } = await supabase
-      .from('user_profiles')
+    // We need to use more aggressive type assertions since the types don't include our custom tables
+    const { data, error } = await (supabase
+      .from('user_profiles' as any)
       .select('*')
-      .single();
+      .single() as any);
     
     if (error) {
       console.error('Error fetching user profile:', error);
@@ -58,12 +58,12 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
 // Fetch user activities
 export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> => {
   try {
-    // Use type assertion
-    const { data, error } = await supabase
-      .from('user_activities')
+    // Use more aggressive type assertion
+    const { data, error } = await (supabase
+      .from('user_activities' as any)
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .limit(limit) as any);
     
     if (error) {
       console.error('Error fetching user activities:', error);
@@ -80,11 +80,11 @@ export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> =
 // Fetch user subject progress
 export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]> => {
   try {
-    // Use type assertion
-    const { data, error } = await supabase
-      .from('user_subject_progress')
+    // Use more aggressive type assertion
+    const { data, error } = await (supabase
+      .from('user_subject_progress' as any)
       .select('*')
-      .order('last_activity', { ascending: false });
+      .order('last_activity', { ascending: false }) as any);
     
     if (error) {
       console.error('Error fetching user subject progress:', error);
@@ -106,14 +106,15 @@ export const recordUserActivity = async (
   details?: any
 ): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('user_activities')
+    // Use type assertion for the table name
+    const { error } = await (supabase
+      .from('user_activities' as any)
       .insert({
         activity_type: activityType,
         title,
         subject_id: subjectId,
         details,
-      });
+      }) as any);
     
     if (error) {
       console.error('Error recording user activity:', error);
@@ -131,11 +132,11 @@ export const updateSubjectProgress = async (
 ): Promise<void> => {
   try {
     // First check if the progress entry exists
-    const { data, error: fetchError } = await supabase
-      .from('user_subject_progress')
+    const { data, error: fetchError } = await (supabase
+      .from('user_subject_progress' as any)
       .select('*')
       .eq('subject_id', subjectId)
-      .maybeSingle();
+      .maybeSingle() as any);
     
     if (fetchError) {
       console.error('Error checking subject progress:', fetchError);
@@ -144,27 +145,27 @@ export const updateSubjectProgress = async (
     
     if (data) {
       // Update existing progress
-      const { error } = await supabase
-        .from('user_subject_progress')
+      const { error } = await (supabase
+        .from('user_subject_progress' as any)
         .update({
           progress,
           study_time: data.study_time + studyTimeMinutes,
           last_activity: new Date().toISOString(),
         })
-        .eq('id', data.id);
+        .eq('id', data.id) as any);
       
       if (error) {
         console.error('Error updating subject progress:', error);
       }
     } else {
       // Create new progress entry
-      const { error } = await supabase
-        .from('user_subject_progress')
+      const { error } = await (supabase
+        .from('user_subject_progress' as any)
         .insert({
           subject_id: subjectId,
           progress,
           study_time: studyTimeMinutes,
-        });
+        }) as any);
       
       if (error) {
         console.error('Error creating subject progress:', error);
@@ -184,10 +185,10 @@ export const updateSubjectProgress = async (
 export const updateTotalStudyTime = async (additionalMinutes: number): Promise<void> => {
   try {
     // Get current profile
-    const { data, error: fetchError } = await supabase
-      .from('user_profiles')
+    const { data, error: fetchError } = await (supabase
+      .from('user_profiles' as any)
       .select('total_study_time')
-      .single();
+      .single() as any);
     
     if (fetchError) {
       console.error('Error fetching total study time:', fetchError);
@@ -195,11 +196,11 @@ export const updateTotalStudyTime = async (additionalMinutes: number): Promise<v
     }
     
     // Update total time
-    const { error } = await supabase
-      .from('user_profiles')
+    const { error } = await (supabase
+      .from('user_profiles' as any)
       .update({
         total_study_time: (data?.total_study_time || 0) + additionalMinutes,
-      });
+      }) as any);
     
     if (error) {
       console.error('Error updating total study time:', error);
