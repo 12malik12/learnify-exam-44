@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,13 +17,16 @@ import SplashScreen from "./components/Mobile/SplashScreen";
 import Performance from "./pages/Performance";
 import AIAssistant from "./pages/AIAssistant";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wifi, WifiOff } from "lucide-react";
+import { Wifi, WifiOff, Database } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import SubjectResources from "./pages/SubjectResources";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
 import AdminRoute from "./components/Auth/AdminRoute";
 import Unauthorized from "./pages/Unauthorized";
 import Admin from "./pages/Admin";
+import { useDatabaseHelpers } from "./hooks/use-database-helpers";
+import { Button } from "./components/ui/button";
+import { useAuth } from "./context/AuthContext";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -116,6 +118,29 @@ const NetworkStatusBanner = () => {
   );
 };
 
+// Helper functions setup component
+const DatabaseHelperSetup = () => {
+  const { user } = useAuth();
+  const { isDeploying, deployHelperFunctions } = useDatabaseHelpers();
+  
+  if (!user) return null;
+  
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <Button 
+        size="sm" 
+        variant="outline"
+        onClick={deployHelperFunctions}
+        disabled={isDeploying}
+        className="bg-white/80 backdrop-blur-sm shadow-md"
+      >
+        <Database className="mr-2 h-4 w-4" />
+        {isDeploying ? 'Deploying...' : 'Setup Database Helpers'}
+      </Button>
+    </div>
+  );
+};
+
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
   
@@ -178,6 +203,7 @@ const App = () => {
                   
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <DatabaseHelperSetup />
               </BrowserRouter>
             </TooltipProvider>
           </LanguageProvider>
