@@ -16,11 +16,13 @@ export const recordExamCompletion = async (
     // Insert directly to our user_exams table
     // This will trigger our database functions to update progress and activities
     try {
-      // Use the RPC function we created
-      const { data, error } = await supabase.rpc('insert_user_exam', { 
-        p_subject_id: subjectId,
-        p_score: score,
-        p_total_questions: totalQuestions
+      // Call the RPC function using a more generic approach
+      const { data, error } = await supabase.functions.invoke("insert_user_exam", {
+        body: { 
+          p_subject_id: subjectId,
+          p_score: score,
+          p_total_questions: totalQuestions
+        }
       });
         
       if (error) {
@@ -57,10 +59,12 @@ export const recordTopicStarted = async (
   try {
     // Record a small study session (5 minutes) to trigger our database functions
     try {
-      // Use the RPC function we created
-      const { data, error } = await supabase.rpc('insert_study_session', {
-        p_subject_id: subjectId,
-        p_duration: 5
+      // Call the RPC function using a more generic approach
+      const { data, error } = await supabase.functions.invoke("insert_study_session", {
+        body: {
+          p_subject_id: subjectId,
+          p_duration: 5
+        }
       });
         
       if (error) {
@@ -94,12 +98,14 @@ export const recordResourceDownloaded = async (
   try {
     // Use our user_activities table directly through RPC
     try {
-      // Use the RPC function we created
-      const { data, error } = await supabase.rpc('insert_user_activity', {
-        p_activity_type: 'resource_downloaded',
-        p_subject_id: subjectId,
-        p_title: resourceTitle,
-        p_details: JSON.stringify({ type: resourceType })
+      // Call the RPC function using a more generic approach
+      const { data, error } = await supabase.functions.invoke("insert_user_activity", {
+        body: {
+          p_activity_type: 'resource_downloaded',
+          p_subject_id: subjectId,
+          p_title: resourceTitle,
+          p_details: JSON.stringify({ type: resourceType })
+        }
       });
         
       if (error) {
@@ -124,10 +130,12 @@ export const recordStudySession = async (
   try {
     // Insert study session into our database using RPC
     try {
-      // Use the RPC function we created
-      const { data, error } = await supabase.rpc('insert_study_session', {
-        p_subject_id: subjectId,
-        p_duration: durationMinutes
+      // Call the RPC function using a more generic approach
+      const { data, error } = await supabase.functions.invoke("insert_study_session", {
+        body: {
+          p_subject_id: subjectId,
+          p_duration: durationMinutes
+        }
       });
         
       if (error) {

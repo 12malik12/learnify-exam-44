@@ -44,22 +44,30 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
       return null;
     }
     
-    // Fetch profile from our new user_profiles table
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userData.user.id)
-      .single();
+    // Using REST API call directly to avoid TypeScript type issues
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=*`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
     
-    if (error) {
-      console.error('Error fetching user profile:', error);
+    if (!response.ok) {
+      throw new Error('Failed to fetch profile');
+    }
+    
+    const data = await response.json();
+    const profileData = data[0] || null;
+    
+    if (!profileData) {
       return null;
     }
     
     return {
-      ...data,
+      ...profileData,
       email: userData.user.email,
-      display_name: data.display_name || userData.user.email?.split('@')[0] || 'Student'
+      display_name: profileData.display_name || userData.user.email?.split('@')[0] || 'Student',
+      total_study_time: profileData.total_study_time || 0
     } as UserProfile;
   } catch (error) {
     console.error('Error in fetchUserProfile:', error);
@@ -76,21 +84,22 @@ export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> =
       return [];
     }
     
-    // Use our new user_activities table
-    const { data, error } = await supabase
-      .from('user_activities')
-      .select('*')
-      .eq('user_id', userData.user.id)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Using REST API call directly to avoid TypeScript type issues
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_activities?user_id=eq.${userData.user.id}&order=created_at.desc&limit=${limit}`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
     
-    if (error) {
-      console.error('Error fetching user activities:', error);
-      return [];
+    if (!response.ok) {
+      throw new Error('Failed to fetch activities');
     }
     
+    const data = await response.json();
+    
     // Map to our expected format
-    return data.map(activity => ({
+    return data.map((activity: any) => ({
       id: activity.id,
       user_id: activity.user_id,
       activity_type: mapActivityType(activity.activity_type),
@@ -124,30 +133,36 @@ export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]>
       return [];
     }
     
-    // Fetch from our new user_progress table
-    const { data, error } = await supabase
-      .from('user_progress')
-      .select('*')
-      .eq('user_id', userData.user.id);
+    // Using REST API call directly to avoid TypeScript type issues
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress?user_id=eq.${userData.user.id}`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
     
-    if (error) {
-      console.error('Error fetching user subject progress:', error);
-      return [];
+    if (!response.ok) {
+      throw new Error('Failed to fetch progress');
     }
     
+    const data = await response.json();
+    
     // Get study sessions for study time calculation
-    const { data: studyData, error: studyError } = await supabase
-      .from('study_sessions')
-      .select('subject_id, duration')
-      .eq('user_id', userData.user.id);
-      
-    if (studyError) {
-      console.error('Error fetching study sessions:', studyError);
+    const studyResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/study_sessions?user_id=eq.${userData.user.id}&select=subject_id,duration`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
+    
+    let studyData: any[] = [];
+    if (studyResponse.ok) {
+      studyData = await studyResponse.json();
     }
     
     // Calculate study time per subject
     const studyTimeBySubject: Record<string, number> = {};
-    if (studyData) {
+    if (studyData && studyData.length > 0) {
       studyData.forEach(session => {
         if (!studyTimeBySubject[session.subject_id]) {
           studyTimeBySubject[session.subject_id] = 0;
@@ -157,7 +172,7 @@ export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]>
     }
     
     // Map to our expected format
-    return data.map(progress => ({
+    return data.map((progress: any) => ({
       id: progress.id,
       user_id: progress.user_id,
       subject_id: progress.subject_id,
@@ -190,19 +205,15 @@ export const recordUserActivity = async (
       default: dbActivityType = 'study';
     }
     
-    // Insert into our user_activities table
-    const { error } = await supabase
-      .from('user_activities')
-      .insert({
-        activity_type: dbActivityType,
-        title,
-        subject_id: subjectId || 'general',
-        details
-      });
-    
-    if (error) {
-      console.error('Error recording user activity:', error);
-    }
+    // Use edge function to handle the operation
+    await supabase.functions.invoke("insert_user_activity", {
+      body: {
+        p_activity_type: dbActivityType,
+        p_subject_id: subjectId || 'general',
+        p_title: title,
+        p_details: details || {}
+      }
+    });
   } catch (error) {
     console.error('Error in recordUserActivity:', error);
   }
@@ -223,43 +234,52 @@ export const updateSubjectProgress = async (
     }
     
     if (studyTimeMinutes > 0) {
-      // Record a study session which will trigger our database functions
-      const { error: sessionError } = await supabase
-        .from('study_sessions')
-        .insert({
-          subject_id: subjectId,
-          duration: studyTimeMinutes
-        });
-        
-      if (sessionError) {
-        console.error('Error recording study session:', sessionError);
-      }
+      // Record a study session using our edge function
+      await supabase.functions.invoke("insert_study_session", {
+        body: {
+          p_subject_id: subjectId,
+          p_duration: studyTimeMinutes
+        }
+      });
     } else {
-      // Direct update to user_progress if no study time
-      const { error } = await supabase
-        .from('user_progress')
-        .upsert({
+      // Direct REST API call to update user_progress if no study time
+      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          user_id: userData.user.id,
           subject_id: subjectId,
           progress_percentage: progress,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,subject_id'
-        });
-        
-      if (error) {
-        console.error('Error updating subject progress:', error);
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Error updating subject progress:', await response.text());
       }
       
       // Record in history
-      const { error: historyError } = await supabase
-        .from('progress_history')
-        .insert({
+      const historyResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/progress_history`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userData.user.id,
           subject_id: subjectId,
           progress_percentage: progress
-        });
-        
-      if (historyError) {
-        console.error('Error recording progress history:', historyError);
+        })
+      });
+      
+      if (!historyResponse.ok) {
+        console.error('Error recording progress history:', await historyResponse.text());
       }
     }
   } catch (error) {
@@ -276,21 +296,30 @@ export const updateTotalStudyTime = async (additionalMinutes: number): Promise<v
       return;
     }
     
-    // Update the total study time in user profile
-    const { error } = await supabase
-      .from('user_profiles')
-      .update({
-        total_study_time: additionalMinutes > 0 ? supabase.rpc('increment', { 
+    if (additionalMinutes <= 0) {
+      return;
+    }
+
+    // REST API call to update the total study time in user profile
+    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        total_study_time: supabase.rpc('increment', { 
           x: additionalMinutes, 
           column_name: 'total_study_time', 
           table_name: 'user_profiles' 
-        }) : undefined,
+        }),
         updated_at: new Date().toISOString()
       })
-      .eq('id', userData.user.id);
+    });
       
-    if (error) {
-      console.error('Error updating total study time:', error);
+    if (!response.ok) {
+      console.error('Error updating total study time:', await response.text());
     }
   } catch (error) {
     console.error('Error in updateTotalStudyTime:', error);
@@ -318,44 +347,56 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Fetch profile for total study time
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('total_study_time')
-      .eq('id', userData.user.id)
-      .single();
-      
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
+    const profileResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=total_study_time`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
+    
+    let profileData: any = null;
+    if (profileResponse.ok) {
+      const profileArray = await profileResponse.json();
+      profileData = profileArray[0];
     }
     
     // Fetch exams data
-    const { data: examsData, error: examsError } = await supabase
-      .from('user_exams')
-      .select('score, total_questions, subject_id')
-      .eq('user_id', userData.user.id);
-      
-    if (examsError) {
-      console.error('Error fetching exams:', examsError);
+    const examsResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_exams?user_id=eq.${userData.user.id}&select=score,total_questions,subject_id`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
+    
+    let examsData: any[] = [];
+    if (examsResponse.ok) {
+      examsData = await examsResponse.json();
     }
     
     // Fetch progress data
-    const { data: progressData, error: progressError } = await supabase
-      .from('user_progress')
-      .select('subject_id, progress_percentage')
-      .eq('user_id', userData.user.id);
-      
-    if (progressError) {
-      console.error('Error fetching progress:', progressError);
+    const progressResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress?user_id=eq.${userData.user.id}&select=subject_id,progress_percentage`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
+    
+    let progressData: any[] = [];
+    if (progressResponse.ok) {
+      progressData = await progressResponse.json();
     }
     
     // Fetch activities for most active subject
-    const { data: activitiesData, error: activitiesError } = await supabase
-      .from('user_activities')
-      .select('subject_id')
-      .eq('user_id', userData.user.id);
-      
-    if (activitiesError) {
-      console.error('Error fetching activities:', activitiesError);
+    const activitiesResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_activities?user_id=eq.${userData.user.id}&select=subject_id`, {
+      headers: {
+        'apikey': supabase.supabaseKey,
+        'Authorization': `Bearer ${supabase.supabaseKey}`
+      }
+    });
+    
+    let activitiesData: any[] = [];
+    if (activitiesResponse.ok) {
+      activitiesData = await activitiesResponse.json();
     }
     
     // Calculate stats
@@ -374,11 +415,11 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Get study time
-    const studyTime = profileData?.total_study_time || 0;
+    const studyTime = (profileData?.total_study_time) || 0;
     
     // Find most active subject by counting activities
     const subjectActivityCount: Record<string, number> = {};
-    if (activitiesData) {
+    if (activitiesData && activitiesData.length > 0) {
       activitiesData.forEach(activity => {
         if (activity.subject_id) {
           subjectActivityCount[activity.subject_id] = (subjectActivityCount[activity.subject_id] || 0) + 1;
@@ -443,27 +484,15 @@ export const syncExamsToDatabase = async (exams: any[]): Promise<void> => {
       const score = typeof exam.score === 'number' ? exam.score : 0;
       const totalQuestions = typeof exam.totalQuestions === 'number' ? exam.totalQuestions : 0;
       
-      // Check if exam exists by its local ID
-      const { data: existingExam } = await supabase
-        .from('user_exams')
-        .select('id')
-        .eq('id', exam.id)
-        .maybeSingle();
-        
-      if (!existingExam) {
-        // Insert into user_exams table
-        await supabase
-          .from('user_exams')
-          .insert({
-            id: exam.id,  // Use the same ID to avoid duplicates
-            user_id: userData.user.id,
-            subject_id: exam.subject,
-            score: score,
-            total_questions: totalQuestions,
-            completed_at: exam.date || new Date().toISOString()
-          })
-          .select();
-      }
+      // Use edge function to insert the exam
+      await supabase.functions.invoke("insert_user_exam", {
+        body: { 
+          p_subject_id: exam.subject,
+          p_score: score,
+          p_total_questions: totalQuestions,
+          id: exam.id  // Pass the local ID to avoid duplicates
+        }
+      });
     }
   } catch (error) {
     console.error('Error syncing exams to database:', error);

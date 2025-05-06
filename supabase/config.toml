@@ -61,3 +61,6 @@ gcp_jwt_path = "supabase/gcloud.json"
 
 [functions]
 database-helpers = { verify_jwt = false }
+insert_user_exam = { verify_jwt = true }
+insert_study_session = { verify_jwt = true }
+insert_user_activity = { verify_jwt = true }

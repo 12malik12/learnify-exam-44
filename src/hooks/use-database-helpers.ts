@@ -12,7 +12,10 @@ export const useDatabaseHelpers = () => {
   const deployHelperFunctions = useCallback(async () => {
     setIsDeploying(true);
     try {
-      const { data, error } = await supabase.functions.invoke('database-helpers');
+      const { data, error } = await supabase.functions.invoke('database-helpers', {
+        body: { action: 'deploy' },
+        functionName: 'deploy',
+      });
       
       if (error) {
         console.error('Failed to deploy database helpers:', error);
