@@ -20,12 +20,14 @@ import {
   User,
   Loader2,
   AlertCircle,
-  Info
+  Info,
+  Database
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { subjects } from "@/utils/subjects";
 import { useUserData } from "@/hooks/use-user-data";
+import { useDatabaseHelpers } from "@/hooks/use-database-helpers";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -44,11 +46,21 @@ const Profile = () => {
     isUsingLocalData
   } = useUserData();
   
+  const { isDeploying, deployHelperFunctions } = useDatabaseHelpers();
+  
   const handleRefresh = async () => {
     toast.promise(refreshData(), {
       loading: "Refreshing your profile data...",
       success: "Profile data updated successfully",
       error: "Failed to refresh data"
+    });
+  };
+  
+  const handleDeploy = async () => {
+    toast.promise(deployHelperFunctions(), {
+      loading: "Setting up database helpers...",
+      success: "Database helpers configured successfully",
+      error: "Failed to set up database helpers"
     });
   };
   
@@ -159,7 +171,7 @@ const Profile = () => {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="w-[200px] text-xs">
-                              Using local data. Connect Supabase to enable persistent profiles.
+                              Using local data. Setup database helpers to enable persistent profiles.
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -172,8 +184,11 @@ const Profile = () => {
               </div>
               
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-9" onClick={handleRefresh}>
-                  <RefreshCw className="mr-2 w-4 h-4" /> Refresh Data
+                <Button variant="outline" size="sm" className="h-9" onClick={handleRefresh} disabled={isLoading}>
+                  <RefreshCw className={`mr-2 w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Data
+                </Button>
+                <Button variant="outline" size="sm" className="h-9" onClick={handleDeploy} disabled={isDeploying}>
+                  <Database className={`mr-2 w-4 h-4 ${isDeploying ? 'animate-spin' : ''}`} /> Setup Database Helpers
                 </Button>
                 <Button variant="outline" size="sm" className="h-9">
                   <Settings className="w-4 h-4" />

@@ -16,9 +16,8 @@ export const recordExamCompletion = async (
     // Insert directly to our user_exams table
     // This will trigger our database functions to update progress and activities
     try {
-      // Need to use raw SQL query as a workaround for TypeScript errors
-      // since the types don't know about our new tables
-      const { error } = await supabase.rpc('insert_user_exam', { 
+      // Use the RPC function we created
+      const { data, error } = await supabase.rpc('insert_user_exam', { 
         p_subject_id: subjectId,
         p_score: score,
         p_total_questions: totalQuestions
@@ -58,9 +57,8 @@ export const recordTopicStarted = async (
   try {
     // Record a small study session (5 minutes) to trigger our database functions
     try {
-      // Need to use raw SQL query as a workaround for TypeScript errors
-      // since the types don't know about our new tables
-      const { error } = await supabase.rpc('insert_study_session', {
+      // Use the RPC function we created
+      const { data, error } = await supabase.rpc('insert_study_session', {
         p_subject_id: subjectId,
         p_duration: 5
       });
@@ -94,11 +92,10 @@ export const recordResourceDownloaded = async (
   resourceType: string
 ) => {
   try {
-    // Use our user_activities table directly
+    // Use our user_activities table directly through RPC
     try {
-      // Need to use raw SQL query as a workaround for TypeScript errors
-      // since the types don't know about our new tables
-      const { error } = await supabase.rpc('insert_user_activity', {
+      // Use the RPC function we created
+      const { data, error } = await supabase.rpc('insert_user_activity', {
         p_activity_type: 'resource_downloaded',
         p_subject_id: subjectId,
         p_title: resourceTitle,
@@ -125,11 +122,10 @@ export const recordStudySession = async (
   durationMinutes: number
 ) => {
   try {
-    // Insert study session into our database
+    // Insert study session into our database using RPC
     try {
-      // Need to use raw SQL query as a workaround for TypeScript errors
-      // since the types don't know about our new tables
-      const { error } = await supabase.rpc('insert_study_session', {
+      // Use the RPC function we created
+      const { data, error } = await supabase.rpc('insert_study_session', {
         p_subject_id: subjectId,
         p_duration: durationMinutes
       });
