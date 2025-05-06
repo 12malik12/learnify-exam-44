@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -141,10 +142,10 @@ const DatabaseHelperSetup = () => {
   );
 };
 
-const App = () => {
+// Wrap the app content in a function component to ensure React context is available
+const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
   
-  // Note: Now we check if network is online during initialization
   useEffect(() => {
     const handleOnlineStatus = () => {
       console.log(`Network status changed: ${navigator.onLine ? 'Online' : 'Offline'}`);
@@ -163,11 +164,47 @@ const App = () => {
       window.removeEventListener('offline', handleOnlineStatus);
     };
   }, []);
-  
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
 
+  return (
+    <>
+      {showSplash ? (
+        <SplashScreen onFinish={() => setShowSplash(false)} />
+      ) : (
+        <BrowserRouter>
+          <BackButtonHandler />
+          <NetworkStatusBanner />
+          <Routes>
+            {/* Public route */}
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+            
+            {/* Protected routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/subjects" element={<Subjects />} />
+              <Route path="/subjects/:subjectId" element={<Subjects />} />
+              <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
+              <Route path="/exam" element={<Exam />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/performance" element={<Performance />} />
+              <Route path="/ai-assistant" element={<AIAssistant />} />
+            </Route>
+            
+            {/* Admin-only routes */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<Admin />} />
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <DatabaseHelperSetup />
+        </BrowserRouter>
+      )}
+    </>
+  );
+};
+
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -176,35 +213,7 @@ const App = () => {
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
-                <BackButtonHandler />
-                <NetworkStatusBanner />
-                <Routes>
-                  {/* Public route */}
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/unauthorized" element={<Unauthorized />} />
-                  
-                  {/* Protected routes */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/subjects" element={<Subjects />} />
-                    <Route path="/subjects/:subjectId" element={<Subjects />} />
-                    <Route path="/subjects/:subjectId/resources" element={<SubjectResources />} />
-                    <Route path="/exam" element={<Exam />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/performance" element={<Performance />} />
-                    <Route path="/ai-assistant" element={<AIAssistant />} />
-                  </Route>
-                  
-                  {/* Admin-only routes */}
-                  <Route element={<AdminRoute />}>
-                    <Route path="/admin" element={<Admin />} />
-                  </Route>
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <DatabaseHelperSetup />
-              </BrowserRouter>
+              <AppContent />
             </TooltipProvider>
           </LanguageProvider>
         </AppProvider>
