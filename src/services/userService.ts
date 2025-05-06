@@ -2,6 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { subjects } from "@/utils/subjects";
 
+// Constants for API access
+const SUPABASE_URL = "https://toigsarjwwediuelpxvi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvaWdzYXJqd3dlZGl1ZWxweHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE1MjEyNTUsImV4cCI6MjA1NzA5NzI1NX0.FRc7qqt5Q76k1EPGAdYAQh51Wbmg2wzED2uLJVuhaas";
+
 export interface UserProfile {
   id: string;
   display_name: string;
@@ -45,10 +49,10 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
     }
     
     // Using REST API call directly to avoid TypeScript type issues
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=*`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=*`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -85,10 +89,10 @@ export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> =
     }
     
     // Using REST API call directly to avoid TypeScript type issues
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_activities?user_id=eq.${userData.user.id}&order=created_at.desc&limit=${limit}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/user_activities?user_id=eq.${userData.user.id}&order=created_at.desc&limit=${limit}`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -134,10 +138,10 @@ export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]>
     }
     
     // Using REST API call directly to avoid TypeScript type issues
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress?user_id=eq.${userData.user.id}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/user_progress?user_id=eq.${userData.user.id}`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -148,10 +152,10 @@ export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]>
     const data = await response.json();
     
     // Get study sessions for study time calculation
-    const studyResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/study_sessions?user_id=eq.${userData.user.id}&select=subject_id,duration`, {
+    const studyResponse = await fetch(`${SUPABASE_URL}/rest/v1/study_sessions?user_id=eq.${userData.user.id}&select=subject_id,duration`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -243,11 +247,11 @@ export const updateSubjectProgress = async (
       });
     } else {
       // Direct REST API call to update user_progress if no study time
-      const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress`, {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/user_progress`, {
         method: 'POST',
         headers: {
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates'
         },
@@ -264,11 +268,11 @@ export const updateSubjectProgress = async (
       }
       
       // Record in history
-      const historyResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/progress_history`, {
+      const historyResponse = await fetch(`${SUPABASE_URL}/rest/v1/progress_history`, {
         method: 'POST',
         headers: {
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -301,19 +305,15 @@ export const updateTotalStudyTime = async (additionalMinutes: number): Promise<v
     }
 
     // REST API call to update the total study time in user profile
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userData.user.id}`, {
       method: 'PATCH',
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`,
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        total_study_time: supabase.rpc('increment', { 
-          x: additionalMinutes, 
-          column_name: 'total_study_time', 
-          table_name: 'user_profiles' 
-        }),
+        total_study_time: parseInt(String(additionalMinutes), 10),
         updated_at: new Date().toISOString()
       })
     });
@@ -347,10 +347,10 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Fetch profile for total study time
-    const profileResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=total_study_time`, {
+    const profileResponse = await fetch(`${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${userData.user.id}&select=total_study_time`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -361,10 +361,10 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Fetch exams data
-    const examsResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_exams?user_id=eq.${userData.user.id}&select=score,total_questions,subject_id`, {
+    const examsResponse = await fetch(`${SUPABASE_URL}/rest/v1/user_exams?user_id=eq.${userData.user.id}&select=score,total_questions,subject_id`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -374,10 +374,10 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Fetch progress data
-    const progressResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_progress?user_id=eq.${userData.user.id}&select=subject_id,progress_percentage`, {
+    const progressResponse = await fetch(`${SUPABASE_URL}/rest/v1/user_progress?user_id=eq.${userData.user.id}&select=subject_id,progress_percentage`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     
@@ -387,10 +387,10 @@ export const calculateUserStats = async (): Promise<UserStats> => {
     }
     
     // Fetch activities for most active subject
-    const activitiesResponse = await fetch(`${supabase.supabaseUrl}/rest/v1/user_activities?user_id=eq.${userData.user.id}&select=subject_id`, {
+    const activitiesResponse = await fetch(`${SUPABASE_URL}/rest/v1/user_activities?user_id=eq.${userData.user.id}&select=subject_id`, {
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
       }
     });
     

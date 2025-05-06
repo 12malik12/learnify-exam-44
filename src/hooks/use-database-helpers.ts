@@ -13,8 +13,7 @@ export const useDatabaseHelpers = () => {
     setIsDeploying(true);
     try {
       const { data, error } = await supabase.functions.invoke('database-helpers', {
-        body: { action: 'deploy' },
-        functionName: 'deploy',
+        body: { action: 'deploy' }
       });
       
       if (error) {
