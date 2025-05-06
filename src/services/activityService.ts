@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { recordUserActivity, updateSubjectProgress, updateTotalStudyTime } from "./userService";
+import { recordUserActivity } from "./userService";
 
 // Record exam completion
 export const recordExamCompletion = async (
@@ -13,29 +13,33 @@ export const recordExamCompletion = async (
     // Calculate score percentage
     const scorePercentage = Math.round((score / totalQuestions) * 100);
     
-    // Record the activity
+    // Insert directly to our user_exams table
+    // This will trigger our database functions to update progress and activities
     try {
-      await recordUserActivity(
-        'exam_completed',
-        examTitle,
-        subjectId,
-        { 
-          score: scorePercentage, 
-          totalQuestions,
-          completed: true
-        }
-      );
+      const { error } = await supabase
+        .from('user_exams')
+        .insert({
+          subject_id: subjectId,
+          score,
+          total_questions: totalQuestions
+        });
+        
+      if (error) {
+        console.error('Failed to insert exam into database:', error);
+        // Fallback to the activity record if database insert failed
+        await recordUserActivity(
+          'exam_completed',
+          examTitle,
+          subjectId,
+          { 
+            score: scorePercentage, 
+            totalQuestions,
+            completed: true
+          }
+        );
+      }
     } catch (error) {
-      console.log('Failed to record activity in Supabase, will use local storage');
-      // The AppContext will handle storing in localStorage
-    }
-    
-    // Update subject progress
-    try {
-      // For simplicity, we'll update progress based on exam score
-      await updateSubjectProgress(subjectId, scorePercentage, 30); // Assuming 30 minutes per exam
-    } catch (error) {
-      console.log('Failed to update progress in Supabase, will use local storage');
+      console.log('Failed to record exam in Supabase, will use local storage');
       // The AppContext will handle storing in localStorage
     }
     
@@ -52,24 +56,28 @@ export const recordTopicStarted = async (
   topicTitle: string
 ) => {
   try {
-    // Record the activity
+    // Record a small study session (5 minutes) to trigger our database functions
     try {
-      await recordUserActivity(
-        'topic_started',
-        topicTitle,
-        subjectId,
-        { started: true }
-      );
+      const { error } = await supabase
+        .from('study_sessions')
+        .insert({
+          subject_id: subjectId,
+          duration: 5
+        });
+        
+      if (error) {
+        console.error('Failed to insert study session:', error);
+        // Fallback to activity record
+        await recordUserActivity(
+          'topic_started',
+          topicTitle,
+          subjectId,
+          { started: true }
+        );
+      }
     } catch (error) {
       console.log('Failed to record topic activity in Supabase, will use local storage');
       // The AppContext will handle storing in localStorage
-    }
-    
-    // Update study time
-    try {
-      await updateTotalStudyTime(5); // Add 5 minutes for starting a topic
-    } catch (error) {
-      console.log('Failed to update study time in Supabase, will use local storage');
     }
     
     return true;
@@ -86,14 +94,20 @@ export const recordResourceDownloaded = async (
   resourceType: string
 ) => {
   try {
-    // Record the activity
+    // Use our user_activities table directly
     try {
-      await recordUserActivity(
-        'resource_downloaded',
-        resourceTitle,
-        subjectId,
-        { type: resourceType }
-      );
+      const { error } = await supabase
+        .from('user_activities')
+        .insert({
+          activity_type: 'resource_downloaded',
+          subject_id: subjectId,
+          title: resourceTitle,
+          details: { type: resourceType }
+        });
+        
+      if (error) {
+        console.error('Failed to record resource download:', error);
+      }
     } catch (error) {
       console.log('Failed to record resource download in Supabase, will use local storage');
     }
@@ -111,9 +125,18 @@ export const recordStudySession = async (
   durationMinutes: number
 ) => {
   try {
-    // Update subject progress
+    // Insert study session into our database
     try {
-      await updateSubjectProgress(subjectId, 0, durationMinutes);
+      const { error } = await supabase
+        .from('study_sessions')
+        .insert({
+          subject_id: subjectId,
+          duration: durationMinutes
+        });
+        
+      if (error) {
+        console.error('Failed to record study session:', error);
+      }
     } catch (error) {
       console.log('Failed to record study session in Supabase, will use local storage');
     }
