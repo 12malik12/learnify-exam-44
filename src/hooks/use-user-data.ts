@@ -60,7 +60,7 @@ export const useUserData = () => {
           
           // Map recent exams to activity format - only for current user
           // NOTE: Check if the exam's user ID matches the current user's ID
-          // If userId doesn't exist, assume the exam belongs to the current user
+          // If user_id doesn't exist, assume the exam belongs to the current user
           const localActivities: UserActivity[] = recentExams
             .filter(exam => (!exam.user_id) || exam.user_id === user.id)
             .map(exam => ({

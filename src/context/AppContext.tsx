@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { subjects, Subject } from "@/utils/subjects";
 import { useAuth } from "@/context/AuthContext";
+import { syncExamsToDatabase } from "@/services/userService";
 
 interface AppContextType {
   loading: boolean;
@@ -13,7 +14,7 @@ interface AppContextType {
     score: number;
     date: string;
     totalQuestions: number;
-    user_id?: string;  // Add user_id field to track exam ownership
+    user_id?: string;  // Track exam ownership
     offlineGenerated?: boolean;
   }[];
   setActiveSubject: (subject: Subject | null) => void;
@@ -56,7 +57,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       score: number;
       date: string;
       totalQuestions: number;
-      user_id?: string;  // Add user_id field to track exam ownership
+      user_id?: string;  // Track exam ownership
       offlineGenerated?: boolean;
     }[]
   >([]);
@@ -91,6 +92,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
+  // Sync exams to database when authenticated
+  useEffect(() => {
+    if (user && recentExams.length > 0) {
+      syncExamsToDatabase(recentExams).catch(console.error);
+    }
+  }, [user, recentExams]);
+
   // Update subject progress
   const updateSubjectProgress = (subjectId: string, progress: number) => {
     setSubjectProgress((prev) => {
@@ -120,6 +128,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setRecentExams((prev) => {
       const updated = [newExam, ...prev].slice(0, 10); // Keep only 10 most recent
       localStorage.setItem("recentExams", JSON.stringify(updated));
+
+      // If user is authenticated, sync this exam to the database
+      if (user) {
+        syncExamsToDatabase([newExam]).catch(console.error);
+      }
+
       return updated;
     });
   };
