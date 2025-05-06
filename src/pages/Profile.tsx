@@ -21,7 +21,8 @@ import {
   Loader2,
   AlertCircle,
   Info,
-  Database
+  Database,
+  RotateCcw
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -30,6 +31,17 @@ import { useUserData } from "@/hooks/use-user-data";
 import { useDatabaseHelpers } from "@/hooks/use-database-helpers";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -46,7 +58,7 @@ const Profile = () => {
     isUsingLocalData
   } = useUserData();
   
-  const { isDeploying, deployHelperFunctions } = useDatabaseHelpers();
+  const { isDeploying, deployHelperFunctions, isResetting, resetUserProfile } = useDatabaseHelpers();
   
   const handleRefresh = async () => {
     toast.promise(refreshData(), {
@@ -62,6 +74,14 @@ const Profile = () => {
       success: "Database helpers configured successfully",
       error: "Failed to set up database helpers"
     });
+  };
+  
+  const handleReset = async () => {
+    const success = await resetUserProfile();
+    if (success) {
+      // After reset, refresh the data
+      await refreshData();
+    }
   };
   
   if (isLoading) {
@@ -183,13 +203,37 @@ const Profile = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" className="h-9" onClick={handleRefresh} disabled={isLoading}>
                   <RefreshCw className={`mr-2 w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Data
                 </Button>
                 <Button variant="outline" size="sm" className="h-9" onClick={handleDeploy} disabled={isDeploying}>
                   <Database className={`mr-2 w-4 h-4 ${isDeploying ? 'animate-spin' : ''}`} /> Setup Database Helpers
                 </Button>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9" disabled={isResetting}>
+                      <RotateCcw className={`mr-2 w-4 h-4 ${isResetting ? 'animate-spin' : ''}`} /> Reset Profile
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will reset all your profile data, including activities, progress, and study sessions.
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleReset}>
+                        Reset Profile
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
                 <Button variant="outline" size="sm" className="h-9">
                   <Settings className="w-4 h-4" />
                 </Button>
