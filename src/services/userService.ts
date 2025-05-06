@@ -65,10 +65,17 @@ export const fetchUserProfile = async (): Promise<UserProfile | null> => {
 // Fetch user activities
 export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> => {
   try {
-    // Use more aggressive type assertion
+    // Get current user ID
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      return [];
+    }
+    
+    // Use more aggressive type assertion and filter by user_id
     const { data, error } = await (supabase
       .from('user_activities' as any)
       .select('*')
+      .eq('user_id', userData.user.id)
       .order('created_at', { ascending: false })
       .limit(limit) as any);
     
@@ -87,10 +94,17 @@ export const fetchUserActivities = async (limit = 10): Promise<UserActivity[]> =
 // Fetch user subject progress
 export const fetchUserSubjectProgress = async (): Promise<UserSubjectProgress[]> => {
   try {
-    // Use more aggressive type assertion
+    // Get current user ID
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      return [];
+    }
+    
+    // Use more aggressive type assertion and filter by user_id
     const { data, error } = await (supabase
       .from('user_subject_progress' as any)
       .select('*')
+      .eq('user_id', userData.user.id)
       .order('last_activity', { ascending: false }) as any);
     
     if (error) {
@@ -138,11 +152,19 @@ export const updateSubjectProgress = async (
   studyTimeMinutes = 0
 ): Promise<void> => {
   try {
+    // Get current user ID
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      console.error('No authenticated user found when updating subject progress');
+      return;
+    }
+    
     // First check if the progress entry exists
     const { data, error: fetchError } = await (supabase
       .from('user_subject_progress' as any)
       .select('*')
       .eq('subject_id', subjectId)
+      .eq('user_id', userData.user.id)
       .maybeSingle() as any);
     
     if (fetchError) {
@@ -231,7 +253,7 @@ export interface UserStats {
 
 export const calculateUserStats = async (): Promise<UserStats> => {
   try {
-    // Fetch profile, activities, and progress
+    // Fetch profile, activities, and progress - these are already filtered by user ID
     const profile = await fetchUserProfile();
     const activities = await fetchUserActivities(100);
     const progress = await fetchUserSubjectProgress();

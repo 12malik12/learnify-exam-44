@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContext } from '@/context/AppContext';
@@ -58,53 +57,59 @@ export const useUserData = () => {
             email: user.email || '',
           };
           
-          // Map recent exams to activity format
-          const localActivities: UserActivity[] = recentExams.map(exam => ({
-            id: exam.id,
-            user_id: user.id,
-            activity_type: 'exam_completed',
-            subject_id: exam.subject,
-            title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
-            details: {
-              score: exam.score,
-              totalQuestions: exam.totalQuestions
-            },
-            created_at: exam.date
-          }));
+          // Map recent exams to activity format - only for current user
+          const localActivities: UserActivity[] = recentExams
+            .filter(exam => exam.userId === user.id) // Filter by current user ID
+            .map(exam => ({
+              id: exam.id,
+              user_id: user.id,
+              activity_type: 'exam_completed',
+              subject_id: exam.subject,
+              title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
+              details: {
+                score: exam.score,
+                totalQuestions: exam.totalQuestions
+              },
+              created_at: exam.date
+            }));
           
-          // Map local subject progress to progress format
-          const localProgressData: UserSubjectProgress[] = Object.entries(localSubjectProgress).map(([subjectId, progress]) => ({
-            id: subjectId,
-            user_id: user.id,
-            subject_id: subjectId,
-            progress: progress,
-            study_time: 0,
-            last_activity: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }));
+          // Map local subject progress to progress format - only for current user
+          const localProgressData: UserSubjectProgress[] = Object.entries(localSubjectProgress)
+            .filter(([_, __]) => true) // We don't have user ID in local progress, assuming all belong to current user
+            .map(([subjectId, progress]) => ({
+              id: subjectId,
+              user_id: user.id,
+              subject_id: subjectId,
+              progress: progress,
+              study_time: 0,
+              last_activity: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }));
           
-          // Calculate local stats
+          // Calculate local stats - using filtered data
           const localStats: UserStats = {
-            totalExams: recentExams.length,
-            averageScore: recentExams.length > 0 
-              ? recentExams.reduce((sum, exam) => sum + exam.score, 0) / recentExams.length 
+            totalExams: localActivities.length,
+            averageScore: localActivities.length > 0 
+              ? localActivities.reduce((sum, exam) => sum + (exam.details?.score || 0), 0) / localActivities.length 
               : 0,
             studyTime: 0, // We don't track this in local storage
             mostActiveSubject: { 
               id: '', 
               name: 'None' 
             },
-            overallProgress: Object.values(localSubjectProgress).length > 0
-              ? Object.values(localSubjectProgress).reduce((sum, p) => sum + p, 0) / Object.values(localSubjectProgress).length
+            overallProgress: localProgressData.length > 0
+              ? localProgressData.reduce((sum, p) => sum + p.progress, 0) / localProgressData.length
               : 0
           };
           
-          // Find most active subject based on exam count
-          if (recentExams.length > 0) {
+          // Find most active subject based on exam count - filtered by user
+          if (localActivities.length > 0) {
             const subjectCounts: Record<string, number> = {};
-            recentExams.forEach(exam => {
-              subjectCounts[exam.subject] = (subjectCounts[exam.subject] || 0) + 1;
+            localActivities.forEach(activity => {
+              if (activity.subject_id) {
+                subjectCounts[activity.subject_id] = (subjectCounts[activity.subject_id] || 0) + 1;
+              }
             });
             
             let maxCount = 0;
@@ -130,8 +135,7 @@ export const useUserData = () => {
           setProgress(localProgressData);
           setStats(localStats);
         } else {
-          // Use Supabase data
-          // Ensure profile has email if available
+          // Use Supabase data - already filtered by user ID in the service functions
           if (profileData && !profileData.email && user.email) {
             profileData.email = user.email;
           }
@@ -146,7 +150,7 @@ export const useUserData = () => {
         setError('Failed to load user data. Using local data instead.');
         setUseLocalData(true);
         
-        // Fall back to local data
+        // Fall back to local data - filtered by current user
         const localProfile: UserProfile = {
           id: user.id,
           display_name: '',
@@ -156,34 +160,39 @@ export const useUserData = () => {
           email: user.email || '',
         };
         
-        const localActivities: UserActivity[] = recentExams.map(exam => ({
-          id: exam.id,
-          user_id: user.id,
-          activity_type: 'exam_completed',
-          subject_id: exam.subject,
-          title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
-          details: {
-            score: exam.score,
-            totalQuestions: exam.totalQuestions
-          },
-          created_at: exam.date
-        }));
+        // Filter by current user ID
+        const localActivities: UserActivity[] = recentExams
+          .filter(exam => exam.userId === user.id)
+          .map(exam => ({
+            id: exam.id,
+            user_id: user.id,
+            activity_type: 'exam_completed',
+            subject_id: exam.subject,
+            title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
+            details: {
+              score: exam.score,
+              totalQuestions: exam.totalQuestions
+            },
+            created_at: exam.date
+          }));
         
-        const localProgressData: UserSubjectProgress[] = Object.entries(localSubjectProgress).map(([subjectId, progress]) => ({
-          id: subjectId,
-          user_id: user.id,
-          subject_id: subjectId,
-          progress: progress,
-          study_time: 0,
-          last_activity: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
+        const localProgressData: UserSubjectProgress[] = Object.entries(localSubjectProgress)
+          .filter(([_, __]) => true) // We don't have user ID in local progress, assuming all belong to current user
+          .map(([subjectId, progress]) => ({
+            id: subjectId,
+            user_id: user.id,
+            subject_id: subjectId,
+            progress: progress,
+            study_time: 0,
+            last_activity: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }));
         
         const localStats: UserStats = {
-          totalExams: recentExams.length,
-          averageScore: recentExams.length > 0 
-            ? recentExams.reduce((sum, exam) => sum + exam.score, 0) / recentExams.length 
+          totalExams: localActivities.length,
+          averageScore: localActivities.length > 0 
+            ? localActivities.reduce((sum, act) => sum + (act.details?.score || 0), 0) / localActivities.length 
             : 0,
           studyTime: 0,
           mostActiveSubject: { 
@@ -195,11 +204,13 @@ export const useUserData = () => {
             : 0
         };
         
-        // Find most active subject
-        if (recentExams.length > 0) {
+        // Find most active subject - filtered by user
+        if (localActivities.length > 0) {
           const subjectCounts: Record<string, number> = {};
-          recentExams.forEach(exam => {
-            subjectCounts[exam.subject] = (subjectCounts[exam.subject] || 0) + 1;
+          localActivities.forEach(activity => {
+            if (activity.subject_id) {
+              subjectCounts[activity.subject_id] = (subjectCounts[activity.subject_id] || 0) + 1;
+            }
           });
           
           let maxCount = 0;
@@ -254,18 +265,21 @@ export const useUserData = () => {
             email: user?.email || '',
           };
           
-          const localActivities: UserActivity[] = recentExams.map(exam => ({
-            id: exam.id,
-            user_id: user?.id || '',
-            activity_type: 'exam_completed',
-            subject_id: exam.subject,
-            title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
-            details: {
-              score: exam.score,
-              totalQuestions: exam.totalQuestions
-            },
-            created_at: exam.date
-          }));
+          // Filter by current user ID
+          const localActivities: UserActivity[] = recentExams
+            .filter(exam => exam.userId === user?.id)
+            .map(exam => ({
+              id: exam.id,
+              user_id: user?.id || '',
+              activity_type: 'exam_completed',
+              subject_id: exam.subject,
+              title: `${subjects.find(s => s.id === exam.subject)?.name || 'Unknown'} Exam`,
+              details: {
+                score: exam.score,
+                totalQuestions: exam.totalQuestions
+              },
+              created_at: exam.date
+            }));
           
           const localProgressData: UserSubjectProgress[] = Object.entries(localSubjectProgress).map(([subjectId, progress]) => ({
             id: subjectId,
@@ -279,9 +293,9 @@ export const useUserData = () => {
           }));
           
           const localStats: UserStats = {
-            totalExams: recentExams.length,
-            averageScore: recentExams.length > 0 
-              ? recentExams.reduce((sum, exam) => sum + exam.score, 0) / recentExams.length 
+            totalExams: localActivities.length,
+            averageScore: localActivities.length > 0 
+              ? localActivities.reduce((sum, act) => sum + (act.details?.score || 0), 0) / localActivities.length 
               : 0,
             studyTime: 0,
             mostActiveSubject: { 
@@ -293,11 +307,13 @@ export const useUserData = () => {
               : 0
           };
           
-          // Find most active subject
-          if (recentExams.length > 0) {
+          // Find most active subject - filtered by user
+          if (localActivities.length > 0) {
             const subjectCounts: Record<string, number> = {};
-            recentExams.forEach(exam => {
-              subjectCounts[exam.subject] = (subjectCounts[exam.subject] || 0) + 1;
+            localActivities.forEach(activity => {
+              if (activity.subject_id) {
+                subjectCounts[activity.subject_id] = (subjectCounts[activity.subject_id] || 0) + 1;
+              }
             });
             
             let maxCount = 0;
@@ -324,7 +340,7 @@ export const useUserData = () => {
           setStats(localStats);
           setError(null);
         } else {
-          // Try using Supabase data
+          // Try using Supabase data - already filtered by user ID in the service functions
           const [profileData, activitiesData, progressData, statsData] = await Promise.all([
             fetchUserProfile(),
             fetchUserActivities(),
