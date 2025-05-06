@@ -8,15 +8,19 @@ interface SplashScreenProps {
 }
 
 const SplashScreen = ({ onFinish, duration = 2000 }: SplashScreenProps) => {
+  // Initialize state within the component body
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      onFinish();
-    }, duration);
+    // Make sure we're in a browser environment before setting up the timeout
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        setVisible(false);
+        onFinish();
+      }, duration);
 
-    return () => clearTimeout(timer);
+      return () => clearTimeout(timer);
+    }
   }, [duration, onFinish]);
 
   if (!visible) return null;
