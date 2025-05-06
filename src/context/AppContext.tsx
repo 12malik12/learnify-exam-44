@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { subjects, Subject } from "@/utils/subjects";
+import { useAuth } from "@/context/AuthContext";
 
 interface AppContextType {
   loading: boolean;
@@ -12,6 +13,7 @@ interface AppContextType {
     score: number;
     date: string;
     totalQuestions: number;
+    user_id?: string;  // Add user_id field to track exam ownership
     offlineGenerated?: boolean;
   }[];
   setActiveSubject: (subject: Subject | null) => void;
@@ -41,6 +43,7 @@ export const useAppContext = () => useContext(AppContext);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
   const [subjectProgress, setSubjectProgress] = useState<Record<string, number>>(
@@ -53,6 +56,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       score: number;
       date: string;
       totalQuestions: number;
+      user_id?: string;  // Add user_id field to track exam ownership
       offlineGenerated?: boolean;
     }[]
   >([]);
@@ -109,6 +113,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       score,
       date: new Date().toISOString(),
       totalQuestions,
+      user_id: user?.id,  // Store the user ID with the exam
       offlineGenerated
     };
 
