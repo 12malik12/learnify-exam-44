@@ -16,13 +16,13 @@ export const recordExamCompletion = async (
     // Insert directly to our user_exams table
     // This will trigger our database functions to update progress and activities
     try {
-      const { error } = await supabase
-        .from('user_exams')
-        .insert({
-          subject_id: subjectId,
-          score,
-          total_questions: totalQuestions
-        });
+      // Need to use raw SQL query as a workaround for TypeScript errors
+      // since the types don't know about our new tables
+      const { error } = await supabase.rpc('insert_user_exam', { 
+        p_subject_id: subjectId,
+        p_score: score,
+        p_total_questions: totalQuestions
+      });
         
       if (error) {
         console.error('Failed to insert exam into database:', error);
@@ -58,12 +58,12 @@ export const recordTopicStarted = async (
   try {
     // Record a small study session (5 minutes) to trigger our database functions
     try {
-      const { error } = await supabase
-        .from('study_sessions')
-        .insert({
-          subject_id: subjectId,
-          duration: 5
-        });
+      // Need to use raw SQL query as a workaround for TypeScript errors
+      // since the types don't know about our new tables
+      const { error } = await supabase.rpc('insert_study_session', {
+        p_subject_id: subjectId,
+        p_duration: 5
+      });
         
       if (error) {
         console.error('Failed to insert study session:', error);
@@ -96,14 +96,14 @@ export const recordResourceDownloaded = async (
   try {
     // Use our user_activities table directly
     try {
-      const { error } = await supabase
-        .from('user_activities')
-        .insert({
-          activity_type: 'resource_downloaded',
-          subject_id: subjectId,
-          title: resourceTitle,
-          details: { type: resourceType }
-        });
+      // Need to use raw SQL query as a workaround for TypeScript errors
+      // since the types don't know about our new tables
+      const { error } = await supabase.rpc('insert_user_activity', {
+        p_activity_type: 'resource_downloaded',
+        p_subject_id: subjectId,
+        p_title: resourceTitle,
+        p_details: JSON.stringify({ type: resourceType })
+      });
         
       if (error) {
         console.error('Failed to record resource download:', error);
@@ -127,12 +127,12 @@ export const recordStudySession = async (
   try {
     // Insert study session into our database
     try {
-      const { error } = await supabase
-        .from('study_sessions')
-        .insert({
-          subject_id: subjectId,
-          duration: durationMinutes
-        });
+      // Need to use raw SQL query as a workaround for TypeScript errors
+      // since the types don't know about our new tables
+      const { error } = await supabase.rpc('insert_study_session', {
+        p_subject_id: subjectId,
+        p_duration: durationMinutes
+      });
         
       if (error) {
         console.error('Failed to record study session:', error);
