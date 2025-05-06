@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAppContext } from '@/context/AppContext';
@@ -58,8 +59,10 @@ export const useUserData = () => {
           };
           
           // Map recent exams to activity format - only for current user
+          // NOTE: Check if the exam's user ID matches the current user's ID
+          // If userId doesn't exist, assume the exam belongs to the current user
           const localActivities: UserActivity[] = recentExams
-            .filter(exam => exam.userId === user.id) // Filter by current user ID
+            .filter(exam => (!exam.user_id) || exam.user_id === user.id)
             .map(exam => ({
               id: exam.id,
               user_id: user.id,
@@ -161,8 +164,10 @@ export const useUserData = () => {
         };
         
         // Filter by current user ID
+        // NOTE: Check if the exam's user ID matches the current user's ID
+        // If user_id doesn't exist, assume the exam belongs to the current user
         const localActivities: UserActivity[] = recentExams
-          .filter(exam => exam.userId === user.id)
+          .filter(exam => (!exam.user_id) || exam.user_id === user.id)
           .map(exam => ({
             id: exam.id,
             user_id: user.id,
@@ -266,8 +271,10 @@ export const useUserData = () => {
           };
           
           // Filter by current user ID
+          // NOTE: Check if the exam's user ID matches the current user's ID
+          // If user_id doesn't exist, assume the exam belongs to the current user
           const localActivities: UserActivity[] = recentExams
-            .filter(exam => exam.userId === user?.id)
+            .filter(exam => (!exam.user_id) || exam.user_id === user?.id)
             .map(exam => ({
               id: exam.id,
               user_id: user?.id || '',
