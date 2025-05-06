@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const useDatabaseHelpers = () => {
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const deployHelperFunctions = useCallback(async () => {
     setIsDeploying(true);
@@ -44,8 +45,45 @@ export const useDatabaseHelpers = () => {
     }
   }, []);
 
+  const resetUserProfile = useCallback(async () => {
+    setIsResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('database-helpers', {
+        body: { action: 'reset_profile' }
+      });
+      
+      if (error) {
+        console.error('Failed to reset user profile:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to reset user profile data',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'User profile has been reset successfully',
+      });
+      return true;
+    } catch (error) {
+      console.error('Error resetting user profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to reset user profile data',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsResetting(false);
+    }
+  }, []);
+
   return {
     isDeploying,
-    deployHelperFunctions
+    deployHelperFunctions,
+    isResetting,
+    resetUserProfile
   };
 };
