@@ -5,30 +5,40 @@ import Navbar from "@/components/Layout/Navbar";
 import Footer from "@/components/Layout/Footer";
 import { useAppContext } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAuth } from "@/context/AuthContext"; 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PerformanceOverview from "@/components/Performance/PerformanceOverview";
 import SubjectAnalysis from "@/components/Performance/SubjectAnalysis";
 import StudyRecommendations from "@/components/Performance/StudyRecommendations";
 import { BookText, Activity, Lightbulb } from "lucide-react";
+import { useUserData } from "@/hooks/use-user-data";
 
 const Performance = () => {
   const { recentExams, subjectProgress } = useAppContext();
+  const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
+  // Get user-specific data
+  const { 
+    activities: userActivities, 
+    progress: userProgress,
+    isLoading 
+  } = useUserData();
+
   // Redirect to exams page if no exam history
   React.useEffect(() => {
-    if (recentExams.length === 0) {
+    if (recentExams.length === 0 && !isLoading) {
       navigate("/exam");
     }
-  }, [recentExams, navigate]);
+  }, [recentExams, navigate, isLoading]);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
 
-      <main className="flex-grow pt-20">
+      <main className="flex-grow pt-24 md:pt-28"> {/* Adjusted for taller navbar */}
         <section className="py-10 md:py-16 bg-secondary/30">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center text-center mb-8">
@@ -63,7 +73,7 @@ const Performance = () => {
               </TabsList>
 
               <TabsContent value="overview" className="mt-6">
-                <PerformanceOverview />
+                <PerformanceOverview userId={user?.id} />
               </TabsContent>
 
               <TabsContent value="subjects" className="mt-6">
