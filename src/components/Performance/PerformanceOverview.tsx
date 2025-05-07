@@ -18,21 +18,36 @@ import {
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, Trophy, CalendarDays, Target } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
-const PerformanceOverview = () => {
+interface PerformanceOverviewProps {
+  userId?: string;
+}
+
+const PerformanceOverview = ({ userId }: PerformanceOverviewProps) => {
   const { recentExams } = useAppContext();
   const { t, language } = useLanguage();
-
-  // Calculate overall statistics
-  const totalExams = recentExams.length;
-  const averageScore =
-    recentExams.reduce((acc, exam) => acc + (exam.score / exam.totalQuestions) * 100, 0) /
-    (totalExams || 1);
+  const { user } = useAuth();
   
-  // Format for the exam history chart
-  const examHistoryData = recentExams
+  // Filter exams to only show those belonging to the current user
+  const userExams = React.useMemo(() => {
+    return recentExams.filter(exam => {
+      // If exam has a user_id, check if it matches current user
+      // If exam doesn't have a user_id (legacy data), include it if current user matches userId prop
+      return (!exam.user_id && userId === user?.id) || (exam.user_id === userId);
+    });
+  }, [recentExams, userId, user]);
+
+  // Calculate overall statistics for user-specific exams
+  const totalExams = userExams.length;
+  const averageScore = totalExams > 0
+    ? userExams.reduce((acc, exam) => acc + (exam.score / exam.totalQuestions) * 100, 0) / totalExams
+    : 0;
+  
+  // Format for the exam history chart - user specific
+  const examHistoryData = userExams
     .slice(0, 10)
     .map((exam) => {
       const subjectName = subjects.find((s) => s.id === exam.subject)?.name || exam.subject;
@@ -45,11 +60,11 @@ const PerformanceOverview = () => {
     })
     .reverse();
 
-  // Prepare data for subject distribution pie chart
-  const subjectDistribution = recentExams.reduce((acc, exam) => {
+  // Prepare data for subject distribution pie chart - user specific
+  const subjectDistribution = userExams.reduce((acc, exam) => {
     acc[exam.subject] = (acc[exam.subject] || 0) + 1;
     return acc;
-  }, {});
+  }, {} as Record<string, number>);
 
   const pieChartData = Object.entries(subjectDistribution).map(([subject, count]) => ({
     name: subjects.find((s) => s.id === subject)?.name || subject,
@@ -99,9 +114,9 @@ const PerformanceOverview = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {recentExams.length > 0
+              {userExams.length > 0
                 ? Math.max(
-                    ...recentExams.map((exam) => Math.round((exam.score / exam.totalQuestions) * 100))
+                    ...userExams.map((exam) => Math.round((exam.score / exam.totalQuestions) * 100))
                   )
                 : 0}
               %
@@ -121,9 +136,9 @@ const PerformanceOverview = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {recentExams.length >= 2 
-                ? ((recentExams[0].score / recentExams[0].totalQuestions) > 
-                   (recentExams[1].score / recentExams[1].totalQuestions)
+              {userExams.length >= 2 
+                ? ((userExams[0].score / userExams[0].totalQuestions) > 
+                   (userExams[1].score / userExams[1].totalQuestions)
                     ? "↗️" : "↘️") 
                 : "―"}
             </div>
@@ -232,8 +247,8 @@ const PerformanceOverview = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-              {recentExams.length > 0 ? (
-                recentExams.map((exam) => {
+              {userExams.length > 0 ? (
+                userExams.map((exam) => {
                   const subjectName = subjects.find((s) => s.id === exam.subject)?.name || exam.subject;
                   const scorePercentage = Math.round((exam.score / exam.totalQuestions) * 100);
                   
