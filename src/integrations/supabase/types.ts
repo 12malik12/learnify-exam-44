@@ -126,6 +126,42 @@ export type Database = {
         }
         Relationships: []
       }
+      teachers: {
+        Row: {
+          call_link: string | null
+          created_at: string | null
+          created_by: string
+          id: string
+          name: string
+          resume_filename: string | null
+          resume_url: string | null
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          call_link?: string | null
+          created_at?: string | null
+          created_by: string
+          id?: string
+          name: string
+          resume_filename?: string | null
+          resume_url?: string | null
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          call_link?: string | null
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          name?: string
+          resume_filename?: string | null
+          resume_url?: string | null
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       test_files: {
         Row: {
           created_at: string
