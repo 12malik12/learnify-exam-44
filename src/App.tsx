@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AppProvider } from "@/context/AppContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import Subjects from "./pages/Subjects";
@@ -211,11 +212,13 @@ const App = () => {
       <AuthProvider>
         <AppProvider>
           <LanguageProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AppContent />
-            </TooltipProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <AppContent />
+              </TooltipProvider>
+            </ThemeProvider>
           </LanguageProvider>
         </AppProvider>
       </AuthProvider>
