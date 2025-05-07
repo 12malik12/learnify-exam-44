@@ -18,7 +18,7 @@ const AIAssistantButton = ({ onClick }: AIAssistantButtonProps) => {
       variant="ethiopia"
     >
       <BrainCircuit className="size-6" />
-      <span className="sr-only">{t("ai.open")}</span>
+      <span className="sr-only">{t("ai.open") || "Open AI Assistant"}</span>
     </Button>
   );
 };
