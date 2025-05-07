@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +27,7 @@ import Admin from "./pages/Admin";
 import { useDatabaseHelpers } from "./hooks/use-database-helpers";
 import { Button } from "./components/ui/button";
 import { useAuth } from "./context/AuthContext";
+import TeacherConnect from "./pages/TeacherConnect";
 
 // Custom error handler function
 const errorHandler = (error: Error) => {
@@ -188,6 +188,7 @@ const AppContent = () => {
               <Route path="/profile" element={<Profile />} />
               <Route path="/performance" element={<Performance />} />
               <Route path="/ai-assistant" element={<AIAssistant />} />
+              <Route path="/teacher-connect" element={<TeacherConnect />} />
             </Route>
             
             {/* Admin-only routes */}
