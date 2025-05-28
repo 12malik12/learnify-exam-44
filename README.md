@@ -1,69 +1,58 @@
-# Welcome to your Lovable project
+Entrance Exam Preparation App
+Overview
+This app is designed to assist grade 12 students in preparing for their entrance exams by providing a comprehensive platform for both students and teachers. It facilitates virtual study sessions, resource sharing, AI-powered exams, interactive question banks, and performance tracking to support academic success.
+Features
+For Students
 
-## Project info
+Home: View scheduled study sessions, including start time, end time, duration, and notes (e.g., a session for Mathematics on 5/28/2025 from 2:30 PM to 3:00 PM).
+Subjects: Access resources like notes and tests uploaded by teachers (read-only for students).
+Exam: Take AI-powered exams using Grok-based technology to simulate real exam conditions.
+Question Bank: Practice interactively with parsed tests uploaded by teachers.
+AI Assistance: Chat with a Grok-powered chatbot for study help and clarifications.
+Performance: View overall performance, including scores and comparisons across subjects.
+Teacher Connect: Join video call sessions hosted by teachers for live classes.
+Profile: View and manage personal user information.
+Become a Teacher: Transition into a mentor, file provider, or guider role to support peers.
 
-**URL**: https://lovable.dev/projects/ce0cb2f3-2de2-4887-9664-8bbc5c08f261
+For Teachers
 
-## How can I edit this code?
+Home: View and manage session plans for organizing study schedules.
+Subjects: Upload resources such as notes and tests for student access.
+Question Bank: Upload tests that are parsed for interactive student practice.
+Teacher Connect: Host video call sessions for live classes with students.
+Profile: Manage personal user information.
 
-There are several ways of editing your application.
+Purpose
+The app aims to streamline entrance exam preparation for grade 12 students by:
 
-**Use Lovable**
+Providing a centralized platform for study resources and session management.
+Leveraging AI (Grok-powered) for exams and interactive assistance.
+Enabling teacher-student collaboration through live sessions and resource sharing.
+Tracking student performance to identify strengths and areas for improvement.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ce0cb2f3-2de2-4887-9664-8bbc5c08f261) and start prompting.
+Usage
 
-Changes made via Lovable will be committed automatically to this repo.
+Students:
 
-**Use your preferred IDE**
+Log in to access your study sessions on the Home page.
+Explore resources in the Subjects section and practice with the Question Bank.
+Take AI-powered exams in the Exam section and seek help via AI Assistance.
+Join live classes through Teacher Connect and monitor your progress in Performance.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Teachers:
 
-Follow these steps:
+Plan and manage sessions via the Home page.
+Upload study materials and tests in the Subjects section.
+Host live classes using Teacher Connect.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+Future Improvements
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Add more interactive features to the Question Bank for personalized learning.
+Enhance the AI Assistance chatbot with subject-specific knowledge.
+Introduce detailed analytics in the Performance section for deeper insights.
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/ce0cb2f3-2de2-4887-9664-8bbc5c08f261) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Contact
+For support or feedback, reach out via the "Connect with Teacher" feature or the Profile section.
